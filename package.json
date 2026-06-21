@@ -1,0 +1,20 @@
+{
+  "name": "mbolo-sante",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@9.1.0",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "db:generate": "pnpm --filter api exec prisma generate",
+    "db:migrate": "pnpm --filter api exec prisma migrate dev",
+    "db:studio": "pnpm --filter api exec prisma studio"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "turbo": "^2.0.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "MBOLO Santé",
+    "slug": "mbolo-sante",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "mbolo",
+    "platforms": ["ios", "android"],
+    "android": {
+      "package": "com.mbolo.sante"
+    },
+    "ios": {
+      "bundleIdentifier": "com.mbolo.sante"
+    }
+  }
+}
