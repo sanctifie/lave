@@ -3,6 +3,7 @@ export enum UserRole {
   ACCOMPAGNANT = 'accompagnant',
   COURIER = 'courier',
   PARTNER_STAFF = 'partner_staff',
+  DOCTOR = 'doctor',
   ADMIN = 'admin',
 }
 
@@ -11,6 +12,18 @@ export enum PartnerType {
   KITCHEN = 'kitchen',
   DEVICE_SUPPLIER = 'device_supplier',
   TRANSPORTER = 'transporter',
+}
+
+export enum VerificationStatus {
+  PENDING_VERIFICATION = 'pending_verification',
+  PENDING_MANUAL = 'pending_manual',
+  VERIFIED = 'verified',
+  REJECTED = 'rejected',
+}
+
+export enum PrescriptionSource {
+  MANUAL = 'manual',
+  TELECONSULTATION = 'teleconsultation',
 }
 
 export enum PrescriptionType {
@@ -62,8 +75,51 @@ export enum TransactionStatus {
   FAILED = 'failed',
 }
 
+export enum AppointmentType {
+  IMMEDIATE = 'immediate',
+  SCHEDULED = 'scheduled',
+}
+
+export enum AppointmentStatus {
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+  NO_SHOW = 'no_show',
+}
+
+export enum ConsultationStatus {
+  WAITING_ROOM = 'waiting_room',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  ABANDONED = 'abandoned',
+}
+
 export enum RideType {
   HOME = 'home',
   HOSPITAL = 'hospital',
   EXAM = 'exam',
+}
+
+export enum RideStatus {
+  PENDING = 'pending',
+  ASSIGNED = 'assigned',
+  EN_ROUTE = 'en_route',
+  ARRIVED = 'arrived',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+}
+
+export enum PricingKind {
+  DELIVERY_BASE = 'delivery_base',
+  DELIVERY_PER_KM = 'delivery_per_km',
+  SERVICE_FEE = 'service_fee',
+  CONSULTATION_BASE_FEE = 'consultation_base_fee',
+  VIDEO_USD_PER_PARTICIPANT_MIN = 'video_usd_per_participant_min',
+  USD_TO_FCFA_RATE = 'usd_to_fcfa_rate',
+  PLATFORM_COMMISSION_PCT = 'platform_commission_pct',
+  MEAL_DELIVERY_FEE = 'meal_delivery_fee',
+  RIDE_BASE_FEE = 'ride_base_fee',
+  RIDE_PER_KM = 'ride_per_km',
 }
