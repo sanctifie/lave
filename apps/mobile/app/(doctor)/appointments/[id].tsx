@@ -1,0 +1,279 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { AppointmentStatus } from '@mbolo/shared';
+import { apiClient } from '../../../src/services/client';
+import { Button } from '../../../src/components/ui/Button';
+import { StatusBadge } from '../../../src/components/ui/StatusBadge';
+import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
+
+interface ConsultationDetail {
+  id: string;
+  patientName: string;
+  type: 'immediate' | 'scheduled';
+  scheduledAt: string | null;
+  status: string;
+  feeFcfa: number;
+  chiefComplaint: string | null;
+  videoRoomUrl: string | null;
+  prescriptionIssued: boolean;
+}
+
+export default function DoctorConsultationScreen() {
+  const { id }  = useLocalSearchParams<{ id: string }>();
+  const router  = useRouter();
+
+  const [appt, setAppt]         = useState<ConsultationDetail | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [notes, setNotes]       = useState('');
+  const [rxText, setRxText]     = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get<{ data: ConsultationDetail }>(`/appointments/${id}`);
+      const a = data.data ?? data;
+      setAppt(a);
+    } catch {
+      Alert.alert('Erreur', 'Impossible de charger la consultation.');
+      router.back();
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const startConsultation = async () => {
+    try {
+      await apiClient.post(`/appointments/${id}/start`);
+      await load();
+    } catch {
+      Alert.alert('Erreur', 'Impossible de démarrer la consultation.');
+    }
+  };
+
+  const completeWithPrescription = async () => {
+    if (!notes.trim()) { Alert.alert('', 'Ajoutez vos notes de consultation avant de terminer.'); return; }
+    setSubmitting(true);
+    try {
+      await apiClient.post(`/appointments/${id}/complete`, {
+        notes: notes.trim(),
+        prescription: rxText.trim() || null,
+      });
+      Alert.alert('Consultation terminée', 'Vos notes ont été enregistrées.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch {
+      Alert.alert('Erreur', 'Impossible de terminer la consultation.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatFcfa = (n: number) => `${n.toLocaleString('fr-FR')} FCFA`;
+
+  if (loading) return <ActivityIndicator style={styles.center} color={colors.primary} />;
+  if (!appt)   return null;
+
+  const isPending   = appt.status === AppointmentStatus.PENDING || appt.status === AppointmentStatus.CONFIRMED;
+  const isInProgress = appt.status === AppointmentStatus.IN_PROGRESS;
+  const isDone      = appt.status === AppointmentStatus.COMPLETED;
+
+  return (
+    <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <Pressable onPress={() => router.back()}><Text style={styles.back}>‹ Retour</Text></Pressable>
+        <Text style={styles.pageTitle}>Consultation</Text>
+        <StatusBadge status={appt.status as AppointmentStatus} />
+      </View>
+
+      {/* Patient card */}
+      <View style={styles.patientCard}>
+        <View style={styles.patientAvatar}>
+          <Text style={{ fontSize: 28 }}>👤</Text>
+        </View>
+        <View style={styles.patientInfo}>
+          <Text style={styles.patientName}>{appt.patientName}</Text>
+          <View style={styles.metaRow}>
+            <Text style={styles.metaItem}>
+              {appt.type === 'immediate' ? '⚡ Immédiat' : `📅 ${appt.scheduledAt ? new Date(appt.scheduledAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}`}
+            </Text>
+            <Text style={styles.metaItem}>💰 {formatFcfa(appt.feeFcfa)}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Chief complaint */}
+      {appt.chiefComplaint && (
+        <View style={styles.complaintCard}>
+          <Text style={styles.complaintLabel}>Motif de consultation</Text>
+          <Text style={styles.complaintText}>{appt.chiefComplaint}</Text>
+        </View>
+      )}
+
+      {/* Video section */}
+      {(isInProgress || isPending) && (
+        <View style={styles.videoCard}>
+          <Text style={styles.videoTitle}>📹 Vidéo consultation</Text>
+          {appt.videoRoomUrl ? (
+            <View style={styles.videoInfo}>
+              <Text style={styles.videoActive}>Session active</Text>
+              <Text style={styles.videoHint}>La fenêtre vidéo s'ouvrira dans votre navigateur.</Text>
+            </View>
+          ) : (
+            <Text style={styles.videoHint}>La session démarrera automatiquement.</Text>
+          )}
+          {isPending && (
+            <Button label="Démarrer la consultation" onPress={startConsultation} />
+          )}
+        </View>
+      )}
+
+      {/* Notes + prescription — only during/after */}
+      {(isInProgress || isDone) && (
+        <>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Notes cliniques</Text>
+            <TextInput
+              style={[styles.textArea, isDone && styles.textAreaReadonly]}
+              placeholder="Observations, diagnostics, recommandations…"
+              placeholderTextColor={colors.textDisabled}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              editable={!isDone}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Ordonnance digitale (optionnel)</Text>
+            <TextInput
+              style={[styles.textArea, isDone && styles.textAreaReadonly]}
+              placeholder="Médicaments prescrits, posologies…"
+              placeholderTextColor={colors.textDisabled}
+              value={rxText}
+              onChangeText={setRxText}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              editable={!isDone}
+            />
+          </View>
+
+          {isInProgress && (
+            <Button
+              label={submitting ? 'Enregistrement…' : 'Terminer la consultation'}
+              onPress={completeWithPrescription}
+              loading={submitting}
+              disabled={submitting}
+            />
+          )}
+        </>
+      )}
+
+      {isDone && (
+        <View style={styles.doneBox}>
+          <Text style={styles.doneIcon}>✅</Text>
+          <Text style={styles.doneText}>Consultation terminée. Dossier enregistré.</Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root:    { flex: 1, backgroundColor: colors.background },
+  content: { padding: spacing.md, gap: spacing.lg, paddingBottom: spacing.xxl },
+  center:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: spacing.xl,
+  },
+  back:      { ...typography.bodyMedium, color: colors.primary },
+  pageTitle: { ...typography.h3, color: colors.text },
+
+  patientCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    ...shadows.card,
+  },
+  patientAvatar: {
+    width: 64, height: 64,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySurface,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  patientInfo:  { flex: 1, gap: spacing.xs },
+  patientName:  { ...typography.h3, color: colors.text },
+  metaRow:      { flexDirection: 'row', gap: spacing.md, flexWrap: 'wrap' },
+  metaItem:     { ...typography.caption, color: colors.textSecondary },
+
+  complaintCard: {
+    backgroundColor: colors.warningSurface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  complaintLabel: { ...typography.label, color: colors.warning },
+  complaintText:  { ...typography.body, color: colors.text },
+
+  videoCard: {
+    backgroundColor: colors.primarySurface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  videoTitle:  { ...typography.bodyMedium, color: colors.primary },
+  videoInfo:   { gap: spacing.xs },
+  videoActive: { ...typography.label, color: colors.success },
+  videoHint:   { ...typography.caption, color: colors.textSecondary },
+
+  section:      { gap: spacing.sm },
+  sectionTitle: { ...typography.bodyMedium, color: colors.text },
+
+  textArea: {
+    ...typography.body,
+    color: colors.text,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    minHeight: 100,
+    backgroundColor: colors.surface,
+    textAlignVertical: 'top',
+  },
+  textAreaReadonly: { backgroundColor: colors.background, color: colors.textSecondary },
+
+  doneBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.successSurface,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+  },
+  doneIcon: { fontSize: 24 },
+  doneText: { ...typography.bodyMedium, color: colors.success, flex: 1 },
+});
