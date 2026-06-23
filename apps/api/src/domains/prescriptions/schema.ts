@@ -3,21 +3,36 @@ import { PrescriptionType } from '@mbolo/shared';
 
 export const CreatePrescriptionSchema = z.object({
   type: z.nativeEnum(PrescriptionType).default(PrescriptionType.DRUG),
-  mediaIds: z.array(z.string().cuid()).min(1, 'Au moins un scan requis'),
+  targetPartnerId: z.string().cuid('ID pharmacie invalide'),
 });
 
-export const ValidatePrescriptionSchema = z.object({
-  approved: z.boolean(),
-  rejectionReason: z.string().optional(),
-});
+export const ValidatePrescriptionSchema = z
+  .object({
+    approved: z.boolean(),
+    items: z
+      .array(
+        z.object({
+          name: z.string().min(1),
+          quantity: z.number().int().positive(),
+          unitPriceFcfa: z.number().int().positive(),
+        }),
+      )
+      .optional(),
+    rejectionReason: z.string().min(5).optional(),
+  })
+  .refine(
+    (d) => {
+      if (d.approved) return d.items && d.items.length > 0;
+      return !!d.rejectionReason;
+    },
+    { message: 'items requis si approuvé — rejectionReason requis si refusé' },
+  );
 
 export const IssuePrescriptionSchema = z.object({
   consultationId: z.string().cuid(),
-  items: z.array(z.object({
-    name: z.string(),
-    dosage: z.string().optional(),
-    quantity: z.number().int().positive(),
-  })).min(1),
+  items: z
+    .array(z.object({ name: z.string(), dosage: z.string().optional(), quantity: z.number().int().positive() }))
+    .min(1),
 });
 
 export type CreatePrescriptionInput = z.infer<typeof CreatePrescriptionSchema>;

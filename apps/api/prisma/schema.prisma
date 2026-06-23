@@ -1,5 +1,7 @@
 // ─────────────────────────────────────────────────────────────
-// MBOLO Santé — Schéma Prisma complet
+// MBOLO Santé — Schéma Prisma complet v2
+// Corrections : FK explicite User↔PartnerProfile, polymorphisme
+// Review via strings, targetPartnerId sur Prescription
 // ─────────────────────────────────────────────────────────────
 
 generator client {
@@ -154,86 +156,84 @@ enum PricingKind {
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id          String   @id @default(cuid())
-  phone       String   @unique
-  name        String
-  role        UserRole
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  phone            String   @unique
+  name             String
+  role             UserRole
+  isActive         Boolean  @default(true)
+  // FK explicite vers le partenaire dont cet user est staff
+  partnerProfileId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  // Relations selon le rôle
+  partnerStaffOf     PartnerProfile? @relation("StaffMember", fields: [partnerProfileId], references: [id])
   patientProfile     PatientProfile?
   doctorProfile      DoctorProfile?
   courierProfile     Courier?
-  partnerStaffOf     PartnerProfile? @relation("StaffMember")
-
-  // Commun
-  prescriptionsOwned Prescription[] @relation("PrescriptionPatient")
-  ordersPlaced       Order[]        @relation("OrderPatient")
-  reviewsGiven       Review[]       @relation("ReviewAuthor")
-  sentMessages       Message[]      @relation("MessageSender")
-  appointments       Appointment[]  @relation("AppointmentPatient")
+  prescriptionsOwned Prescription[]  @relation("PrescriptionPatient")
+  ordersPlaced       Order[]         @relation("OrderPatient")
+  reviewsGiven       Review[]        @relation("ReviewAuthor")
+  sentMessages       Message[]       @relation("MessageSender")
+  appointments       Appointment[]   @relation("AppointmentPatient")
   media              Media[]
 
   @@map("users")
 }
 
 model PatientProfile {
-  id            String   @id @default(cuid())
-  userId        String   @unique
-  dateOfBirth   DateTime?
-  bloodType     String?
-  allergies     String[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  dateOfBirth DateTime?
+  bloodType   String?
+  allergies   String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  user          User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@map("patient_profiles")
 }
 
 model PartnerProfile {
-  id               String      @id @default(cuid())
-  type             PartnerType
-  legalName        String
-  phone            String
-  whatsappNumber   String?
-  lat              Decimal     @db.Decimal(10, 7)
-  lng              Decimal     @db.Decimal(10, 7)
-  landmark         String
-  isActive         Boolean     @default(true)
+  id                 String             @id @default(cuid())
+  type               PartnerType
+  legalName          String
+  phone              String
+  whatsappNumber     String?
+  lat                Decimal            @db.Decimal(10, 7)
+  lng                Decimal            @db.Decimal(10, 7)
+  landmark           String
+  isActive           Boolean            @default(true)
   verificationStatus VerificationStatus @default(pending_verification)
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  staff            User[]      @relation("StaffMember")
-  orders           Order[]
-  reviews          Review[]    @relation("ReviewTarget")
+  staff                 User[]         @relation("StaffMember")
+  orders                Order[]
+  incomingPrescriptions Prescription[] @relation("PrescriptionTarget")
 
   @@map("partner_profiles")
 }
 
 model DoctorProfile {
-  id                   String             @id @default(cuid())
-  userId               String             @unique
-  cnomNumber           String             @unique
-  specialtyId          String
-  bio                  String?
-  languages            String[]           @default(["fr"])
-  consultationFeeFcfa  Int
-  verificationStatus   VerificationStatus @default(pending_verification)
-  isAvailableNow       Boolean            @default(false)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  cnomNumber          String             @unique
+  specialtyId         String
+  bio                 String?
+  languages           String[]           @default(["fr"])
+  consultationFeeFcfa Int
+  verificationStatus  VerificationStatus @default(pending_verification)
+  isAvailableNow      Boolean            @default(false)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
-  user                 User               @relation(fields: [userId], references: [id])
-  specialty            DoctorSpecialty    @relation(fields: [specialtyId], references: [id])
-  availabilities       DoctorAvailability[]
-  appointments         Appointment[]      @relation("AppointmentDoctor")
-  consultations        Consultation[]
-  prescriptionsIssued  Prescription[]     @relation("PrescriptionDoctor")
-  reviews              Review[]           @relation("DoctorReviewTarget")
+  user                User                 @relation(fields: [userId], references: [id])
+  specialty           DoctorSpecialty      @relation(fields: [specialtyId], references: [id])
+  availabilities      DoctorAvailability[]
+  appointments        Appointment[]        @relation("AppointmentDoctor")
+  consultations       Consultation[]
+  prescriptionsIssued Prescription[]       @relation("PrescriptionDoctor")
 
   @@map("doctor_profiles")
 }
@@ -247,29 +247,30 @@ model DoctorSpecialty {
 }
 
 model DoctorAvailability {
-  id            String  @id @default(cuid())
-  doctorId      String
-  dayOfWeek     Int     // 0=dim … 6=sam
-  startTimeUtc  String  // "08:00"
-  endTimeUtc    String  // "12:00"
-  isActive      Boolean @default(true)
+  id           String        @id @default(cuid())
+  doctorId     String
+  dayOfWeek    Int
+  startTimeUtc String
+  endTimeUtc   String
+  isActive     Boolean       @default(true)
 
-  doctor        DoctorProfile @relation(fields: [doctorId], references: [id])
+  doctor DoctorProfile @relation(fields: [doctorId], references: [id])
 
   @@map("doctor_availabilities")
 }
 
 model Media {
-  id          String     @id @default(cuid())
-  kind        MediaKind
-  url         String
-  mimeType    String
+  id           String    @id @default(cuid())
+  kind         MediaKind
+  url          String
+  mimeType     String
   uploadedById String
-  refTable    String?   // polymorphe : "prescriptions", "doctor_profiles"…
-  refId       String?
-  createdAt   DateTime   @default(now())
+  // Polymorphe : refTable + refId (pas de relation Prisma, gestion applicative)
+  refTable     String?
+  refId        String?
+  createdAt    DateTime  @default(now())
 
-  uploadedBy  User       @relation(fields: [uploadedById], references: [id])
+  uploadedBy User @relation(fields: [uploadedById], references: [id])
 
   @@map("media")
 }
@@ -279,25 +280,25 @@ model Media {
 // ─────────────────────────────────────────────────────────────
 
 model Conversation {
-  id        String    @id @default(cuid())
-  refTable  String    // "orders", "consultations", "appointments"
+  id        String   @id @default(cuid())
+  refTable  String
   refId     String
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
-  messages  Message[]
+  messages Message[]
 
   @@map("conversations")
 }
 
 model Message {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   conversationId String
   senderId       String
   body           String
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime @default(now())
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id])
 
   @@map("messages")
 }
@@ -307,18 +308,18 @@ model Message {
 // ─────────────────────────────────────────────────────────────
 
 model Appointment {
-  id           String            @id @default(cuid())
-  patientId    String
-  doctorId     String
-  type         AppointmentType
-  status       AppointmentStatus @default(pending)
-  scheduledAt  DateTime?         // null si immediate
-  notes        String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id          String            @id @default(cuid())
+  patientId   String
+  doctorId    String
+  type        AppointmentType
+  status      AppointmentStatus @default(pending)
+  scheduledAt DateTime?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  patient      User              @relation("AppointmentPatient", fields: [patientId], references: [id])
-  doctor       DoctorProfile     @relation("AppointmentDoctor", fields: [doctorId], references: [id])
+  patient      User          @relation("AppointmentPatient", fields: [patientId], references: [id])
+  doctor       DoctorProfile @relation("AppointmentDoctor", fields: [doctorId], references: [id])
   consultation Consultation?
 
   @@map("appointments")
@@ -331,33 +332,33 @@ model Consultation {
   status          ConsultationStatus @default(waiting_room)
   notes           String?
   durationSeconds Int?
-  serviceFeeFcfa  Int?               // calculé à la fin
-  videoFeeFcfa    Int?               // coût Daily.co converti FCFA
+  serviceFeeFcfa  Int?
+  videoFeeFcfa    Int?
   startedAt       DateTime?
   endedAt         DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
-  appointment     Appointment        @relation(fields: [appointmentId], references: [id])
-  doctor          DoctorProfile      @relation(fields: [doctorId], references: [id])
-  videoSession    VideoSession?
-  prescription    Prescription?
-  transaction     Transaction?
+  appointment  Appointment   @relation(fields: [appointmentId], references: [id])
+  doctor       DoctorProfile @relation(fields: [doctorId], references: [id])
+  videoSession VideoSession?
+  prescription Prescription?
+  transaction  Transaction?
 
   @@map("consultations")
 }
 
 model VideoSession {
-  id               String      @id @default(cuid())
-  consultationId   String      @unique
-  providerRoomName String      @unique
+  id               String    @id @default(cuid())
+  consultationId   String    @unique
+  providerRoomName String    @unique
   providerRoomUrl  String
   hostToken        String
   guestToken       String
   startedAt        DateTime?
   endedAt          DateTime?
 
-  consultation     Consultation @relation(fields: [consultationId], references: [id])
+  consultation Consultation @relation(fields: [consultationId], references: [id])
 
   @@map("video_sessions")
 }
@@ -367,38 +368,31 @@ model VideoSession {
 // ─────────────────────────────────────────────────────────────
 
 model Prescription {
-  id               String             @id @default(cuid())
-  patientId        String
-  source           PrescriptionSource @default(manual)
-  type             PrescriptionType   @default(drug)
-  status           PrescriptionStatus @default(pending_validation)
-  consultationId   String?            @unique
+  id              String             @id @default(cuid())
+  patientId       String
+  source          PrescriptionSource @default(manual)
+  type            PrescriptionType   @default(drug)
+  status          PrescriptionStatus @default(pending_validation)
+  // Pharmacie cible choisie par le patient à l'upload
+  targetPartnerId String?
+  consultationId  String?            @unique
   // Validation médicale (médecin, si teleconsultation)
-  issuedById       String?
-  issuedAt         DateTime?
-  // Validation pharmacien (TOUJOURS obligatoire)
-  validatedById    String?
-  validatedAt      DateTime?
-  rejectionReason  String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  issuedById      String?
+  issuedAt        DateTime?
+  // Validation pharmacien (TOUJOURS obligatoire légalement)
+  validatedById   String?
+  validatedAt     DateTime?
+  rejectionReason String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
-  patient          User               @relation("PrescriptionPatient", fields: [patientId], references: [id])
-  issuedBy         DoctorProfile?     @relation("PrescriptionDoctor", fields: [issuedById], references: [id])
-  consultation     Consultation?      @relation(fields: [consultationId], references: [id])
-  scanMedia        Media[]            @relation("PrescriptionMedia")
-  orders           Order[]
+  patient       User           @relation("PrescriptionPatient", fields: [patientId], references: [id])
+  issuedBy      DoctorProfile? @relation("PrescriptionDoctor", fields: [issuedById], references: [id])
+  targetPartner PartnerProfile? @relation("PrescriptionTarget", fields: [targetPartnerId], references: [id])
+  consultation  Consultation?   @relation(fields: [consultationId], references: [id])
+  orders        Order[]
 
   @@map("prescriptions")
-}
-
-// Table de liaison media ↔ prescription
-model PrescriptionMedia {
-  prescriptionId String
-  mediaId        String
-
-  @@id([prescriptionId, mediaId])
-  @@map("prescription_media")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -416,25 +410,25 @@ model Order {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
-  patient        User              @relation("OrderPatient", fields: [patientId], references: [id])
-  prescription   Prescription      @relation(fields: [prescriptionId], references: [id])
-  partner        PartnerProfile    @relation(fields: [partnerId], references: [id])
-  items          OrderItem[]
-  delivery       Delivery?
-  transaction    Transaction?
+  patient      User           @relation("OrderPatient", fields: [patientId], references: [id])
+  prescription Prescription   @relation(fields: [prescriptionId], references: [id])
+  partner      PartnerProfile @relation(fields: [partnerId], references: [id])
+  items        OrderItem[]
+  delivery     Delivery?
+  transaction  Transaction?
 
   @@map("orders")
 }
 
 model OrderItem {
-  id          String  @id @default(cuid())
-  orderId     String
-  name        String
-  quantity    Int
+  id            String @id @default(cuid())
+  orderId       String
+  name          String
+  quantity      Int
   unitPriceFcfa Int
-  totalFcfa   Int
+  totalFcfa     Int
 
-  order       Order   @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id])
 
   @@map("order_items")
 }
@@ -444,20 +438,20 @@ model OrderItem {
 // ─────────────────────────────────────────────────────────────
 
 model RideRequest {
-  id              String     @id @default(cuid())
-  patientId       String
-  type            RideType
-  originLat       Decimal    @db.Decimal(10, 7)
-  originLng       Decimal    @db.Decimal(10, 7)
-  originLandmark  String
-  destLat         Decimal    @db.Decimal(10, 7)
-  destLng         Decimal    @db.Decimal(10, 7)
-  destLandmark    String
-  scheduledAt     DateTime?
-  notes           String?
-  createdAt       DateTime   @default(now())
+  id             String    @id @default(cuid())
+  patientId      String
+  type           RideType
+  originLat      Decimal   @db.Decimal(10, 7)
+  originLng      Decimal   @db.Decimal(10, 7)
+  originLandmark String
+  destLat        Decimal   @db.Decimal(10, 7)
+  destLng        Decimal   @db.Decimal(10, 7)
+  destLandmark   String
+  scheduledAt    DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
 
-  ride            Ride?
+  ride Ride?
 
   @@map("ride_requests")
 }
@@ -474,9 +468,9 @@ model Ride {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  request       RideRequest @relation(fields: [requestId], references: [id])
-  delivery      Delivery?
-  transaction   Transaction?
+  request     RideRequest  @relation(fields: [requestId], references: [id])
+  delivery    Delivery?
+  transaction Transaction?
 
   @@map("rides")
 }
@@ -486,44 +480,44 @@ model Ride {
 // ─────────────────────────────────────────────────────────────
 
 model MealPlan {
-  id          String       @id @default(cuid())
+  id          String   @id @default(cuid())
   partnerId   String
   name        String
   description String?
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
-  items       MealPlanItem[]
-  orders      MealOrder[]
+  items  MealPlanItem[]
+  orders MealOrder[]
 
   @@map("meal_plans")
 }
 
 model MealPlanItem {
-  id          String   @id @default(cuid())
-  mealPlanId  String
-  name        String
+  id            String   @id @default(cuid())
+  mealPlanId    String
+  name          String
   unitPriceFcfa Int
-  isAvailable Boolean  @default(true)
+  isAvailable   Boolean  @default(true)
 
-  mealPlan    MealPlan @relation(fields: [mealPlanId], references: [id])
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id])
 
   @@map("meal_plan_items")
 }
 
 model MealOrder {
-  id            String   @id @default(cuid())
-  patientId     String
-  mealPlanId    String
-  totalFcfa     Int
-  deliveryFeeFcfa Int    @default(0)
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  patientId       String
+  mealPlanId      String
+  totalFcfa       Int
+  deliveryFeeFcfa Int      @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  mealPlan      MealPlan   @relation(fields: [mealPlanId], references: [id])
-  delivery      Delivery?
-  transaction   Transaction?
+  mealPlan    MealPlan     @relation(fields: [mealPlanId], references: [id])
+  delivery    Delivery?
+  transaction Transaction?
 
   @@map("meal_orders")
 }
@@ -541,8 +535,8 @@ model Courier {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user        User       @relation(fields: [userId], references: [id])
-  deliveries  Delivery[]
+  user       User       @relation(fields: [userId], references: [id])
+  deliveries Delivery[]
 
   @@map("couriers")
 }
@@ -550,7 +544,6 @@ model Courier {
 model Delivery {
   id           String         @id @default(cuid())
   courierId    String?
-  // Polymorphe : un seul des trois est renseigné
   orderId      String?        @unique
   rideId       String?        @unique
   mealOrderId  String?        @unique
@@ -563,24 +556,24 @@ model Delivery {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  courier      Courier?       @relation(fields: [courierId], references: [id])
-  order        Order?         @relation(fields: [orderId], references: [id])
-  ride         Ride?          @relation(fields: [rideId], references: [id])
-  mealOrder    MealOrder?     @relation(fields: [mealOrderId], references: [id])
-  tracking     Tracking[]
+  courier   Courier?   @relation(fields: [courierId], references: [id])
+  order     Order?     @relation(fields: [orderId], references: [id])
+  ride      Ride?      @relation(fields: [rideId], references: [id])
+  mealOrder MealOrder? @relation(fields: [mealOrderId], references: [id])
+  tracking  Tracking[]
 
   @@map("deliveries")
 }
 
 model Tracking {
-  id         String   @id @default(cuid())
+  id         String         @id @default(cuid())
   deliveryId String
-  lat        Decimal  @db.Decimal(10, 7)
-  lng        Decimal  @db.Decimal(10, 7)
+  lat        Decimal        @db.Decimal(10, 7)
+  lng        Decimal        @db.Decimal(10, 7)
   status     DeliveryStatus
-  recordedAt DateTime @default(now())
+  recordedAt DateTime       @default(now())
 
-  delivery   Delivery @relation(fields: [deliveryId], references: [id])
+  delivery Delivery @relation(fields: [deliveryId], references: [id])
 
   @@map("tracking")
 }
@@ -596,7 +589,6 @@ model Transaction {
   amountFcfa            Int
   idempotencyKey        String            @unique
   providerTransactionId String?
-  // Polymorphe : un seul des trois est renseigné
   orderId               String?           @unique
   rideId                String?           @unique
   mealOrderId           String?           @unique
@@ -607,10 +599,10 @@ model Transaction {
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 
-  order                 Order?            @relation(fields: [orderId], references: [id])
-  ride                  Ride?             @relation(fields: [rideId], references: [id])
-  mealOrder             MealOrder?        @relation(fields: [mealOrderId], references: [id])
-  consultation          Consultation?     @relation(fields: [consultationId], references: [id])
+  order        Order?       @relation(fields: [orderId], references: [id])
+  ride         Ride?        @relation(fields: [rideId], references: [id])
+  mealOrder    MealOrder?   @relation(fields: [mealOrderId], references: [id])
+  consultation Consultation? @relation(fields: [consultationId], references: [id])
 
   @@map("transactions")
 }
@@ -618,7 +610,6 @@ model Transaction {
 model Pricing {
   id        String      @id @default(cuid())
   kind      PricingKind @unique
-  // Valeur entière pour FCFA, décimale pour taux/pourcentages
   valueFcfa Int?
   valueNum  Decimal?    @db.Decimal(12, 6)
   updatedAt DateTime    @updatedAt
@@ -628,34 +619,33 @@ model Pricing {
 }
 
 model Payout {
-  id                    String   @id @default(cuid())
+  id                    String            @id @default(cuid())
   recipientId           String
   amountFcfa            Int
-  idempotencyKey        String   @unique
+  idempotencyKey        String            @unique
   providerTransactionId String?
   status                TransactionStatus @default(pending)
   paidAt                DateTime?
-  createdAt             DateTime @default(now())
+  createdAt             DateTime          @default(now())
 
   @@map("payouts")
 }
 
 // ─────────────────────────────────────────────────────────────
-// AVIS
+// AVIS (polymorphe via strings — pas de relation Prisma)
 // ─────────────────────────────────────────────────────────────
 
 model Review {
   id        String   @id @default(cuid())
   authorId  String
-  rating    Int      // 1–5
+  rating    Int
   comment   String?
-  refTable  String   // "partner_profiles", "doctor_profiles", "couriers"
+  // refTable = "partner_profiles" | "doctor_profiles" | "couriers"
+  refTable  String
   refId     String
   createdAt DateTime @default(now())
 
-  author          User           @relation("ReviewAuthor", fields: [authorId], references: [id])
-  partnerTarget   PartnerProfile? @relation("ReviewTarget", fields: [refId], references: [id])
-  doctorTarget    DoctorProfile?  @relation("DoctorReviewTarget", fields: [refId], references: [id])
+  author User @relation("ReviewAuthor", fields: [authorId], references: [id])
 
   @@map("reviews")
 }

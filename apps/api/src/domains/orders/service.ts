@@ -1,29 +1,14 @@
 import { HTTP } from '../../lib/errors';
 import { OrderRepository } from './repository';
-import { PrescriptionRepository } from '../prescriptions/repository';
-import { CreateOrderInput } from './schema';
-import { PrescriptionStatus, OrderStatus } from '@mbolo/shared';
+import { NotificationService } from '../../infrastructure/providers/notification';
+import { PharmacyActionInput } from './schema';
+import { OrderStatus } from '@mbolo/shared';
 
 export class OrderService {
   constructor(
     private readonly repo: OrderRepository,
-    private readonly rxRepo: PrescriptionRepository,
+    private readonly notif: NotificationService,
   ) {}
-
-  async create(patientId: string, input: CreateOrderInput) {
-    const rx = await this.rxRepo.findById(input.prescriptionId);
-    if (!rx) throw HTTP.notFound('Ordonnance introuvable');
-    if (rx.patientId !== patientId) throw HTTP.forbidden();
-    if (rx.status !== PrescriptionStatus.VALIDATED) {
-      throw HTTP.unprocessable('L\'ordonnance doit être validée par le pharmacien avant commande');
-    }
-
-    const totalFcfa = input.items.reduce((sum, i) => sum + i.quantity * i.unitPriceFcfa, 0);
-    // TODO étape 4 : charger serviceFeeFcfa depuis la table pricing
-    const serviceFeeFcfa = 500;
-
-    return this.repo.create(patientId, { ...input, totalFcfa, serviceFeeFcfa });
-  }
 
   async getById(id: string, requesterId: string) {
     const order = await this.repo.findById(id);
@@ -36,7 +21,46 @@ export class OrderService {
     return this.repo.listForPatient(patientId);
   }
 
-  async updateStatus(id: string, status: OrderStatus) {
-    return this.repo.updateStatus(id, status);
+  async listForPartner(partnerId: string) {
+    return this.repo.listForPartner(partnerId);
+  }
+
+  async partnerAction(orderId: string, partnerId: string, input: PharmacyActionInput) {
+    const order = await this.repo.findById(orderId);
+    if (!order) throw HTTP.notFound('Commande introuvable');
+    if (order.partnerId !== partnerId) throw HTTP.forbidden();
+
+    switch (input.action) {
+      case 'prepare': {
+        if (order.status !== OrderStatus.PHARMACY_ACCEPTED && order.status !== OrderStatus.PENDING_PHARMACY) {
+          throw HTTP.unprocessable('Statut incompatible');
+        }
+        const updated = await this.repo.updateStatus(orderId, OrderStatus.PREPARING);
+        await this.notif.send({
+          to: order.patient.phone,
+          message: `Votre commande #${orderId.slice(-6).toUpperCase()} est en cours de préparation.`,
+        });
+        return updated;
+      }
+
+      case 'ready': {
+        if (order.status !== OrderStatus.PREPARING) throw HTTP.unprocessable('Statut incompatible');
+        const updated = await this.repo.updateStatus(orderId, OrderStatus.READY_FOR_PICKUP);
+        await this.notif.send({
+          to: order.patient.phone,
+          message: `Votre commande est prête ! Un livreur va être assigné.`,
+        });
+        return updated;
+      }
+
+      case 'reject': {
+        const updated = await this.repo.updateStatus(orderId, OrderStatus.PHARMACY_REJECTED);
+        await this.notif.send({
+          to: order.patient.phone,
+          message: `Votre commande a été refusée : ${input.reason}. Contactez la pharmacie.`,
+        });
+        return updated;
+      }
+    }
   }
 }

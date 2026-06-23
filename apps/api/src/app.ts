@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 
 import { errorHandler } from './middleware/error';
 import { authRouter } from './domains/auth/router';
@@ -22,6 +23,9 @@ app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
+
+// Fichiers uploadés (scans d'ordonnances) — en prod, remplacer par S3
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
