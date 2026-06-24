@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { OrderStatus } from '@mbolo/shared';
+import { useRouter } from 'expo-router';
 import { ordersService, Order } from '../../../src/services/orders.service';
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
@@ -52,6 +53,7 @@ const STATUS_ICONS: Record<string, string> = {
 };
 
 export default function OrdersScreen() {
+  const router  = useRouter();
   const [tab, setTab]           = useState<Tab>('active');
   const [orders, setOrders]     = useState<Order[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -120,7 +122,10 @@ export default function OrdersScreen() {
             </View>
           }
           renderItem={({ item: order }) => (
-            <View style={styles.card}>
+            <Pressable
+              style={styles.card}
+              onPress={() => router.push(`/(patient)/orders/${order.id}` as never)}
+            >
               {/* Icon + date */}
               <View style={styles.cardTop}>
                 <View style={styles.orderIconBox}>
@@ -143,7 +148,7 @@ export default function OrdersScreen() {
                 <Text style={styles.totalLabel}>{fr.order.total}</Text>
                 <Text style={styles.totalAmount}>{formatFcfa(order.totalFcfa ?? 0)}</Text>
               </View>
-            </View>
+            </Pressable>
           )}
         />
       )}

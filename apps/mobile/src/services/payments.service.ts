@@ -1,4 +1,4 @@
-import { api } from './client';
+import { apiClient as api } from './client';
 
 export interface ConsultationPaymentStatus {
   consultationId: string;
@@ -19,7 +19,23 @@ export interface ConsultationTransaction {
   createdAt:      string;
 }
 
+export interface EscrowTransaction {
+  id:        string;
+  orderId:   string;
+  amountFcfa: number;
+  status:    string;
+  createdAt: string;
+}
+
 export const paymentsService = {
+  initEscrow: async (data: {
+    orderId:     string;
+    phoneNumber: string;
+  }): Promise<EscrowTransaction> => {
+    const r = await api.post('/payments/escrow', data);
+    return r.data.data ?? r.data;
+  },
+
   initConsultationPayment: async (data: {
     consultationId: string;
     phoneNumber:    string;

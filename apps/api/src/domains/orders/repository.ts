@@ -48,7 +48,11 @@ export class OrderRepository {
   async listForPatient(patientId: string) {
     return prisma.order.findMany({
       where: { patientId },
-      include: { items: true, delivery: { select: { status: true, handoverCode: true } } },
+      include: {
+        items: true,
+        delivery: { select: { status: true, handoverCode: true } },
+        partner:  { select: { legalName: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
