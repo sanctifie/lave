@@ -117,7 +117,10 @@ export default function PrescriptionsScreen() {
             </View>
           }
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <Pressable
+              style={styles.card}
+              onPress={() => router.push(`/(patient)/prescriptions/${item.id}` as never)}
+            >
               <View style={styles.cardLeft}>
                 <View style={styles.iconBox}>
                   <Text style={{ fontSize: 22 }}>📄</Text>
@@ -131,7 +134,7 @@ export default function PrescriptionsScreen() {
                 <StatusBadge status={item.status as PrescriptionStatus} />
               </View>
               <Text style={styles.cardChevron}>›</Text>
-            </View>
+            </Pressable>
           )}
         />
       )}
