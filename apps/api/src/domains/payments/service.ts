@@ -3,6 +3,7 @@ import { PaymentRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
 import { PricingRepository } from '../pricing/repository';
 import { PaymentProvider } from '../../infrastructure/providers/payment';
+import { PushService } from '../../infrastructure/push/service';
 import { InitEscrowInput, InitConsultationPaymentInput, MyPVITWebhookInput } from './schema';
 import { PricingKind, ConsultationStatus } from '@mbolo/shared';
 import { randomUUID } from 'crypto';
@@ -13,6 +14,7 @@ export class PaymentService {
     private readonly orderRepo:   OrderRepository,
     private readonly pricingRepo: PricingRepository,
     private readonly provider:    PaymentProvider,
+    private readonly push:        PushService,
   ) {}
 
   // ─── Commandes ────────────────────────────────────────────────────────────
@@ -141,6 +143,13 @@ export class PaymentService {
       recipientId:    consult.doctorId,
       amountFcfa:     doctorPayout,
       idempotencyKey,
+    });
+
+    // Push au médecin
+    this.push.sendToUser(consult.doctor?.userId as string, {
+      title: '💰 Paiement reçu',
+      body:  `${doctorPayout.toLocaleString('fr-FR')} FCFA crédités sur votre compte.`,
+      data:  { type: 'payout', consultationId },
     });
   }
 }

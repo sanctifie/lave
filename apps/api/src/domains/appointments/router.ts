@@ -7,7 +7,7 @@ import { AppointmentService } from './service';
 import { AppointmentRepository } from './repository';
 import { DoctorRepository } from '../doctors/repository';
 import { PricingRepository } from '../pricing/repository';
-import { videoProvider, notificationService } from '../../infrastructure/container';
+import { videoProvider, notificationService, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 
 const router  = Router();
@@ -17,6 +17,7 @@ const service = new AppointmentService(
   new PricingRepository(),
   videoProvider,
   notificationService,
+  pushService,
 );
 
 /** Liste — patient voit ses RDV, médecin voit sa file */

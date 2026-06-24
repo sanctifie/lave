@@ -1,6 +1,6 @@
 import { HTTP } from '../../lib/errors';
 import { UserRepository } from './repository';
-import { UpdateMeInput } from './schema';
+import { UpdateMeInput, SavePushTokenInput } from './schema';
 
 export class UserService {
   constructor(private readonly repo: UserRepository) {}
@@ -13,5 +13,9 @@ export class UserService {
 
   async updateMe(userId: string, data: UpdateMeInput) {
     return this.repo.update(userId, data);
+  }
+
+  async savePushToken(userId: string, data: SavePushTokenInput) {
+    return this.repo.savePushToken(userId, data.pushToken);
   }
 }

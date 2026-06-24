@@ -7,7 +7,7 @@ import { PaymentService } from './service';
 import { PaymentRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
 import { PricingRepository } from '../pricing/repository';
-import { paymentProvider } from '../../infrastructure/container';
+import { paymentProvider, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 
 const router = Router();
@@ -16,6 +16,7 @@ const service = new PaymentService(
   new OrderRepository(),
   new PricingRepository(),
   paymentProvider,
+  pushService,
 );
 
 // ─── Commandes ────────────────────────────────────────────────────────────────

@@ -4,17 +4,19 @@ import { DoctorRepository } from '../doctors/repository';
 import { PricingRepository } from '../pricing/repository';
 import { VideoProvider } from '../../infrastructure/providers/video';
 import { NotificationService } from '../../infrastructure/providers/notification';
+import { PushService } from '../../infrastructure/push/service';
 import { CreateAppointmentInput, CompleteConsultationInput } from './schema';
 import { AppointmentType, AppointmentStatus, UserRole } from '@mbolo/shared';
 import { PricingKind } from '@mbolo/shared';
 
 export class AppointmentService {
   constructor(
-    private readonly repo:     AppointmentRepository,
-    private readonly doctorRepo: DoctorRepository,
+    private readonly repo:        AppointmentRepository,
+    private readonly doctorRepo:  DoctorRepository,
     private readonly pricingRepo: PricingRepository,
-    private readonly video:    VideoProvider,
-    private readonly notif:    NotificationService,
+    private readonly video:       VideoProvider,
+    private readonly notif:       NotificationService,
+    private readonly push:        PushService,
   ) {}
 
   /** Liste selon le rôle — patient voit ses RDV, médecin voit sa file */
@@ -50,7 +52,13 @@ export class AppointmentService {
         type:           input.type as string,
         chiefComplaint: (input as any).chiefComplaint,
       });
+      // SMS + push au médecin
       this.notif.send({ to: doctor.user.phone, message: `Nouvelle consultation immédiate — patient en attente.` });
+      this.push.sendToUser(doctor.userId as string, {
+        title: '🚨 Nouvelle consultation',
+        body:  'Un patient attend votre prise en charge immédiate.',
+        data:  { type: 'immediate_appointment', appointmentId: appt.id },
+      });
       return appt;
     }
 
@@ -65,10 +73,15 @@ export class AppointmentService {
       chiefComplaint: (input as any).chiefComplaint,
     });
     this.notif.send({ to: (doctor as any).user.phone, message: `Nouveau RDV le ${(input as any).scheduledAt?.toLocaleDateString('fr-FR')}.` });
+    this.push.sendToUser((doctor as any).userId as string, {
+      title: '📅 Nouveau rendez-vous',
+      body:  `RDV programmé le ${(input as any).scheduledAt?.toLocaleDateString('fr-FR') ?? '–'}`,
+      data:  { type: 'new_appointment', appointmentId: appt.id },
+    });
     return appt;
   }
 
-  /** Médecin démarre : crée la session vidéo Daily.co, notifie le patient */
+  /** Médecin démarre : crée la session vidéo, notifie le patient */
   async start(appointmentId: string, doctorUserId: string) {
     const appt = await this.repo.findById(appointmentId);
     if (!appt) throw HTTP.notFound('RDV introuvable');
@@ -93,9 +106,15 @@ export class AppointmentService {
       expiresAt,
     });
 
+    // SMS + push au patient
     this.notif.send({
       to:      appt.patient.phone,
       message: `Votre médecin est prêt. Rejoignez la consultation : ${room.roomUrl}`,
+    });
+    this.push.sendToUser(appt.patientId, {
+      title: '🩺 Votre médecin est prêt',
+      body:  'Rejoignez la consultation maintenant.',
+      data:  { type: 'consultation_start', appointmentId: appt.id },
     });
 
     return {
@@ -120,17 +139,16 @@ export class AppointmentService {
     const startedAt = appt.consultation.startedAt ?? new Date();
     const durationSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000);
 
-    // Frais vidéo depuis pricing table
     const [rateEntry, fxEntry, baseFeeEntry] = await Promise.all([
       this.pricingRepo.getByKind(PricingKind.VIDEO_USD_PER_PARTICIPANT_MIN),
       this.pricingRepo.getByKind(PricingKind.USD_TO_FCFA_RATE),
       this.pricingRepo.getByKind(PricingKind.CONSULTATION_BASE_FEE),
     ]);
-    const rateUsd       = Number(rateEntry?.valueNum  ?? 0.00099);
-    const fxRate        = Number(fxEntry?.valueNum    ?? 600);
-    const baseFee       = Number(baseFeeEntry?.valueFcfa ?? profile.consultationFeeFcfa);
-    const minutes       = Math.ceil(durationSeconds / 60);
-    const videoFeeFcfa  = Math.ceil(minutes * 2 * rateUsd * fxRate);
+    const rateUsd        = Number(rateEntry?.valueNum  ?? 0.00099);
+    const fxRate         = Number(fxEntry?.valueNum    ?? 600);
+    const baseFee        = Number(baseFeeEntry?.valueFcfa ?? profile.consultationFeeFcfa);
+    const minutes        = Math.ceil(durationSeconds / 60);
+    const videoFeeFcfa   = Math.ceil(minutes * 2 * rateUsd * fxRate);
     const serviceFeeFcfa = baseFee + videoFeeFcfa;
 
     const result = await this.repo.completeConsultation({
@@ -147,9 +165,15 @@ export class AppointmentService {
 
     await this.video.closeRoom(appt.consultation.videoSession?.providerRoomName ?? '');
 
+    // SMS + push au patient
     this.notif.send({
       to:      appt.patient.phone,
       message: `Consultation terminée. Durée: ${minutes} min. Frais: ${serviceFeeFcfa.toLocaleString('fr-FR')} FCFA.`,
+    });
+    this.push.sendToUser(appt.patientId, {
+      title: '✅ Consultation terminée',
+      body:  `Durée : ${minutes} min — ${serviceFeeFcfa.toLocaleString('fr-FR')} FCFA à régler.`,
+      data:  { type: 'consultation_complete', appointmentId: appt.id },
     });
 
     return {

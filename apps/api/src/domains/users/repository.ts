@@ -8,4 +8,8 @@ export class UserRepository {
   async update(id: string, data: { name?: string }) {
     return prisma.user.update({ where: { id }, data });
   }
+
+  async savePushToken(id: string, pushToken: string) {
+    return (prisma as any).user.update({ where: { id }, data: { pushToken } });
+  }
 }
