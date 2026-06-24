@@ -19,12 +19,40 @@ const service = new DeliveryService(
   paymentProvider,
 );
 
-// Courier : liste les livraisons disponibles
+// Courier : liste combinée (mes livraisons + disponibles)
+router.get('/', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
+  res.json({ data: await service.listAll(req.user!.userId) });
+}));
+
+// Courier : toggle disponibilité
+router.patch('/me/availability', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
+  const { isAvailable } = req.body;
+  if (typeof isAvailable !== 'boolean') throw new Error('isAvailable doit être un booléen');
+  res.json({ data: await service.setCourierAvailability(req.user!.userId, isAvailable) });
+}));
+
+// Courier : accepter une livraison disponible
+router.patch('/:id/accept', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
+  res.json({ data: await service.acceptDelivery(req.params.id, req.user!.userId) });
+}));
+
+// Courier : avancer le statut (sans GPS)
+router.patch(
+  '/:id/status',
+  requireAuth,
+  requireRole(UserRole.COURIER),
+  validate(UpdateDeliveryStatusSchema),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.updateDeliveryStatus(req.params.id, req.user!.userId, req.body.status as DeliveryStatus) });
+  }),
+);
+
+// Courier : liste les livraisons disponibles (legacy)
 router.get('/pending', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (_req, res) => {
   res.json(await service.listPending());
 }));
 
-// Courier : mes livraisons
+// Courier : mes livraisons (legacy)
 router.get('/mine', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
   res.json(await service.listMine(req.user!.userId));
 }));

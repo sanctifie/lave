@@ -50,6 +50,13 @@ export default function PatientLayout() {
           tabBarIcon: ({ focused }) => <Icon emoji="🩺" focused={focused} />,
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profil',
+          tabBarIcon: ({ focused }) => <Icon emoji="👤" focused={focused} />,
+        }}
+      />
     </Tabs>
   );
 }

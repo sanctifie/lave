@@ -64,6 +64,7 @@ export default function DeliveryDetailScreen() {
 
   const [delivery, setDelivery]       = useState<DeliveryItem | null>(null);
   const [loading, setLoading]         = useState(true);
+  const [advancing, setAdvancing]     = useState(false);
   const [code, setCode]               = useState('');
   const [submittingHandover, setSubmittingHandover] = useState(false);
 
@@ -80,6 +81,30 @@ export default function DeliveryDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleAccept = async () => {
+    setAdvancing(true);
+    try {
+      await deliveriesService.accept(id);
+      await load();
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'accepter cette livraison.');
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
+  const handleAdvance = async (nextStatus: string) => {
+    setAdvancing(true);
+    try {
+      await deliveriesService.updateStatus(id, nextStatus);
+      await load();
+    } catch {
+      Alert.alert('Erreur', 'Impossible de mettre à jour le statut.');
+    } finally {
+      setAdvancing(false);
+    }
+  };
 
   const handleHandover = async () => {
     if (code.length !== HANDOVER_LENGTH) return;
@@ -102,9 +127,23 @@ export default function DeliveryDetailScreen() {
   if (loading) return <ActivityIndicator style={styles.center} color={colors.primary} />;
   if (!delivery) return null;
 
-  const currentIdx = getStepIndex(delivery.status);
-  const isActive   = delivery.status !== DeliveryStatus.DELIVERED && delivery.status !== DeliveryStatus.FAILED;
+  const currentIdx    = getStepIndex(delivery.status);
+  const isPending     = delivery.status === DeliveryStatus.PENDING_ASSIGNMENT;
+  const isActive      = delivery.status !== DeliveryStatus.DELIVERED && delivery.status !== DeliveryStatus.FAILED && !isPending;
   const needsHandover = delivery.status === DeliveryStatus.EN_ROUTE_DELIVERY;
+
+  const NEXT_STATUS: Record<string, string> = {
+    [DeliveryStatus.ASSIGNED]:          DeliveryStatus.EN_ROUTE_PICKUP,
+    [DeliveryStatus.EN_ROUTE_PICKUP]:   DeliveryStatus.PICKED_UP,
+    [DeliveryStatus.PICKED_UP]:         DeliveryStatus.EN_ROUTE_DELIVERY,
+  };
+  const NEXT_LABEL: Record<string, string> = {
+    [DeliveryStatus.ASSIGNED]:          'En route vers la pharmacie →',
+    [DeliveryStatus.EN_ROUTE_PICKUP]:   'Colis récupéré →',
+    [DeliveryStatus.PICKED_UP]:         'En route vers le patient →',
+  };
+  const nextStatus = NEXT_STATUS[delivery.status];
+  const nextLabel  = NEXT_LABEL[delivery.status];
 
   return (
     <KeyboardAvoidingView
@@ -155,6 +194,26 @@ export default function DeliveryDetailScreen() {
             return <Step key={step.status} label={step.label} status={status} />;
           })}
         </View>
+
+        {/* Accepter la livraison */}
+        {isPending && (
+          <Button
+            label={advancing ? 'Acceptation…' : 'Accepter cette livraison'}
+            onPress={handleAccept}
+            loading={advancing}
+            disabled={advancing}
+          />
+        )}
+
+        {/* Avancer l'étape en cours */}
+        {isActive && nextStatus && (
+          <Button
+            label={advancing ? 'Mise à jour…' : nextLabel}
+            onPress={() => handleAdvance(nextStatus)}
+            loading={advancing}
+            disabled={advancing}
+          />
+        )}
 
         {/* Handover code — only shown when delivering to patient */}
         {needsHandover && (

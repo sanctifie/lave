@@ -1,6 +1,6 @@
 import { HTTP } from '../../lib/errors';
 import { UserRepository } from './repository';
-import { UpdateMeInput, SavePushTokenInput } from './schema';
+import { UpdateMeInput, SavePushTokenInput, UpdatePatientProfileInput } from './schema';
 
 export class UserService {
   constructor(private readonly repo: UserRepository) {}
@@ -17,5 +17,17 @@ export class UserService {
 
   async savePushToken(userId: string, data: SavePushTokenInput) {
     return this.repo.savePushToken(userId, data.pushToken);
+  }
+
+  async getPatientProfile(userId: string) {
+    return this.repo.getPatientProfile(userId);
+  }
+
+  async updatePatientProfile(userId: string, data: UpdatePatientProfileInput) {
+    return this.repo.upsertPatientProfile(userId, {
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : data.dateOfBirth,
+      bloodType:   data.bloodType,
+      allergies:   data.allergies,
+    });
   }
 }

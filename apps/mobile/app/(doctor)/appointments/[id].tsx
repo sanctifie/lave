@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -127,10 +128,17 @@ export default function DoctorConsultationScreen() {
         <View style={styles.videoCard}>
           <Text style={styles.videoTitle}>📹 Vidéo consultation</Text>
           {appt.videoRoomUrl ? (
-            <View style={styles.videoInfo}>
-              <Text style={styles.videoActive}>Session active</Text>
-              <Text style={styles.videoHint}>La fenêtre vidéo s'ouvrira dans votre navigateur.</Text>
-            </View>
+            <>
+              <View style={styles.videoInfo}>
+                <Text style={styles.videoActive}>Session active</Text>
+              </View>
+              {isInProgress && (
+                <Button
+                  label="Rejoindre la vidéo"
+                  onPress={() => Linking.openURL(appt.videoRoomUrl!)}
+                />
+              )}
+            </>
           ) : (
             <Text style={styles.videoHint}>La session démarrera automatiquement.</Text>
           )}

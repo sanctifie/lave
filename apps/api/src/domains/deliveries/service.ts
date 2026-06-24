@@ -17,6 +17,45 @@ export class DeliveryService {
     private readonly paymentProvider: PaymentProvider,
   ) {}
 
+  async listAll(courierUserId: string) {
+    const [mine, pending] = await Promise.all([
+      this.repo.listForCourierByUserId(courierUserId),
+      this.repo.listPending(),
+    ]);
+    const mineIds = new Set((mine as any[]).map((d) => d.id));
+    const extra   = (pending as any[]).filter((d) => !mineIds.has(d.id));
+    return [...mine, ...extra];
+  }
+
+  async acceptDelivery(deliveryId: string, courierUserId: string) {
+    const delivery = await this.repo.findById(deliveryId);
+    if (!delivery) throw HTTP.notFound('Livraison introuvable');
+    if (delivery.status !== DeliveryStatus.PENDING_ASSIGNMENT) {
+      throw HTTP.conflict('Livraison déjà prise en charge');
+    }
+    const updated = await this.repo.assignByUserId(deliveryId, courierUserId);
+    if (delivery.orderId) {
+      const order = await this.orderRepo.findById(delivery.orderId);
+      if (order) {
+        await this.notif.send({
+          to:      (order as any).patient.phone,
+          message: `Un livreur a accepté votre commande #${delivery.orderId.slice(-6).toUpperCase()} et viendra récupérer votre colis à la pharmacie.`,
+        });
+      }
+    }
+    return updated;
+  }
+
+  async updateDeliveryStatus(deliveryId: string, courierUserId: string, status: DeliveryStatus) {
+    const updated = await this.repo.updateStatusByCourier(deliveryId, courierUserId, status);
+    if (!updated) throw HTTP.forbidden('Non autorisé ou livraison introuvable');
+    return updated;
+  }
+
+  async setCourierAvailability(userId: string, isAvailable: boolean) {
+    return this.repo.setCourierAvailability(userId, isAvailable);
+  }
+
   async getById(id: string) {
     const d = await this.repo.findById(id);
     if (!d) throw HTTP.notFound('Livraison introuvable');

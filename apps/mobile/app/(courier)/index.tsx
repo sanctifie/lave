@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/auth.store';
 import { deliveriesService, DeliveryItem } from '../../src/services/deliveries.service';
@@ -20,8 +20,9 @@ export default function CourierDashboard() {
   const user   = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  const [deliveries, setDeliveries] = useState<DeliveryItem[]>([]);
-  const [loading, setLoading]       = useState(true);
+  const [deliveries,  setDeliveries]  = useState<DeliveryItem[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [available,   setAvailable]   = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +38,15 @@ export default function CourierDashboard() {
   const active   = deliveries.filter((d) => ACTIVE.has(d.status as DeliveryStatus));
   const done     = deliveries.filter((d) => d.status === DeliveryStatus.DELIVERED).length;
 
+  const toggleAvailability = async (val: boolean) => {
+    setAvailable(val);
+    try {
+      await deliveriesService.toggleAvailability(val);
+    } catch {
+      setAvailable(!val);
+    }
+  };
+
   const initials = (user?.name ?? 'L').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
@@ -50,6 +60,25 @@ export default function CourierDashboard() {
         <Pressable onPress={logout} style={styles.avatarCircle} accessibilityLabel="Se déconnecter">
           <Text style={styles.avatarText}>{initials}</Text>
         </Pressable>
+      </View>
+
+      {/* Disponibilité */}
+      <View style={[styles.availCard, available && styles.availCardOn]}>
+        <View style={styles.availInfo}>
+          <Text style={styles.availIcon}>{available ? '🟢' : '🔴'}</Text>
+          <View>
+            <Text style={styles.availTitle}>{available ? 'Disponible' : 'Indisponible'}</Text>
+            <Text style={styles.availSub}>
+              {available ? 'Vous recevrez les nouvelles livraisons' : 'Activez pour recevoir des missions'}
+            </Text>
+          </View>
+        </View>
+        <Switch
+          value={available}
+          onValueChange={toggleAvailability}
+          trackColor={{ false: colors.border, true: colors.primaryLight }}
+          thumbColor={available ? colors.primary : colors.textDisabled}
+        />
       </View>
 
       {/* Banner */}
@@ -130,6 +159,21 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { ...typography.label, color: colors.textOnDark, fontSize: 14 },
+
+  availCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...shadows.card,
+  },
+  availCardOn: { borderWidth: 1.5, borderColor: colors.primary },
+  availInfo:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
+  availIcon:   { fontSize: 20 },
+  availTitle:  { ...typography.bodyMedium, color: colors.text },
+  availSub:    { ...typography.caption, color: colors.textSecondary },
 
   banner: {
     backgroundColor: colors.primary,

@@ -23,6 +23,7 @@ export interface ConsultationDetail {
   endedAt:         string | null;
   prescription:    { id: string; notes: string | null } | null;
   transaction:     { id: string; status: string; paidAt: string | null } | null;
+  videoSession:    { providerRoomUrl: string } | null;
 }
 
 export interface AppointmentDetail {

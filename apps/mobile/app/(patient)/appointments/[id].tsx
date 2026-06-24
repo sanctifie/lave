@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -188,6 +189,16 @@ export default function AppointmentDetailScreen() {
             </View>
           )}
 
+          {/* Vidéo — rejoindre */}
+          {appt.status === 'in_progress' && consult.videoSession?.providerRoomUrl && (
+            <Pressable
+              style={styles.videoBtn}
+              onPress={() => Linking.openURL(consult.videoSession!.providerRoomUrl)}
+            >
+              <Text style={styles.videoBtnText}>📹 Rejoindre la vidéo</Text>
+            </Pressable>
+          )}
+
           {/* Ordonnance */}
           {consult.prescription && (
             <View style={styles.prescriptionBanner}>
@@ -294,6 +305,15 @@ const styles = StyleSheet.create({
   metaLabel: { ...typography.caption, color: colors.textSecondary, flex: 0 },
   metaValue: { ...typography.body2, color: colors.text, textAlign: 'right', flex: 1, marginLeft: spacing[3] },
   feeValue:  { ...typography.h3, color: colors.primary, textAlign: 'right' },
+
+  videoBtn: {
+    backgroundColor: colors.primary,
+    borderRadius:    radii.lg,
+    padding:         spacing[3],
+    alignItems:      'center',
+    marginTop:       spacing[3],
+  },
+  videoBtnText: { ...typography.body1, color: colors.textOnDark, fontWeight: '700' },
 
   prescriptionBanner: {
     flexDirection:   'row',
