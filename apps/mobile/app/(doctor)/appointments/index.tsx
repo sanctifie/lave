@@ -104,7 +104,7 @@ export default function DoctorAppointmentsScreen() {
                 <Text style={{ fontSize: 22 }}>👤</Text>
               </View>
               <View style={styles.cardBody}>
-                <Text style={styles.patient}>{appt.doctorName}</Text>
+                <Text style={styles.patient}>{appt.patientName}</Text>
                 <Text style={styles.time}>{formatTime(appt.scheduledAt)}</Text>
                 <View style={styles.tagRow}>
                   <View style={[styles.typeTag, appt.type === 'immediate' && styles.typeTagImmediate]}>

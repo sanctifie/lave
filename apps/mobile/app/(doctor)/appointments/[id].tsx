@@ -41,9 +41,19 @@ export default function DoctorConsultationScreen() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await apiClient.get<{ data: ConsultationDetail }>(`/appointments/${id}`);
-      const a = data.data ?? data;
-      setAppt(a);
+      const { data } = await apiClient.get<{ data: any }>(`/appointments/${id}`);
+      const raw = data.data ?? data;
+      setAppt({
+        id:                  raw.id,
+        patientName:         raw.patient?.name ?? '—',
+        type:                raw.type,
+        scheduledAt:         raw.scheduledAt ?? null,
+        status:              raw.status,
+        feeFcfa:             raw.doctor?.consultationFeeFcfa ?? 0,
+        chiefComplaint:      raw.notes ?? null,
+        videoRoomUrl:        raw.consultation?.videoSession?.providerRoomUrl ?? null,
+        prescriptionIssued:  !!raw.consultation?.prescription,
+      });
     } catch {
       Alert.alert('Erreur', 'Impossible de charger la consultation.');
       router.back();

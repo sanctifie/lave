@@ -6,6 +6,7 @@ export interface AppointmentListItem {
   id:              string;
   doctorName:      string;
   doctorSpecialty: string;
+  patientName:     string;
   type:            AppointmentType;
   scheduledAt:     string | null;
   status:          string;
@@ -51,9 +52,19 @@ export interface CreateAppointmentInput {
 }
 
 export const appointmentsService = {
-  async list() {
-    const res = await apiClient.get<{ data: AppointmentListItem[] }>('/appointments');
-    return res.data.data;
+  async list(): Promise<AppointmentListItem[]> {
+    const res = await apiClient.get<{ data: any[] }>('/appointments');
+    const raw: any[] = res.data.data ?? (res.data as any);
+    return raw.map((a) => ({
+      id:              a.id,
+      type:            a.type,
+      status:          a.status,
+      scheduledAt:     a.scheduledAt ?? null,
+      feeFcfa:         a.doctor?.consultationFeeFcfa ?? a.feeFcfa ?? 0,
+      doctorName:      a.doctor?.user?.name ?? '—',
+      doctorSpecialty: a.doctor?.specialty?.name ?? '—',
+      patientName:     a.patient?.name ?? '—',
+    }));
   },
 
   async getById(id: string): Promise<AppointmentDetail> {

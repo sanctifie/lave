@@ -9,12 +9,14 @@ export interface DeliveryItem {
   createdAt:       string;
   patientName:     string;
   patientPhone:    string;
+  patientAddress:  string;
   pharmacyName:    string;
   pharmacyAddress: string;
   totalFcfa:       number;
 }
 
 function normalize(raw: any): DeliveryItem {
+  const phone = raw.order?.patient?.phone ?? '';
   return {
     id:              raw.id,
     orderId:         raw.orderId ?? null,
@@ -23,7 +25,8 @@ function normalize(raw: any): DeliveryItem {
     handoverCode:    raw.handoverCode ?? null,
     createdAt:       raw.createdAt,
     patientName:     raw.order?.patient?.name  ?? '—',
-    patientPhone:    raw.order?.patient?.phone ?? '',
+    patientPhone:    phone,
+    patientAddress:  phone ? `📞 ${phone}` : '—',
     pharmacyName:    raw.order?.partner?.legalName ?? '—',
     pharmacyAddress: raw.order?.partner?.landmark  ?? '—',
     totalFcfa:       raw.order?.totalFcfa ?? 0,
