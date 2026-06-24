@@ -21,8 +21,11 @@ export const doctorsService = {
     return res.data.data;
   },
 
-  async countAvailableNow(): Promise<{ count: number; available: boolean }> {
-    const res = await apiClient.get<{ data: { count: number; available: boolean } }>('/doctors/available-now/count');
+  async countAvailableNow(specialty?: string): Promise<{ count: number; available: boolean }> {
+    const res = await apiClient.get<{ data: { count: number; available: boolean } }>(
+      '/doctors/available-now/count',
+      { params: specialty ? { specialty } : undefined },
+    );
     return res.data.data;
   },
 

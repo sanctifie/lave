@@ -46,6 +46,7 @@ export interface CreateAppointmentInput {
   type:            AppointmentType;
   scheduledAt?:    string;
   chiefComplaint?: string;
+  specialty?:      string;
 }
 
 export const appointmentsService = {

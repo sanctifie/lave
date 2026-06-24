@@ -29,11 +29,12 @@ export class DoctorRepository {
     });
   }
 
-  async countAvailableNow(): Promise<number> {
+  async countAvailableNow(specialty?: string): Promise<number> {
     return prisma.doctorProfile.count({
       where: {
         isAvailableNow:     true,
         verificationStatus: VerificationStatus.VERIFIED,
+        ...(specialty ? { specialty: { name: specialty } } : {}),
         appointments: {
           none: { status: AppointmentStatus.IN_PROGRESS },
         },

@@ -20,7 +20,8 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 
 /** Nombre de médecins libres maintenant — utilisé par le mobile pour activer/désactiver l'option "Immédiat" */
 router.get('/available-now/count', requireAuth, asyncHandler(async (req, res) => {
-  const count = await service.countAvailableNow();
+  const specialty = typeof req.query.specialty === 'string' ? req.query.specialty : undefined;
+  const count = await service.countAvailableNow(specialty);
   res.json({ data: { count, available: count > 0 } });
 }));
 

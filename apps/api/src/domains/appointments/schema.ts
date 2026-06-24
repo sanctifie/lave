@@ -4,6 +4,7 @@ import { AppointmentType } from '@mbolo/shared';
 export const CreateAppointmentSchema = z.discriminatedUnion('type', [
   z.object({
     type:           z.literal(AppointmentType.IMMEDIATE),
+    specialty:      z.string().max(100).optional(),
     chiefComplaint: z.string().max(500).optional(),
   }),
   z.object({

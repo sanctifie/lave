@@ -43,7 +43,7 @@ export class AppointmentService {
 
   async create(patientId: string, input: CreateAppointmentInput) {
     if (input.type === AppointmentType.IMMEDIATE) {
-      const available = await this.doctorRepo.listAvailableNow() as any[];
+      const available = await this.doctorRepo.listAvailableNow((input as any).specialty) as any[];
       if (available.length === 0) throw HTTP.unprocessable('Aucun médecin disponible en ce moment');
       const doctor = available[0];
       const appt = await this.repo.create({

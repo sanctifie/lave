@@ -24,8 +24,8 @@ export class DoctorService {
     return this.repo.create(userId, data);
   }
 
-  async countAvailableNow() {
-    return this.repo.countAvailableNow();
+  async countAvailableNow(specialty?: string) {
+    return this.repo.countAvailableNow(specialty);
   }
 
   async setAvailability(userId: string, isAvailableNow: boolean) {
