@@ -8,7 +8,7 @@ import { PrescriptionRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
 import { DeliveryRepository } from '../deliveries/repository';
 import { PricingRepository } from '../pricing/repository';
-import { notificationService } from '../../infrastructure/container';
+import { notificationService, pushService } from '../../infrastructure/container';
 import { upload } from '../../infrastructure/upload';
 import { UserRole } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
@@ -21,6 +21,7 @@ const service = new PrescriptionService(
   new DeliveryRepository(),
   new PricingRepository(),
   notificationService,
+  pushService,
 );
 
 // Patient : liste ses ordonnances

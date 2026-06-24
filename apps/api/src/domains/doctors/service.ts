@@ -1,6 +1,6 @@
 import { HTTP } from '../../lib/errors';
 import { DoctorRepository } from './repository';
-import { RegisterDoctorInput } from './schema';
+import { RegisterDoctorInput, UpdateProfileInput, UpdateScheduleInput } from './schema';
 
 const SLOT_DURATION_MIN = 30;
 
@@ -32,6 +32,29 @@ export class DoctorService {
     const profile = await this.repo.findByUserId(userId);
     if (!profile) throw HTTP.notFound('Profil médecin introuvable');
     return this.repo.setAvailability(userId, isAvailableNow);
+  }
+
+  async getMyProfile(userId: string) {
+    const profile = await this.repo.findByUserId(userId);
+    if (!profile) throw HTTP.notFound('Profil médecin introuvable');
+    const availabilities = await this.repo.getAvailabilitiesForDoctor(profile.id);
+    return { ...profile, availabilities };
+  }
+
+  async updateMyProfile(userId: string, data: UpdateProfileInput) {
+    const profile = await this.repo.findByUserId(userId);
+    if (!profile) throw HTTP.notFound('Profil médecin introuvable');
+    return this.repo.updateProfile(userId, data);
+  }
+
+  async updateSchedule(userId: string, input: UpdateScheduleInput) {
+    const profile = await this.repo.findByUserId(userId);
+    if (!profile) throw HTTP.notFound('Profil médecin introuvable');
+    return this.repo.replaceSchedule(profile.id, input.slots);
+  }
+
+  async listSpecialties() {
+    return this.repo.listSpecialties();
   }
 
   /**

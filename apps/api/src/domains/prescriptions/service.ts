@@ -4,8 +4,10 @@ import { OrderRepository } from '../orders/repository';
 import { DeliveryRepository } from '../deliveries/repository';
 import { PricingRepository } from '../pricing/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
+import { PushService } from '../../infrastructure/push/service';
 import { PrescriptionStatus, PricingKind } from '@mbolo/shared';
 import { CreatePrescriptionInput, ValidatePrescriptionInput } from './schema';
+import { prisma } from '../../infrastructure/prisma/client';
 
 export class PrescriptionService {
   constructor(
@@ -14,6 +16,7 @@ export class PrescriptionService {
     private readonly deliveryRepo: DeliveryRepository,
     private readonly pricingRepo: PricingRepository,
     private readonly notif: NotificationService,
+    private readonly push: PushService,
   ) {}
 
   async create(patientId: string, input: CreatePrescriptionInput, file?: Express.Multer.File) {
@@ -100,6 +103,24 @@ export class PrescriptionService {
         `Livraison : ${deliveryFeeFcfa} FCFA\n` +
         `Procédez au paiement pour confirmer.`,
     });
+    this.push.sendToUser(rx.patientId, {
+      title: '✅ Ordonnance validée',
+      body:  `Commande prête — ${(totalFcfa + serviceFeeFcfa).toLocaleString('fr-FR')} FCFA à régler.`,
+      data:  { type: 'prescription_validated', orderId: order.id },
+    });
+
+    // Notifie les coursiers disponibles qu'une livraison est prête
+    const availableCouriers = await prisma.courier.findMany({
+      where:   { isAvailable: true },
+      include: { user: { select: { id: true } } },
+    });
+    for (const courier of availableCouriers) {
+      this.push.sendToUser(courier.user.id, {
+        title: '📦 Nouvelle livraison disponible',
+        body:  'Une commande est prête à être récupérée en pharmacie.',
+        data:  { type: 'new_delivery', deliveryId: delivery.id },
+      });
+    }
 
     return { prescription: updatedRx, order, delivery };
   }

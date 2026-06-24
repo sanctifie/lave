@@ -6,7 +6,8 @@ import { VideoProvider } from '../../infrastructure/providers/video';
 import { NotificationService } from '../../infrastructure/providers/notification';
 import { PushService } from '../../infrastructure/push/service';
 import { CreateAppointmentInput, CompleteConsultationInput } from './schema';
-import { AppointmentType, AppointmentStatus, UserRole } from '@mbolo/shared';
+import { AppointmentType, AppointmentStatus, UserRole, PartnerType } from '@mbolo/shared';
+import { prisma } from '../../infrastructure/prisma/client';
 import { PricingKind } from '@mbolo/shared';
 
 export class AppointmentService {
@@ -218,6 +219,25 @@ export class AppointmentService {
       body:  `Durée : ${minutes} min — ${serviceFeeFcfa.toLocaleString('fr-FR')} FCFA à régler.`,
       data:  { type: 'consultation_complete', appointmentId: appt.id },
     });
+
+    // Si ordonnance émise → notifier tout le personnel des pharmacies actives
+    if (input.prescription && result.prescription) {
+      const rxId = result.prescription.id;
+      const pharmacyStaff = await prisma.user.findMany({
+        where: {
+          role:            UserRole.PARTNER_STAFF,
+          partnerStaffOf:  { type: PartnerType.PHARMACY, isActive: true },
+        },
+        select: { id: true },
+      });
+      for (const staff of pharmacyStaff) {
+        this.push.sendToUser(staff.id, {
+          title: '💊 Nouvelle ordonnance',
+          body:  'Un médecin vient d\'émettre une ordonnance numérique.',
+          data:  { type: 'new_prescription', prescriptionId: rxId },
+        });
+      }
+    }
 
     return {
       durationSeconds,

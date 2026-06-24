@@ -85,5 +85,14 @@ function handleNotificationTap(data: Record<string, string>, router: ReturnType<
     case 'payout':
       router.push('/(doctor)' as any);
       break;
+    case 'new_delivery':
+      if (data.deliveryId) router.push(`/(courier)/deliveries/${data.deliveryId}` as any);
+      break;
+    case 'new_prescription':
+      router.push('/(pharmacy)/prescriptions' as any);
+      break;
+    case 'prescription_validated':
+      if (data.orderId) router.push('/(patient)/orders' as any);
+      break;
   }
 }

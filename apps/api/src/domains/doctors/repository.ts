@@ -64,6 +64,27 @@ export class DoctorRepository {
     return prisma.doctorProfile.update({ where: { userId }, data: { isAvailableNow } });
   }
 
+  async updateProfile(userId: string, data: { specialtyId?: string; consultationFeeFcfa?: number; bio?: string; languages?: string[] }) {
+    return prisma.doctorProfile.update({
+      where:   { userId },
+      data,
+      include: { specialty: true },
+    });
+  }
+
+  async replaceSchedule(doctorId: string, slots: { dayOfWeek: number; startTimeUtc: string; endTimeUtc: string }[]) {
+    await prisma.doctorAvailability.deleteMany({ where: { doctorId } });
+    if (slots.length === 0) return [];
+    await prisma.doctorAvailability.createMany({
+      data: slots.map((s) => ({ doctorId, ...s })),
+    });
+    return prisma.doctorAvailability.findMany({ where: { doctorId, isActive: true } });
+  }
+
+  async listSpecialties() {
+    return prisma.doctorSpecialty.findMany({ orderBy: { name: 'asc' } });
+  }
+
   /** Retourne les créneaux de dispo hebdomadaires pour un médecin donné */
   async getAvailabilitiesForDoctor(doctorId: string) {
     return prisma.doctorAvailability.findMany({

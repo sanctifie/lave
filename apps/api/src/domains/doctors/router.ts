@@ -2,13 +2,50 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../lib/asyncHandler';
-import { RegisterDoctorSchema, UpdateAvailabilitySchema } from './schema';
+import { RegisterDoctorSchema, UpdateAvailabilitySchema, UpdateProfileSchema, UpdateScheduleSchema } from './schema';
 import { DoctorService } from './service';
 import { DoctorRepository } from './repository';
 import { UserRole } from '@mbolo/shared';
 
 const router  = Router();
 const service = new DoctorService(new DoctorRepository());
+
+/** Spécialités médicales disponibles */
+router.get('/specialties', requireAuth, asyncHandler(async (_req, res) => {
+  res.json({ data: await service.listSpecialties() });
+}));
+
+/** Profil du médecin connecté */
+router.get(
+  '/me',
+  requireAuth,
+  requireRole(UserRole.DOCTOR),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.getMyProfile(req.user!.userId) });
+  }),
+);
+
+/** Mise à jour spécialité / tarif / bio */
+router.patch(
+  '/me/profile',
+  requireAuth,
+  requireRole(UserRole.DOCTOR),
+  validate(UpdateProfileSchema),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.updateMyProfile(req.user!.userId, req.body) });
+  }),
+);
+
+/** Remplacement complet du planning hebdomadaire */
+router.put(
+  '/me/schedule',
+  requireAuth,
+  requireRole(UserRole.DOCTOR),
+  validate(UpdateScheduleSchema),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.updateSchedule(req.user!.userId, req.body) });
+  }),
+);
 
 /** Liste tous les médecins vérifiés, filtrable par spécialité et disponibilité */
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
