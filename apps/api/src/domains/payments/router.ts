@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../lib/asyncHandler';
-import { InitEscrowSchema, InitConsultationPaymentSchema, MeSombWebhookSchema } from './schema';
+import { InitEscrowSchema, InitConsultationPaymentSchema, MyPVITWebhookSchema } from './schema';
 import { PaymentService } from './service';
 import { PaymentRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
@@ -51,18 +51,21 @@ router.get(
   }),
 );
 
-// ─── Webhook MeSomb (sans auth JWT) ───────────────────────────────────────────
+// ─── Webhook MyPVIT ───────────────────────────────────────────────────────────
+// Pas d'auth JWT — MyPVIT appelle cette route directement.
+// Réponse obligatoire : { transactionId, responseCode } — cf. docs MyPVIT section 3.
 
 router.post(
   '/webhook',
   asyncHandler(async (req, res) => {
-    const parsed = MeSombWebhookSchema.safeParse(req.body);
+    const parsed = MyPVITWebhookSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'Payload invalide' });
+      // Répondre 200 quand même pour éviter les retries MyPVIT sur payload inconnu
+      res.json({ error: 'payload_invalide' });
       return;
     }
-    const result = await service.handleWebhook(parsed.data);
-    res.json(result);
+    const echo = await service.handleWebhook(parsed.data);
+    res.json(echo);
   }),
 );
 

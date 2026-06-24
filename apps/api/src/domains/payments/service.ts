@@ -3,7 +3,7 @@ import { PaymentRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
 import { PricingRepository } from '../pricing/repository';
 import { PaymentProvider } from '../../infrastructure/providers/payment';
-import { InitEscrowInput, InitConsultationPaymentInput, MeSombWebhookInput } from './schema';
+import { InitEscrowInput, InitConsultationPaymentInput, MyPVITWebhookInput } from './schema';
 import { PricingKind, ConsultationStatus } from '@mbolo/shared';
 import { randomUUID } from 'crypto';
 
@@ -20,7 +20,7 @@ export class PaymentService {
   async initEscrow(patientId: string, input: InitEscrowInput) {
     const order = await this.orderRepo.findById(input.orderId);
     if (!order) throw HTTP.notFound('Commande introuvable');
-    if (order.patientId !== patientId) throw HTTP.forbidden();
+    if ((order as any).patientId !== patientId) throw HTTP.forbidden();
 
     const existing = await this.repo.findByOrderId(input.orderId);
     if (existing) throw HTTP.conflict('Un escrow existe déjà pour cette commande');
@@ -90,34 +90,42 @@ export class PaymentService {
     };
   }
 
-  /** Appelé par le webhook MeSomb — identifie la transaction par reference (idempotencyKey) */
-  async handleWebhook(body: MeSombWebhookInput) {
-    const reference = body.transaction?.reference ?? body.reference;
-    if (!reference) return { ignored: true };
+  /**
+   * Webhook MyPVIT — identifie la transaction par merchantReferenceId,
+   * capture si SUCCESS, échoue si FAILED.
+   * Retourne l'accusé de réception obligatoire : { transactionId, responseCode }
+   */
+  async handleWebhook(body: MyPVITWebhookInput) {
+    const reference = body.merchantReferenceId;
 
-    const txn = await this.repo.findByIdempotencyKey(reference);
-    if (!txn) return { ignored: true, reason: 'transaction inconnue' };
-
-    const isSuccess = body.success === true || body.status === 'SUCCESS' || body.transaction?.status === 'SUCCESS';
-    if (!isSuccess) {
-      await this.repo.fail(txn.id, body.status ?? 'FAILED');
-      return { handled: true, result: 'failed' };
+    if (reference) {
+      const txn = await this.repo.findByIdempotencyKey(reference);
+      if (txn) {
+        const isSuccess = body.status === 'SUCCESS';
+        if (isSuccess) {
+          await this.repo.capture(txn.id);
+          if (txn.consultationId) {
+            await this.payoutDoctor(txn.consultationId, txn.amountFcfa).catch((e) =>
+              console.error('[PaymentService] payoutDoctor failed', e),
+            );
+          }
+        } else {
+          await this.repo.fail(txn.id, body.status);
+        }
+      }
     }
 
-    await this.repo.capture(txn.id);
-
-    // Déclenche le versement médecin si c'est une consultation
-    if (txn.consultationId) {
-      await this.payoutDoctor(txn.consultationId, txn.amountFcfa);
-    }
-
-    return { handled: true, result: 'captured' };
+    // Accusé de réception obligatoire MyPVIT — renvoyer transactionId + code tels quels
+    return {
+      transactionId: body.transactionId,
+      responseCode:  body.code,
+    };
   }
 
   // ─── Interne : versement médecin ─────────────────────────────────────────
 
   private async payoutDoctor(consultationId: string, totalFcfa: number) {
-    const consult       = await this.repo.findConsultationForPayment(consultationId);
+    const consult = await this.repo.findConsultationForPayment(consultationId);
     if (!consult) return;
 
     const commissionEntry = await this.pricingRepo.getByKind(PricingKind.PLATFORM_COMMISSION_PCT);
@@ -128,15 +136,11 @@ export class PaymentService {
     if (!doctorPhone || doctorPayout <= 0) return;
 
     const idempotencyKey = `payout_${consultationId}`;
-    try {
-      await this.provider.payout({ amountFcfa: doctorPayout, phoneNumber: doctorPhone, idempotencyKey });
-      await this.repo.createPayout({
-        recipientId:    consult.doctorId,
-        amountFcfa:     doctorPayout,
-        idempotencyKey,
-      });
-    } catch (err) {
-      console.error('[PaymentService] Payout failed', err);
-    }
+    await this.provider.payout({ amountFcfa: doctorPayout, phoneNumber: doctorPhone, idempotencyKey });
+    await this.repo.createPayout({
+      recipientId:    consult.doctorId,
+      amountFcfa:     doctorPayout,
+      idempotencyKey,
+    });
   }
 }
