@@ -1,16 +1,21 @@
 import { HTTP } from '../../lib/errors';
 import { PaymentRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
+import { PricingRepository } from '../pricing/repository';
 import { PaymentProvider } from '../../infrastructure/providers/payment';
-import { InitEscrowInput } from './schema';
+import { InitEscrowInput, InitConsultationPaymentInput, MeSombWebhookInput } from './schema';
+import { PricingKind, ConsultationStatus } from '@mbolo/shared';
 import { randomUUID } from 'crypto';
 
 export class PaymentService {
   constructor(
-    private readonly repo: PaymentRepository,
-    private readonly orderRepo: OrderRepository,
-    private readonly provider: PaymentProvider,
+    private readonly repo:        PaymentRepository,
+    private readonly orderRepo:   OrderRepository,
+    private readonly pricingRepo: PricingRepository,
+    private readonly provider:    PaymentProvider,
   ) {}
+
+  // ─── Commandes ────────────────────────────────────────────────────────────
 
   async initEscrow(patientId: string, input: InitEscrowInput) {
     const order = await this.orderRepo.findById(input.orderId);
@@ -21,15 +26,12 @@ export class PaymentService {
     if (existing) throw HTTP.conflict('Un escrow existe déjà pour cette commande');
 
     const idempotencyKey = randomUUID();
-    const result = await this.provider.initEscrow({
-      amountFcfa: order.totalFcfa + order.serviceFeeFcfa,
-      phoneNumber: input.phoneNumber,
-      idempotencyKey,
-    });
+    const amount         = (order as any).totalFcfa + (order as any).serviceFeeFcfa;
+    const result         = await this.provider.initEscrow({ amountFcfa: amount, phoneNumber: input.phoneNumber, idempotencyKey });
 
     return this.repo.createEscrow({
-      orderId: input.orderId,
-      amountFcfa: order.totalFcfa + order.serviceFeeFcfa,
+      orderId:               input.orderId,
+      amountFcfa:            amount,
       idempotencyKey,
       providerTransactionId: result.providerTransactionId,
     });
@@ -40,5 +42,101 @@ export class PaymentService {
     if (!txn || !txn.providerTransactionId) throw HTTP.notFound('Transaction introuvable');
     await this.provider.releaseEscrow(txn.providerTransactionId);
     return this.repo.release(txn.id, txn.providerTransactionId);
+  }
+
+  // ─── Téléconsultation ─────────────────────────────────────────────────────
+
+  async initConsultationPayment(patientId: string, input: InitConsultationPaymentInput) {
+    const consult = await this.repo.findConsultationForPayment(input.consultationId);
+    if (!consult) throw HTTP.notFound('Consultation introuvable');
+    if (consult.appointment.patientId !== patientId) throw HTTP.forbidden();
+    if (consult.status !== ConsultationStatus.COMPLETED) {
+      throw HTTP.unprocessable('La consultation n\'est pas encore terminée');
+    }
+
+    const existing = await this.repo.findByConsultationId(input.consultationId);
+    if (existing) throw HTTP.conflict('Un paiement existe déjà pour cette consultation');
+
+    const amountFcfa     = Number(consult.serviceFeeFcfa ?? 0);
+    const idempotencyKey = randomUUID();
+
+    const result = await this.provider.initEscrow({
+      amountFcfa,
+      phoneNumber:    input.phoneNumber,
+      idempotencyKey,
+      metadata: { operator: input.operator, consultationId: input.consultationId },
+    });
+
+    return this.repo.createConsultationTransaction({
+      consultationId:        input.consultationId,
+      amountFcfa,
+      idempotencyKey,
+      providerTransactionId: result.providerTransactionId,
+    });
+  }
+
+  async getConsultationPaymentStatus(patientId: string, consultationId: string) {
+    const consult = await this.repo.findConsultationForPayment(consultationId);
+    if (!consult) throw HTTP.notFound('Consultation introuvable');
+    if (consult.appointment.patientId !== patientId) throw HTTP.forbidden();
+
+    const txn = await this.repo.findByConsultationId(consultationId);
+    return {
+      consultationId,
+      amountFcfa:  consult.serviceFeeFcfa,
+      transaction: txn
+        ? { id: txn.id, status: txn.status, paidAt: txn.paidAt }
+        : null,
+    };
+  }
+
+  /** Appelé par le webhook MeSomb — identifie la transaction par reference (idempotencyKey) */
+  async handleWebhook(body: MeSombWebhookInput) {
+    const reference = body.transaction?.reference ?? body.reference;
+    if (!reference) return { ignored: true };
+
+    const txn = await this.repo.findByIdempotencyKey(reference);
+    if (!txn) return { ignored: true, reason: 'transaction inconnue' };
+
+    const isSuccess = body.success === true || body.status === 'SUCCESS' || body.transaction?.status === 'SUCCESS';
+    if (!isSuccess) {
+      await this.repo.fail(txn.id, body.status ?? 'FAILED');
+      return { handled: true, result: 'failed' };
+    }
+
+    await this.repo.capture(txn.id);
+
+    // Déclenche le versement médecin si c'est une consultation
+    if (txn.consultationId) {
+      await this.payoutDoctor(txn.consultationId, txn.amountFcfa);
+    }
+
+    return { handled: true, result: 'captured' };
+  }
+
+  // ─── Interne : versement médecin ─────────────────────────────────────────
+
+  private async payoutDoctor(consultationId: string, totalFcfa: number) {
+    const consult       = await this.repo.findConsultationForPayment(consultationId);
+    if (!consult) return;
+
+    const commissionEntry = await this.pricingRepo.getByKind(PricingKind.PLATFORM_COMMISSION_PCT);
+    const commissionPct   = Number(commissionEntry?.valueNum ?? 15);
+    const doctorPayout    = Math.floor(totalFcfa * (1 - commissionPct / 100));
+    const doctorPhone     = consult.doctor?.user?.phone;
+
+    if (!doctorPhone || doctorPayout <= 0) return;
+
+    const idempotencyKey = `payout_${consultationId}`;
+    try {
+      await this.provider.payout({ amountFcfa: doctorPayout, phoneNumber: doctorPhone, idempotencyKey });
+      await this.repo.createPayout({
+        recipientId:    consult.doctorId,
+        amountFcfa:     doctorPayout,
+        idempotencyKey,
+      });
+    } catch (err) {
+      console.error('[PaymentService] Payout failed', err);
+    }
   }
 }
