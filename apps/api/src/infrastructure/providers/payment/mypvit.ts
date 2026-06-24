@@ -9,6 +9,7 @@ const CALLBACK_URL_CODE  = process.env.MYPVIT_CALLBACK_URL_CODE  ?? '';
 const OPERATOR_MAP: Record<string, string> = {
   orange: 'ORANGE_MONEY',
   airtel: 'AIRTEL_MONEY',
+  moov:   'MOOV_MONEY',
 };
 
 /** Gestion du token X-Secret (TTL 3600s — renouvellement lazy avec buffer 2 min) */

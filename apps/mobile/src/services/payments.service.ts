@@ -23,7 +23,7 @@ export const paymentsService = {
   initConsultationPayment: async (data: {
     consultationId: string;
     phoneNumber:    string;
-    operator:       'orange' | 'airtel';
+    operator:       'orange' | 'airtel' | 'moov';
   }): Promise<ConsultationTransaction> => {
     const r = await api.post('/payments/consultation', data);
     return r.data.data ?? r.data;
