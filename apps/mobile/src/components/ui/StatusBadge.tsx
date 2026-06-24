@@ -8,7 +8,8 @@ type BadgeStatus =
   | OrderStatus
   | DeliveryStatus
   | PrescriptionStatus
-  | AppointmentStatus;
+  | AppointmentStatus
+  | string;
 
 type BadgeColor = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
@@ -38,6 +39,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: BadgeColor }> = {
   [DeliveryStatus.EN_ROUTE_DELIVERY]:  { label: fr.delivery.status.en_route_delivery,  color: 'info'    },
   [DeliveryStatus.DELIVERED]:          { label: fr.delivery.status.delivered,           color: 'success' },
   [DeliveryStatus.FAILED]:             { label: fr.delivery.status.failed,              color: 'error'   },
+
+  // Appointment
+  [AppointmentStatus.PENDING]:      { label: fr.appointment.status.pending,      color: 'warning' },
+  [AppointmentStatus.CONFIRMED]:    { label: fr.appointment.status.confirmed,    color: 'info'    },
+  [AppointmentStatus.WAITING_ROOM]: { label: fr.appointment.status.waiting_room, color: 'warning' },
+  [AppointmentStatus.IN_PROGRESS]:  { label: fr.appointment.status.in_progress,  color: 'info'    },
+  [AppointmentStatus.COMPLETED]:    { label: fr.appointment.status.completed,    color: 'success' },
+  [AppointmentStatus.CANCELLED]:    { label: fr.appointment.status.cancelled,    color: 'neutral' },
+  [AppointmentStatus.NO_SHOW]:      { label: fr.appointment.status.no_show,      color: 'error'   },
 };
 
 const COLOR_STYLES: Record<BadgeColor, { bg: string; text: string }> = {
@@ -48,13 +58,14 @@ const COLOR_STYLES: Record<BadgeColor, { bg: string; text: string }> = {
   neutral: { bg: colors.border,         text: colors.textSecondary },
 };
 
-export const StatusBadge = ({ status }: { status: BadgeStatus }) => {
+export const StatusBadge = ({ status, label }: { status: BadgeStatus; label?: string }) => {
   const config = STATUS_CONFIG[status] ?? { label: status, color: 'neutral' as BadgeColor };
   const style  = COLOR_STYLES[config.color];
+  const displayLabel = label ?? config.label;
 
   return (
     <View style={[styles.badge, { backgroundColor: style.bg }]}>
-      <Text style={[styles.text, { color: style.text }]}>{config.label}</Text>
+      <Text style={[styles.text, { color: style.text }]}>{displayLabel}</Text>
     </View>
   );
 };

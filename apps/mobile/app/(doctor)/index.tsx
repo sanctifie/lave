@@ -32,14 +32,21 @@ export default function DoctorDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await apiClient.get<{ data: NextAppointment[] }>('/appointments?role=doctor');
-      const appts    = data.data ?? data;
-      const pending  = appts.filter((a: NextAppointment) =>
-        [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED].includes(a.status as AppointmentStatus)
+      const { data } = await apiClient.get<{ data: any[] }>('/appointments');
+      const raw      = data.data ?? data;
+      const appts    = raw.map((a: any) => ({
+        id:          a.id,
+        patientName: a.patient?.name ?? '—',
+        type:        a.type,
+        scheduledAt: a.scheduledAt ?? null,
+        status:      a.status,
+      })) as NextAppointment[];
+      const pending = appts.filter((a) =>
+        [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.WAITING_ROOM].includes(a.status as AppointmentStatus)
       );
-      const done     = appts.filter((a: NextAppointment) => a.status === AppointmentStatus.COMPLETED);
+      const done = appts.filter((a) => a.status === AppointmentStatus.COMPLETED);
       setQueue(pending.slice(0, 5));
-      setStats({ todayCount: pending.length, pendingImmediate: pending.filter((a: NextAppointment) => !a.scheduledAt).length, completedToday: done.length });
+      setStats({ todayCount: pending.length, pendingImmediate: pending.filter((a) => !a.scheduledAt).length, completedToday: done.length });
     } catch {}
     finally { setLoading(false); }
   }, []);

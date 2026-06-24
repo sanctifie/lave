@@ -25,7 +25,7 @@ export class UserService {
 
   async updatePatientProfile(userId: string, data: UpdatePatientProfileInput) {
     return this.repo.upsertPatientProfile(userId, {
-      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : data.dateOfBirth,
+      dateOfBirth: typeof data.dateOfBirth === 'string' ? new Date(data.dateOfBirth) : (data.dateOfBirth ?? undefined),
       bloodType:   data.bloodType,
       allergies:   data.allergies,
     });

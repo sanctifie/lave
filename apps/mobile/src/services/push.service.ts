@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { api } from './client';
+import { apiClient as api } from './client';
 
 /** Demande la permission, récupère le token Expo et l'envoie au backend */
 export async function registerForPushNotifications(): Promise<string | null> {
