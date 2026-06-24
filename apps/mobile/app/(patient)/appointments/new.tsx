@@ -41,34 +41,71 @@ export default function NewAppointmentScreen() {
   const [complaint, setComplaint]       = useState('');
   const [submitting, setSubmitting]     = useState(false);
 
+  // Pour le mode immédiat : nombre de médecins libres
+  const [availableCount, setAvailableCount] = useState<number | null>(null);
+  const [loadingCount, setLoadingCount]     = useState(true);
+
+  // Charge le nombre de médecins disponibles maintenant (pour activer/désactiver la carte "Immédiat")
   useEffect(() => {
+    setLoadingCount(true);
+    doctorsService
+      .countAvailableNow()
+      .then((r) => setAvailableCount(r.count))
+      .catch(() => setAvailableCount(0))
+      .finally(() => setLoadingCount(false));
+  }, []);
+
+  // Charge la liste de médecins (uniquement en mode "programmé")
+  useEffect(() => {
+    if (type === 'immediate') { setDoctors([]); setLoadingDr(false); return; }
     setLoadingDr(true);
     setSelectedDr(null);
     doctorsService
-      .list({ specialty: specialty || undefined, availableNow: type === 'immediate' })
+      .list({ specialty: specialty || undefined })
       .then(setDoctors)
       .catch(() => setDoctors([]))
       .finally(() => setLoadingDr(false));
   }, [specialty, type]);
 
+  const immediateAvailable = (availableCount ?? 0) > 0;
+
   const submit = async () => {
-    if (!selectedDr) { Alert.alert('', 'Veuillez sélectionner un médecin.'); return; }
+    if (type === 'scheduled' && !selectedDr) {
+      Alert.alert('', 'Veuillez sélectionner un médecin.');
+      return;
+    }
     setSubmitting(true);
     try {
-      await appointmentsService.create({
-        doctorId: selectedDr.id,
-        type,
-        chiefComplaint: complaint.trim() || undefined,
-      });
-      Alert.alert('Consultation créée !', 'Le médecin va vous rejoindre.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      if (type === 'immediate') {
+        await appointmentsService.create({
+          type: 'immediate',
+          chiefComplaint: complaint.trim() || undefined,
+        });
+        Alert.alert(
+          'Demande envoyée',
+          'Le premier médecin disponible va vous prendre en charge. Vous serez notifié dès qu\'il démarre la consultation.',
+          [{ text: 'OK', onPress: () => router.back() }],
+        );
+      } else {
+        await appointmentsService.create({
+          doctorId: selectedDr!.id,
+          type: 'scheduled',
+          chiefComplaint: complaint.trim() || undefined,
+        });
+        Alert.alert('Rendez-vous créé !', 'Le médecin a été notifié.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }
     } catch {
       Alert.alert(fr.common.error, 'Impossible de créer la consultation. Réessayez.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const canSubmit = type === 'immediate'
+    ? immediateAvailable && !submitting
+    : !!selectedDr && !submitting;
 
   return (
     <ScrollView
@@ -89,109 +126,150 @@ export default function NewAppointmentScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Type de consultation</Text>
         <View style={styles.typeRow}>
-          {([
-            { key: 'immediate' as ConsultType, label: 'Immédiat',    icon: '⚡' },
-            { key: 'scheduled' as ConsultType, label: 'Programmé',   icon: '📅' },
-          ] as const).map((t) => (
-            <Pressable
-              key={t.key}
-              style={[styles.typeCard, type === t.key && styles.typeCardActive]}
-              onPress={() => setType(t.key)}
-            >
-              <Text style={styles.typeIcon}>{t.icon}</Text>
-              <Text style={[styles.typeLabel, type === t.key && styles.typeLabelActive]}>
-                {t.label}
+          {/* Carte Immédiat */}
+          <Pressable
+            style={[
+              styles.typeCard,
+              type === 'immediate' && styles.typeCardActive,
+              !immediateAvailable && !loadingCount && styles.typeCardDisabled,
+            ]}
+            onPress={() => {
+              if (immediateAvailable) setType('immediate');
+            }}
+          >
+            <Text style={styles.typeIcon}>⚡</Text>
+            <Text style={[
+              styles.typeLabel,
+              type === 'immediate' && styles.typeLabelActive,
+              !immediateAvailable && !loadingCount && styles.typeLabelDisabled,
+            ]}>
+              Immédiat
+            </Text>
+            {loadingCount ? (
+              <ActivityIndicator size="small" color={colors.textDisabled} />
+            ) : immediateAvailable ? (
+              <Text style={styles.availableBadge}>
+                {availableCount} disponible{availableCount !== 1 ? 's' : ''}
               </Text>
-            </Pressable>
-          ))}
+            ) : (
+              <Text style={styles.unavailableBadge}>Indisponible</Text>
+            )}
+          </Pressable>
+
+          {/* Carte Programmé */}
+          <Pressable
+            style={[styles.typeCard, type === 'scheduled' && styles.typeCardActive]}
+            onPress={() => setType('scheduled')}
+          >
+            <Text style={styles.typeIcon}>📅</Text>
+            <Text style={[styles.typeLabel, type === 'scheduled' && styles.typeLabelActive]}>
+              Programmé
+            </Text>
+          </Pressable>
         </View>
       </View>
 
-      {/* Specialty chips — Image 1 horizontal scroll */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Spécialité</Text>
-        <FlatList
-          horizontal
-          data={SPECIALTIES}
-          keyExtractor={(s) => s.key}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.specialtyRow}
-          renderItem={({ item: sp }) => {
-            const active = specialty === sp.key;
-            return (
-              <Pressable
-                style={styles.specialtyItem}
-                onPress={() => setSpecialty(sp.key)}
-              >
-                <View style={[styles.specialtyCircle, active && styles.specialtyCircleActive]}>
-                  <Text style={styles.specialtyIcon}>{sp.icon}</Text>
-                </View>
-                <Text style={[styles.specialtyLabel, active && styles.specialtyLabelActive]}>
-                  {sp.label}
-                </Text>
-              </Pressable>
-            );
-          }}
-        />
-      </View>
-
-      {/* Doctor list — Image 1 card style */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>
-          {type === 'immediate' ? 'Médecins disponibles maintenant' : 'Choisir un médecin'}
-        </Text>
-
-        {loadingDr ? (
-          <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
-        ) : doctors.length === 0 ? (
-          <Text style={styles.noDoctors}>{fr.appointment.noDoctor}</Text>
-        ) : (
-          <View style={styles.doctorList}>
-            {doctors.map((dr) => {
-              const selected = selectedDr?.id === dr.id;
-              return (
-                <Pressable
-                  key={dr.id}
-                  style={[styles.doctorCard, selected && styles.doctorCardSelected]}
-                  onPress={() => setSelectedDr(dr)}
-                >
-                  {/* Avatar */}
-                  <View style={[styles.drAvatar, selected && styles.drAvatarSelected]}>
-                    <Text style={{ fontSize: 22 }}>👨‍⚕️</Text>
-                  </View>
-
-                  {/* Info */}
-                  <View style={styles.drInfo}>
-                    <Text style={[styles.drName, selected && { color: colors.primary }]}>
-                      Dr. {dr.name}
+      {/* Contenu selon le type */}
+      {type === 'immediate' ? (
+        /* ── Mode immédiat : pas de sélection de médecin ── */
+        <View style={styles.section}>
+          {immediateAvailable ? (
+            <View style={styles.immediateInfo}>
+              <Text style={styles.immediateTitle}>Consultation immédiate ⚡</Text>
+              <Text style={styles.immediateText}>
+                Le premier médecin disponible vous prendra en charge. Vous serez notifié
+                dès qu'il démarre la session vidéo.
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.immediateInfo, styles.immediateInfoUnavailable]}>
+              <Text style={styles.immediateTitle}>Aucun médecin disponible</Text>
+              <Text style={styles.immediateText}>
+                Tous les médecins sont actuellement en consultation. Essayez de programmer
+                un rendez-vous ou réessayez dans quelques minutes.
+              </Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        /* ── Mode programmé : spécialité + liste de médecins ── */
+        <>
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Spécialité</Text>
+            <FlatList
+              horizontal
+              data={SPECIALTIES}
+              keyExtractor={(s) => s.key}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.specialtyRow}
+              renderItem={({ item: sp }) => {
+                const active = specialty === sp.key;
+                return (
+                  <Pressable
+                    style={styles.specialtyItem}
+                    onPress={() => setSpecialty(sp.key)}
+                  >
+                    <View style={[styles.specialtyCircle, active && styles.specialtyCircleActive]}>
+                      <Text style={styles.specialtyIcon}>{sp.icon}</Text>
+                    </View>
+                    <Text style={[styles.specialtyLabel, active && styles.specialtyLabelActive]}>
+                      {sp.label}
                     </Text>
-                    <Text style={styles.drSpecialty}>{dr.specialty}</Text>
-                    {/* Stars */}
-                    <View style={styles.ratingRow}>
-                      <Text style={styles.star}>★</Text>
-                      <Text style={styles.rating}>
-                        {dr.rating.toFixed(1)} ({dr.reviewCount})
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Right: price + button */}
-                  <View style={styles.drRight}>
-                    <Text style={styles.fee}>{formatFcfa(dr.consultationFeeFcfa)}</Text>
-                    <View style={[styles.bookBtn, selected && styles.bookBtnSelected]}>
-                      <Text style={[styles.bookBtnText, selected && styles.bookBtnTextSelected]}>
-                        {selected ? '✓ Choisi' : 'Choisir'}
-                      </Text>
-                    </View>
-                  </View>
-                </Pressable>
-              );
-            })}
+                  </Pressable>
+                );
+              }}
+            />
           </View>
-        )}
-      </View>
 
-      {/* Chief complaint */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Choisir un médecin</Text>
+            {loadingDr ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
+            ) : doctors.length === 0 ? (
+              <Text style={styles.noDoctors}>{fr.appointment.noDoctor}</Text>
+            ) : (
+              <View style={styles.doctorList}>
+                {doctors.map((dr) => {
+                  const selected = selectedDr?.id === dr.id;
+                  return (
+                    <Pressable
+                      key={dr.id}
+                      style={[styles.doctorCard, selected && styles.doctorCardSelected]}
+                      onPress={() => setSelectedDr(dr)}
+                    >
+                      <View style={[styles.drAvatar, selected && styles.drAvatarSelected]}>
+                        <Text style={{ fontSize: 22 }}>👨‍⚕️</Text>
+                      </View>
+                      <View style={styles.drInfo}>
+                        <Text style={[styles.drName, selected && { color: colors.primary }]}>
+                          Dr. {dr.name}
+                        </Text>
+                        <Text style={styles.drSpecialty}>{dr.specialty}</Text>
+                        <View style={styles.ratingRow}>
+                          <Text style={styles.star}>★</Text>
+                          <Text style={styles.rating}>
+                            {dr.rating.toFixed(1)} ({dr.reviewCount})
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.drRight}>
+                        <Text style={styles.fee}>{formatFcfa(dr.consultationFeeFcfa)}</Text>
+                        <View style={[styles.bookBtn, selected && styles.bookBtnSelected]}>
+                          <Text style={[styles.bookBtnText, selected && styles.bookBtnTextSelected]}>
+                            {selected ? '✓ Choisi' : 'Choisir'}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </>
+      )}
+
+      {/* Motif de consultation */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Motif de consultation (optionnel)</Text>
         <TextInput
@@ -209,7 +287,7 @@ export default function NewAppointmentScreen() {
       <Button
         label={submitting ? 'Création…' : fr.appointment.bookNow}
         onPress={submit}
-        disabled={!selectedDr || submitting}
+        disabled={!canSubmit}
         loading={submitting}
       />
     </ScrollView>
@@ -246,10 +324,37 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     ...shadows.card,
   },
-  typeCardActive: { borderColor: colors.primary, backgroundColor: colors.primarySurface },
-  typeIcon:       { fontSize: 28 },
-  typeLabel:      { ...typography.label, color: colors.textSecondary },
-  typeLabelActive:{ color: colors.primary },
+  typeCardActive:   { borderColor: colors.primary, backgroundColor: colors.primarySurface },
+  typeCardDisabled: { opacity: 0.5 },
+  typeIcon:         { fontSize: 28 },
+  typeLabel:        { ...typography.label, color: colors.textSecondary },
+  typeLabelActive:  { color: colors.primary },
+  typeLabelDisabled:{ color: colors.textDisabled },
+
+  availableBadge: {
+    ...typography.small,
+    color: colors.success ?? '#16A34A',
+    fontWeight: '600',
+  },
+  unavailableBadge: {
+    ...typography.small,
+    color: colors.textDisabled,
+  },
+
+  immediateInfo: {
+    backgroundColor: colors.primarySurface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+  },
+  immediateInfoUnavailable: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  immediateTitle: { ...typography.bodyMedium, color: colors.text },
+  immediateText:  { ...typography.body, color: colors.textSecondary, lineHeight: 20 },
 
   specialtyRow: { gap: spacing.md, paddingVertical: spacing.xs },
   specialtyItem: { alignItems: 'center', gap: spacing.xs, width: 72 },

@@ -18,6 +18,12 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   res.json({ data: list });
 }));
 
+/** Nombre de médecins libres maintenant — utilisé par le mobile pour activer/désactiver l'option "Immédiat" */
+router.get('/available-now/count', requireAuth, asyncHandler(async (req, res) => {
+  const count = await service.countAvailableNow();
+  res.json({ data: { count, available: count > 0 } });
+}));
+
 /** Créneaux disponibles pour un médecin à une date donnée */
 router.get('/:id/slots', requireAuth, asyncHandler(async (req, res) => {
   const date = typeof req.query.date === 'string' ? req.query.date : new Date().toISOString().slice(0, 10);

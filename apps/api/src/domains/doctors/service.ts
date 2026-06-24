@@ -24,6 +24,10 @@ export class DoctorService {
     return this.repo.create(userId, data);
   }
 
+  async countAvailableNow() {
+    return this.repo.countAvailableNow();
+  }
+
   async setAvailability(userId: string, isAvailableNow: boolean) {
     const profile = await this.repo.findByUserId(userId);
     if (!profile) throw HTTP.notFound('Profil médecin introuvable');

@@ -21,6 +21,11 @@ export const doctorsService = {
     return res.data.data;
   },
 
+  async countAvailableNow(): Promise<{ count: number; available: boolean }> {
+    const res = await apiClient.get<{ data: { count: number; available: boolean } }>('/doctors/available-now/count');
+    return res.data.data;
+  },
+
   async getSlots(doctorId: string, date: string) {
     const res = await apiClient.get<{ data: TimeSlot[] }>(`/doctors/${doctorId}/slots`, {
       params: { date },

@@ -1,5 +1,5 @@
 import { prisma } from '../../infrastructure/prisma/client';
-import { VerificationStatus } from '@mbolo/shared';
+import { VerificationStatus, AppointmentStatus } from '@mbolo/shared';
 import { RegisterDoctorInput } from './schema';
 
 export class DoctorRepository {
@@ -20,8 +20,24 @@ export class DoctorRepository {
         isAvailableNow:     true,
         verificationStatus: VerificationStatus.VERIFIED,
         ...(specialty ? { specialty: { name: specialty } } : {}),
+        // Exclut les médecins déjà en consultation active
+        appointments: {
+          none: { status: AppointmentStatus.IN_PROGRESS },
+        },
       },
       include: { specialty: true, user: { select: { name: true, phone: true } } },
+    });
+  }
+
+  async countAvailableNow(): Promise<number> {
+    return prisma.doctorProfile.count({
+      where: {
+        isAvailableNow:     true,
+        verificationStatus: VerificationStatus.VERIFIED,
+        appointments: {
+          none: { status: AppointmentStatus.IN_PROGRESS },
+        },
+      },
     });
   }
 
