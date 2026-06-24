@@ -14,12 +14,13 @@ import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { colors, spacing, radii, shadows, typography } from '../../../src/theme';
 
 const STATUS_LABELS: Record<string, string> = {
-  pending:     'En attente',
-  confirmed:   'Confirmé',
-  in_progress: 'En cours',
-  completed:   'Terminé',
-  cancelled:   'Annulé',
-  no_show:     'Absent',
+  pending:      'En attente',
+  confirmed:    'Confirmé',
+  waiting_room: 'Salle d\'attente',
+  in_progress:  'En cours',
+  completed:    'Terminé',
+  cancelled:    'Annulé',
+  no_show:      'Absent',
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -30,9 +31,10 @@ const TYPE_LABELS: Record<string, string> = {
 export default function AppointmentDetailScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const router   = useRouter();
-  const [appt, setAppt]       = useState<AppointmentDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [appt, setAppt]             = useState<AppointmentDetail | null>(null);
+  const [loading, setLoading]       = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [entering, setEntering]     = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -78,11 +80,39 @@ export default function AppointmentDetailScreen() {
 
   if (!appt) return null;
 
-  const consult       = appt.consultation;
-  const isPaid        = consult?.transaction?.status === 'captured';
-  const isCompleted   = appt.status === 'completed';
-  const canCancel     = ['pending', 'confirmed'].includes(appt.status);
-  const durationMin   = consult?.durationSeconds ? Math.ceil(consult.durationSeconds / 60) : null;
+  const consult     = appt.consultation;
+  const isPaid      = consult?.transaction?.status === 'captured';
+  const isCompleted = appt.status === 'completed';
+  const canCancel   = ['pending', 'confirmed'].includes(appt.status);
+  const durationMin = consult?.durationSeconds ? Math.ceil(consult.durationSeconds / 60) : null;
+
+  // Bouton "Entrer en salle d'attente" : RDV programmé, statut pending/confirmed, dans moins de 10 min
+  const canEnterWaitingRoom = (() => {
+    if (!['pending', 'confirmed'].includes(appt.status)) return false;
+    if (appt.type !== 'scheduled' || !appt.scheduledAt) return false;
+    const diffMs = new Date(appt.scheduledAt).getTime() - Date.now();
+    return diffMs <= 10 * 60 * 1000;
+  })();
+
+  const handleEnterWaitingRoom = async () => {
+    setEntering(true);
+    try {
+      const result = await appointmentsService.enterWaitingRoom(id);
+      router.replace({
+        pathname: '/(patient)/appointments/waiting-room' as any,
+        params: {
+          id,
+          doctorName:    appt.doctor.user.name,
+          doctorSpecialty: appt.doctor.specialty.name,
+          doctorBusy:    result.doctorBusy ? '1' : '0',
+          scheduledAt:   appt.scheduledAt ?? '',
+        },
+      });
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.response?.data?.error ?? 'Impossible d\'entrer en salle d\'attente');
+      setEntering(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -188,6 +218,20 @@ export default function AppointmentDetailScreen() {
         </View>
       )}
 
+      {/* Salle d'attente */}
+      {canEnterWaitingRoom && (
+        <Pressable
+          style={[styles.waitingRoomBtn, entering && styles.waitingRoomBtnDisabled]}
+          onPress={handleEnterWaitingRoom}
+          disabled={entering}
+        >
+          {entering
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.waitingRoomBtnText}>⏳ Entrer en salle d'attente</Text>
+          }
+        </Pressable>
+      )}
+
       {/* Actions */}
       {canCancel && (
         <Pressable
@@ -280,6 +324,16 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   payBtnText: { ...typography.body1, color: colors.textOnDark, fontWeight: '700', textAlign: 'center' },
+
+  waitingRoomBtn: {
+    backgroundColor: colors.primary,
+    borderRadius:    radii.lg,
+    padding:         spacing[4],
+    alignItems:      'center',
+    ...shadows.card,
+  },
+  waitingRoomBtnDisabled: { opacity: 0.6 },
+  waitingRoomBtnText: { ...typography.body1, color: colors.textOnDark, fontWeight: '700' },
 
   cancelBtn: {
     borderWidth:   1.5,

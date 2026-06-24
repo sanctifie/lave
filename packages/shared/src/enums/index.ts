@@ -83,6 +83,7 @@ export enum AppointmentType {
 export enum AppointmentStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
+  WAITING_ROOM = 'waiting_room',
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',

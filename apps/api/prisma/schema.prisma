@@ -125,6 +125,7 @@ enum AppointmentType {
 enum AppointmentStatus {
   pending
   confirmed
+  waiting_room
   in_progress
   completed
   cancelled

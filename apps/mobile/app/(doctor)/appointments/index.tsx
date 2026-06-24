@@ -50,9 +50,15 @@ export default function DoctorAppointmentsScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  const activeStatuses = [
+    AppointmentStatus.PENDING,
+    AppointmentStatus.CONFIRMED,
+    AppointmentStatus.WAITING_ROOM,
+  ] as string[];
+
   const visible = items.filter((a) => {
-    if (tab === 'queue')     return a.type === 'immediate' && [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED].includes(a.status as AppointmentStatus);
-    if (tab === 'scheduled') return a.type === 'scheduled' && [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED].includes(a.status as AppointmentStatus);
+    if (tab === 'queue')     return a.type === 'immediate' && activeStatuses.includes(a.status);
+    if (tab === 'scheduled') return a.type === 'scheduled' && activeStatuses.includes(a.status);
     return [AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW].includes(a.status as AppointmentStatus);
   });
 
@@ -104,7 +110,14 @@ export default function DoctorAppointmentsScreen() {
                   <View style={[styles.typeTag, appt.type === 'immediate' && styles.typeTagImmediate]}>
                     <Text style={styles.typeTagText}>{appt.type === 'immediate' ? '⚡ Immédiat' : '📅 Programmé'}</Text>
                   </View>
-                  <StatusBadge status={appt.status as AppointmentStatus} />
+                  {appt.status === AppointmentStatus.WAITING_ROOM && (
+                    <View style={styles.waitingBadge}>
+                      <Text style={styles.waitingBadgeText}>⏳ En attente</Text>
+                    </View>
+                  )}
+                  {appt.status !== AppointmentStatus.WAITING_ROOM && (
+                    <StatusBadge status={appt.status as AppointmentStatus} />
+                  )}
                 </View>
               </View>
               <View style={styles.cardRight}>
@@ -173,6 +186,15 @@ const styles = StyleSheet.create({
   },
   typeTagImmediate: { backgroundColor: '#FFF0EB' },
   typeTagText:      { ...typography.small, color: colors.text },
+  waitingBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    backgroundColor: '#FFF7E6',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  waitingBadgeText: { ...typography.small, color: '#B45309', fontWeight: '600' },
   cardRight:  { alignItems: 'flex-end', gap: spacing.xs },
   fee:        { ...typography.label, color: colors.primary },
   chevron:    { ...typography.h3, color: colors.textDisabled },

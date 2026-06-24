@@ -81,11 +81,54 @@ export class AppointmentService {
     return appt;
   }
 
+  /** Patient entre en salle d'attente — disponible 10 min avant le RDV */
+  async enterWaitingRoom(appointmentId: string, patientId: string) {
+    const appt = await this.repo.findById(appointmentId);
+    if (!appt) throw HTTP.notFound('RDV introuvable');
+    if (appt.patientId !== patientId) throw HTTP.forbidden();
+
+    const allowed: string[] = [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED];
+    if (!allowed.includes(appt.status)) {
+      throw HTTP.unprocessable('Impossible d\'entrer en salle d\'attente pour ce rendez-vous');
+    }
+
+    // Pour un RDV programmé : salle d'attente ouvre 10 min avant
+    if (appt.type === 'scheduled' && appt.scheduledAt) {
+      const diffMs = (appt.scheduledAt as Date).getTime() - Date.now();
+      if (diffMs > 10 * 60 * 1000) {
+        throw HTTP.unprocessable('La salle d\'attente ouvre 10 minutes avant la consultation');
+      }
+    }
+
+    const updated = await this.repo.setWaitingRoom(appointmentId);
+
+    // Vérifier si le médecin est déjà en consultation (pour l'affichage côté patient)
+    const doctorBusy = await this.doctorRepo.listAvailableNow() as any[];
+    const isDoctorBusy = !doctorBusy.some((d: any) => d.id === appt.doctorId);
+
+    // Notifier le médecin qu'un patient attend
+    const profile = await this.doctorRepo.findById(appt.doctorId);
+    if (profile) {
+      this.push.sendToUser((profile as any).userId, {
+        title: '⏳ Patient en salle d\'attente',
+        body:  `${(appt as any).patient?.name ?? 'Un patient'} attend votre prise en charge.`,
+        data:  { type: 'patient_waiting', appointmentId },
+      });
+    }
+
+    return { appointment: updated, doctorBusy: isDoctorBusy };
+  }
+
   /** Médecin démarre : crée la session vidéo, notifie le patient */
   async start(appointmentId: string, doctorUserId: string) {
     const appt = await this.repo.findById(appointmentId);
     if (!appt) throw HTTP.notFound('RDV introuvable');
-    if (appt.status !== AppointmentStatus.PENDING && appt.status !== AppointmentStatus.CONFIRMED) {
+    const startableStatuses: string[] = [
+      AppointmentStatus.PENDING,
+      AppointmentStatus.CONFIRMED,
+      AppointmentStatus.WAITING_ROOM,
+    ];
+    if (!startableStatuses.includes(appt.status)) {
       throw HTTP.unprocessable(`Impossible de démarrer : statut ${appt.status}`);
     }
     if (appt.consultation) throw HTTP.conflict('Consultation déjà démarrée');

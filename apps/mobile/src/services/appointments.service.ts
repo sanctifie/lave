@@ -65,6 +65,13 @@ export const appointmentsService = {
     return res.data.data;
   },
 
+  async enterWaitingRoom(id: string): Promise<{ appointment: AppointmentDetail; doctorBusy: boolean }> {
+    const res = await apiClient.post<{ data: { appointment: AppointmentDetail; doctorBusy: boolean } }>(
+      `/appointments/${id}/waiting-room`,
+    );
+    return res.data.data;
+  },
+
   async cancel(id: string) {
     const res = await apiClient.patch<{ data: AppointmentListItem }>(`/appointments/${id}/cancel`);
     return res.data.data ?? (res.data as any);

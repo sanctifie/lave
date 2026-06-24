@@ -77,6 +77,26 @@ export class AppointmentRepository {
     });
   }
 
+  async setWaitingRoom(id: string) {
+    return prisma.appointment.update({
+      where:  { id },
+      data:   { status: AppointmentStatus.WAITING_ROOM },
+      include: FULL_INCLUDE,
+    });
+  }
+
+  /** Renvoie les RDV programmés dont l'heure est dans [nowPlus4, nowPlus6[ et non encore en salle d'attente */
+  async findUpcomingInWindow(windowStart: Date, windowEnd: Date) {
+    return prisma.appointment.findMany({
+      where: {
+        type:       'scheduled',
+        status:     { in: ['pending', 'confirmed'] as any },
+        scheduledAt: { gte: windowStart, lt: windowEnd },
+      },
+      include: { patient: { select: { id: true } } },
+    });
+  }
+
   /** Démarre la consultation : crée Consultation + VideoSession, passe appointment → in_progress */
   async startConsultation(data: {
     appointmentId:   string;

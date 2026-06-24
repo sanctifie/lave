@@ -66,6 +66,12 @@ router.post(
   }),
 );
 
+/** Patient entre en salle d'attente (10 min avant le RDV) */
+router.post('/:id/waiting-room', requireAuth, asyncHandler(async (req, res) => {
+  const result = await service.enterWaitingRoom(req.params.id, req.user!.userId);
+  res.json({ data: result });
+}));
+
 /** Patient annule son RDV */
 router.patch('/:id/cancel', requireAuth, asyncHandler(async (req, res) => {
   const appt = await service.cancel(req.params.id, req.user!.userId);

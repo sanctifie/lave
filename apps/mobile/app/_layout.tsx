@@ -70,12 +70,16 @@ function getRoleRoot(role: string): string {
 
 function handleNotificationTap(data: Record<string, string>, router: ReturnType<typeof useRouter>) {
   switch (data.type) {
+    case 'appointment_reminder':
+      if (data.appointmentId) router.push(`/(patient)/appointments/${data.appointmentId}` as any);
+      break;
     case 'consultation_start':
     case 'consultation_complete':
       if (data.appointmentId) router.push(`/(patient)/appointments/${data.appointmentId}` as any);
       break;
     case 'immediate_appointment':
     case 'new_appointment':
+    case 'patient_waiting':
       if (data.appointmentId) router.push(`/(doctor)/appointments/${data.appointmentId}` as any);
       break;
     case 'payout':
