@@ -16,11 +16,10 @@ import { paymentsService } from '../../../src/services/payments.service';
 import { useAuthStore } from '../../../src/stores/auth.store';
 import { colors, spacing, radii, shadows, typography } from '../../../src/theme';
 
-type Operator = 'orange' | 'airtel' | 'moov';
+type Operator = 'airtel' | 'moov';
 type Step = 'form' | 'pending' | 'success' | 'failed';
 
 const OPERATORS: { key: Operator; label: string; color: string; prefix: string }[] = [
-  { key: 'orange', label: 'Orange Money', color: '#FF6600', prefix: '241 06' },
   { key: 'airtel', label: 'Airtel Money', color: '#E30613', prefix: '241 07' },
   { key: 'moov',   label: 'Moov Money',  color: '#0070C0', prefix: '241 04' },
 ];

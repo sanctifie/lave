@@ -7,7 +7,6 @@ const API_PASSWORD       = process.env.MYPVIT_API_PASSWORD       ?? '';
 const CALLBACK_URL_CODE  = process.env.MYPVIT_CALLBACK_URL_CODE  ?? '';
 
 const OPERATOR_MAP: Record<string, string> = {
-  orange: 'ORANGE_MONEY',
   airtel: 'AIRTEL_MONEY',
   moov:   'MOOV_MONEY',
 };

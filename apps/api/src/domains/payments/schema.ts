@@ -8,7 +8,7 @@ export const InitEscrowSchema = z.object({
 export const InitConsultationPaymentSchema = z.object({
   consultationId: z.string().cuid(),
   phoneNumber:    z.string().min(8).max(15),
-  operator:       z.enum(['orange', 'airtel', 'moov']),
+  operator:       z.enum(['airtel', 'moov']),
 });
 
 /** Webhook MyPVIT — payload reçu après traitement opérateur */
