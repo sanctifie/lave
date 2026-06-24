@@ -20,10 +20,17 @@ Ce document explique **à quoi sert chaque service externe**, comment créer un 
 
 ### Qu'est-ce que c'est ?
 
-**Expo** est le framework utilisé pour construire et distribuer l'application mobile MBOLO Santé. Il sert à deux choses distinctes :
+**Expo** est l'outil qui permet d'écrire l'application MBOLO Santé en JavaScript/TypeScript et de la transformer en vraie application Android (APK) ou iOS. Sans Expo, il faudrait écrire le code deux fois : une fois en Java/Kotlin pour Android, une fois en Swift pour iPhone.
 
-1. **Framework de développement** — toute l'application mobile (`apps/mobile`) est écrite avec React Native + Expo. C'est la base du projet mobile, pas optionnel.
-2. **Service de notifications push** — Expo fournit une API unifiée pour envoyer des notifications sur iOS et Android sans gérer APNs (Apple) et FCM (Google) séparément.
+Expo joue trois rôles dans le projet :
+
+1. **Framework de développement** — toute l'application mobile (`apps/mobile`) est écrite avec React Native + Expo. C'est la fondation du projet mobile, sans elle rien ne fonctionne.
+
+2. **Service de build** — Expo peut compiler le code et générer l'APK dans le cloud, sans avoir à installer Android Studio ou Xcode sur son ordinateur. C'est le service EAS (Expo Application Services).
+
+3. **Service de notifications push** — Expo fournit une seule API pour envoyer des notifications sur Android et iOS. Sans ça, il faudrait gérer séparément le système d'Apple (APNs) et celui de Google (FCM), ce qui est nettement plus complexe.
+
+**Analogie** : Expo est comme Adobe InDesign pour les apps mobiles — vous créez votre contenu une seule fois, et vous pouvez l'exporter en version Android et en version iOS sans tout refaire.
 
 ### Sans compte Expo
 
@@ -126,11 +133,32 @@ L'APK est disponible en téléchargement sur [expo.dev](https://expo.dev) après
 
 ### Qu'est-ce que c'est ?
 
-**MyPVIT** ([mypvit.pro](https://mypvit.pro)) est la passerelle de paiement mobile money utilisée par MBOLO Santé pour encaisser les paiements des patients via :
+**MyPVIT** ([mypvit.pro](https://mypvit.pro)) est l'équivalent de Stripe ou PayPal pour le Gabon — mais adapté au mobile money africain. C'est la passerelle qui permet à MBOLO Santé d'encaisser des paiements depuis les portefeuilles mobiles des patients, sans qu'ils aient besoin d'une carte bancaire.
+
+Opérateurs supportés :
 - **Airtel Money** (Gabon)
 - **Moov Money** (Gabon)
 
-Le flux : patient initie le paiement dans l'app → MyPVIT envoie une demande USSD au téléphone du patient → patient confirme → MyPVIT notifie MBOLO via webhook → transaction capturée → médecin rémunéré automatiquement.
+La majorité des Gabonais utilisent le mobile money au quotidien (recharges, factures, transferts) — intégrer MyPVIT permet de toucher ces utilisateurs directement là où est leur argent.
+
+**Comment le paiement se passe concrètement :**
+
+```
+Patient appuie sur "Payer"
+        ↓
+MBOLO Santé envoie la demande à MyPVIT
+        ↓
+MyPVIT envoie une notification USSD au téléphone du patient
+(le patient reçoit un message du type "Confirmez le paiement de 2 000 FCFA à MBOLO Santé")
+        ↓
+Patient tape son code PIN mobile money
+        ↓
+MyPVIT confirme le paiement à MBOLO Santé via webhook
+        ↓
+Consultation débloquée, médecin rémunéré
+```
+
+**Analogie** : MyPVIT est comme un terminal de paiement CB, mais pour le mobile money. Quand le patient "tape son code" sur son téléphone, c'est l'équivalent d'insérer sa carte.
 
 ### Sans compte MyPVIT
 
@@ -206,7 +234,17 @@ MyPVIT exige **au moins 2 tests succès + 2 tests échec** avec gestion correcte
 
 ### Qu'est-ce que c'est ?
 
-**Daily.co** ([daily.co](https://daily.co)) est le service de visioconférence utilisé pour les téléconsultations. Il fournit des salles vidéo sécurisées avec tokens d'accès séparés pour le médecin (hôte) et le patient (invité).
+**Daily.co** ([daily.co](https://daily.co)) est un service de visioconférence programmable — comme Zoom, mais contrôlé par code. Quand un médecin et un patient démarrent une consultation, MBOLO Santé demande automatiquement à Daily.co de créer une salle vidéo privée, génère deux accès séparés (un pour le médecin, un pour le patient), et les envoie à chacun via notification.
+
+La différence avec Zoom ou Google Meet : personne n'a besoin de planifier une réunion ou d'envoyer un lien manuellement. L'application crée la salle en quelques millisecondes, au moment exact où la consultation commence.
+
+**Caractéristiques importantes pour MBOLO Santé :**
+- La salle est **privée** (accessible uniquement avec les tokens générés par le serveur)
+- La salle **expire automatiquement** à la fin de la consultation prévue
+- Maximum 2 participants (patient + médecin) — les autres ne peuvent pas rejoindre
+- Aucune donnée vidéo n'est stockée par défaut (conformité données médicales)
+
+**Analogie** : Daily.co est comme une cabine téléphonique qu'on réserve à la demande — elle existe le temps de l'appel, puis disparaît.
 
 ### Sans compte Daily.co
 
@@ -306,7 +344,20 @@ DAILY_API_KEY="votre_cle_api_daily"
 
 ### Qu'est-ce que c'est ?
 
-**Africa's Talking** ([africastalking.com](https://africastalking.com)) est la passerelle SMS utilisée pour envoyer les codes OTP d'authentification et les alertes par SMS (ex: "Votre médecin est prêt").
+**Africa's Talking** ([africastalking.com](https://africastalking.com)) est une infrastructure SMS qui permet à une application d'envoyer des messages texte à des numéros de téléphone africains, comme si l'application avait elle-même un téléphone et un abonnement chez tous les opérateurs du continent.
+
+Concrètement, Africa's Talking a signé des accords avec les opérateurs téléphoniques de plus de 20 pays africains (Airtel, MTN, Orange, Moov, etc.). Quand MBOLO Santé demande d'envoyer un SMS à un numéro gabonais, Africa's Talking s'occupe de contacter le bon opérateur et de faire passer le message.
+
+**Ce qu'on l'utilise dans MBOLO Santé :**
+- Envoyer les **codes OTP** à la connexion ("Votre code : 847291")
+- Envoyer des **alertes SMS** si le patient n'a pas les notifications activées
+- Confirmer les rendez-vous par SMS (optionnel)
+
+**Pourquoi pas juste l'email ?** En Afrique, le SMS reste le canal de communication numérique le plus universel. Tout le monde a un numéro de téléphone, pas forcément une adresse email.
+
+**Pourquoi pas envoyer les SMS directement ?** Un serveur ne peut pas envoyer de SMS seul — il faut passer par un opérateur télécom. Africa's Talking est l'intermédiaire qui a ces accords avec les opérateurs.
+
+**Analogie** : Africa's Talking est comme La Poste, mais pour les SMS. Vous lui donnez un message et un numéro de destinataire, il se charge de le livrer en passant par les bons réseaux.
 
 ### Sans compte Africa's Talking
 
@@ -377,11 +428,30 @@ AT_SENDER_ID="MBOLO"
 
 ### Qu'est-ce que c'est ?
 
-**Firebase Cloud Messaging (FCM)** est le service Google utilisé par Expo pour délivrer les notifications push sur **Android**. Expo s'en charge en arrière-plan — vous n'utilisez pas FCM directement, mais un fichier de configuration est nécessaire pour le build.
+**Firebase Cloud Messaging (FCM)** est l'infrastructure de Google qui se charge de **délivrer les notifications push sur les téléphones Android**.
+
+Voici comment les notifications fonctionnent réellement, étape par étape :
+
+```
+Serveur MBOLO Santé
+        ↓  "Envoie une notif à ce patient"
+Expo Push Service
+        ↓  Expo identifie que c'est un téléphone Android
+Firebase Cloud Messaging (Google)
+        ↓  Google contacte directement le téléphone Android du patient
+Téléphone Android du patient
+        → La notification apparaît à l'écran
+```
+
+MBOLO Santé parle uniquement à Expo — c'est Expo qui parle à Firebase, et Firebase qui contacte les téléphones Android. Vous ne gérez pas Firebase directement dans le code, mais son fichier de configuration (`google-services.json`) est nécessaire pour que l'APK puisse recevoir des notifications.
+
+**Pour iOS :** Apple a son propre système équivalent (APNs) qui fonctionne de façon similaire. Expo le gère aussi de son côté.
 
 ### Pourquoi c'est nécessaire
 
-Sans Firebase, les notifications push n'arrivent pas sur Android en production. En développement avec Expo Go, ce n'est pas requis.
+Sans Firebase configuré, les notifications push n'arrivent pas sur les téléphones Android en production. Les consultations temps réel (notification "Votre médecin est prêt") nécessitent que ce canal fonctionne.
+
+En développement avec l'application Expo Go sur votre téléphone, ce n'est pas requis — Expo Go a déjà sa propre configuration Firebase.
 
 ### Créer un projet Firebase
 
