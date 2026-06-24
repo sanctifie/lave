@@ -1,310 +1,535 @@
-# Coûts de production — Tous les services et leurs tarifs
+# Coûts et déploiement en production
 
-Ce document liste **tous les services nécessaires pour faire tourner MBOLO Santé en production**, avec leurs tarifs actuels et des estimations de coût mensuel selon le volume d'utilisation.
+Ce document explique **où héberger chaque composant**, comment le configurer pas à pas, et combien ça coûte. Les recommandations sont marquées ⭐.
 
-> Les prix sont en dollars (USD) sauf indication. 1 USD ≈ 600 FCFA (taux configuré dans `pricing`).
-
----
-
-## Récapitulatif rapide
-
-| Service | Rôle | Coût minimal | Coût estimé à 500 patients/mois |
-|---------|------|-------------|----------------------------------|
-| Serveur API | Héberge le backend | $6/mois | $12–20/mois |
-| PostgreSQL | Base de données | Gratuit (limité) | $15–25/mois |
-| Redis | Cache / OTP | Gratuit (limité) | $0–10/mois |
-| Daily.co | Vidéo téléconsultation | Gratuit (limité) | $30–80/mois |
-| MyPVIT | Paiement mobile money | % sur transaction | % sur CA |
-| Africa's Talking | SMS / OTP | ~$0.04/SMS | $10–40/mois |
-| Expo Push | Notifications mobiles | **Gratuit** | Gratuit |
-| Firebase FCM | Push Android | **Gratuit** | Gratuit |
-| **Total estimé** | | **~$6/mois** | **$70–180/mois + commissions** |
+> Prix en USD. 1 USD ≈ 600 FCFA.
 
 ---
 
-## 1. Serveur API (hébergement du backend)
+## Vue d'ensemble — Ce qu'il faut héberger
 
-C'est là que tourne le code du serveur (`apps/api`).
-
-### Options recommandées
-
-#### Railway ⭐ (recommandé pour démarrer)
-- **Starter** : $5/mois — 512 MB RAM, suffisant pour démarrer
-- **Pro** : usage-based (~$10–20/mois pour un projet actif)
-- Avantage : inclut PostgreSQL et Redis dans la même interface
-- Site : [railway.app](https://railway.app)
-
-#### Render
-- **Free** : s'arrête après 15 min d'inactivité (pas adapté prod)
-- **Starter** : $7/mois — 512 MB RAM, toujours actif
-- Site : [render.com](https://render.com)
-
-#### DigitalOcean Droplet
-- **Basic** : $6/mois — 1 GB RAM, 1 vCPU, 25 GB SSD
-- **Standard** : $12/mois — 2 GB RAM (recommandé pour 500+ users)
-- Avantage : contrôle total, prix prévisible
-- Site : [digitalocean.com](https://digitalocean.com)
-
-#### Contabo (VPS Europe)
-- **Cloud VPS S** : ~€5.50/mois — 4 vCPU, 8 GB RAM (très bon rapport qualité/prix)
-- Idéal si vous voulez un vrai serveur dédié à bas prix
-- Site : [contabo.com](https://contabo.com)
+| Composant | Quoi | Recommandation |
+|-----------|------|----------------|
+| Serveur API | Le code backend | Railway ⭐ |
+| Base de données | PostgreSQL | Supabase ⭐ |
+| Cache / OTP | Redis | Upstash ⭐ |
+| Vidéo | Daily.co | Daily.co (pas d'alternative) |
+| Paiements | MyPVIT | MyPVIT (pas d'alternative) |
+| SMS | Africa's Talking | Africa's Talking (pas d'alternative) |
+| Push Android | Firebase | Gratuit |
+| Push via app | Expo | Gratuit |
 
 ---
 
-## 2. Base de données PostgreSQL
+## 1. Base de données PostgreSQL — Supabase ⭐
 
-La base de données doit être hébergée **séparément** du serveur API pour la fiabilité et les sauvegardes automatiques.
+**Pourquoi Supabase :** plan gratuit généreux (500 MB), interface claire, sauvegardes automatiques, SSL inclus, connexion Prisma directe sans configuration complexe.
 
-### Options recommandées
+### Tarifs
 
-#### Supabase ⭐ (recommandé)
-| Plan | Prix | Stockage | Connexions |
-|------|------|----------|------------|
-| Free | Gratuit | 500 MB | 50 |
-| Pro | $25/mois | 8 GB | 500 |
-| Team | $599/mois | illimité | illimité |
+| Plan | Prix | Stockage | Ce que ça couvre |
+|------|------|----------|-----------------|
+| Free | **0 €** | 500 MB | Jusqu'à ~50 000 utilisateurs si données légères |
+| Pro | **$25/mois** | 8 GB | Production stable |
+| Team | $599/mois | Illimité | Grande échelle |
 
-- Le plan **Free** suffit pour tester et les premières centaines d'utilisateurs
-- Inclut sauvegardes, tableau de bord, logs
-- Site : [supabase.com](https://supabase.com)
+**Recommandation :** Free pour démarrer → Pro quand vous atteignez 500+ utilisateurs actifs.
 
-#### Railway PostgreSQL
-- Inclus dans l'abonnement Railway
-- ~$5–10/mois selon l'usage (facturation à la consommation)
+### Installation pas à pas
 
-#### DigitalOcean Managed PostgreSQL
-- **Basic** : $15/mois — 1 GB RAM, 10 GB SSD
-- Sauvegardes quotidiennes incluses
-- Recommandé si vous utilisez déjà DigitalOcean pour le serveur
+**1. Créer un compte**
+→ Aller sur [supabase.com](https://supabase.com) → **Start for free** → S'inscrire avec GitHub ou email
 
-#### Neon (PostgreSQL serverless)
-- **Free** : 0.5 GB, parfait pour débuter
-- **Launch** : $19/mois — 10 GB
-- Site : [neon.tech](https://neon.tech)
+**2. Créer un projet**
+→ **New Project** → choisir un nom (ex: `mbolo-sante`) → choisir une région (Europe West ou US East pour la latence) → définir un **mot de passe de base de données** (le noter précieusement) → **Create new project**
+
+*La création prend 1–2 minutes.*
+
+**3. Récupérer l'URL de connexion**
+→ Menu gauche : **Settings** → **Database** → Section **Connection string** → onglet **URI**
+
+Vous obtenez quelque chose comme :
+```
+postgresql://postgres:[MOT_DE_PASSE]@db.xxxxxxxxxxxx.supabase.co:5432/postgres
+```
+
+**4. Configurer dans le projet**
+
+Dans `apps/api/.env` sur votre serveur :
+```env
+DATABASE_URL="postgresql://postgres:[MOT_DE_PASSE]@db.xxxxxxxxxxxx.supabase.co:5432/postgres?sslmode=require"
+```
+
+> Le `?sslmode=require` est obligatoire pour la connexion sécurisée.
+
+**5. Appliquer les migrations**
+
+Une fois le serveur déployé (voir section Railway ci-dessous) :
+```bash
+pnpm db:migrate
+pnpm --filter api exec ts-node prisma/seed.ts
+```
 
 ---
 
-## 3. Redis (cache / codes OTP)
+## 2. Cache Redis — Upstash ⭐
 
-Redis stocke les codes OTP (5 min) et les sessions temporaires. C'est léger.
+**Pourquoi Upstash :** plan gratuit suffisant pour démarrer, serverless (pas de serveur à gérer), facturation à la consommation, compatible avec le client Redis Node.js standard.
 
-### Options recommandées
+### Tarifs
 
-#### Upstash ⭐ (recommandé)
-| Plan | Prix | Requêtes/jour |
-|------|------|--------------|
-| Free | Gratuit | 10 000 |
-| Pay-as-you-go | $0.2 / 100k requêtes | illimité |
+| Plan | Prix | Requêtes/jour | Mémoire |
+|------|------|--------------|---------|
+| Free | **0 €** | 10 000 | 256 MB |
+| Pay-as-you-go | $0.20 / 100 000 requêtes | Illimité | 1 GB |
+| Pro | $80/mois | Illimité | 5 GB |
 
-- Le plan gratuit suffit jusqu'à ~200 connexions/jour
-- Site : [upstash.com](https://upstash.com)
+**Recommandation :** Free pour démarrer. À 10 000 req/jour = ~7 connexions simultanées en permanence. Très suffisant jusqu'à quelques centaines d'utilisateurs actifs par jour.
 
-#### Redis Cloud
-- **Free** : 30 MB — suffisant pour le cache OTP
-- **Essentials** : $5/mois — 100 MB
-- Site : [redis.io/cloud](https://redis.io/cloud)
+Chaque connexion = ~5 req Redis (OTP store, OTP read, OTP delete, session, etc.) → le plan free couvre ~2 000 connexions/jour.
 
-#### Railway Redis
-- Inclus dans l'abonnement Railway (~$1–3/mois à la consommation)
+### Installation pas à pas
+
+**1. Créer un compte**
+→ [upstash.com](https://upstash.com) → **Start for free** → S'inscrire
+
+**2. Créer une base Redis**
+→ **Create Database** → choisir un nom (ex: `mbolo-redis`) → choisir la région (EU-West-1 ou US-East-1) → **Create**
+
+**3. Récupérer l'URL de connexion**
+→ Cliquer sur la base créée → section **REST API** ou **Details**
+→ Copier le champ **REDIS_URL** (format : `rediss://default:xxxxx@xxxxx.upstash.io:6380`)
+
+**4. Configurer dans le projet**
+```env
+REDIS_URL="rediss://default:[PASSWORD]@xxxxx.upstash.io:6380"
+```
+
+> Le préfixe `rediss://` (avec deux `s`) indique une connexion TLS sécurisée — obligatoire sur Upstash.
+
+---
+
+## 3. Serveur API — Railway ⭐
+
+**Pourquoi Railway :** déploiement depuis GitHub en 3 clics, variables d'environnement simples à configurer, logs en temps réel, domaine HTTPS automatique, facturation à la consommation (pas d'abonnement fixe surprenant).
+
+### Tarifs
+
+| Plan | Prix | RAM | Ce que ça couvre |
+|------|------|-----|-----------------|
+| Hobby | **$5/mois** (crédit inclus) | 512 MB | Démarrage, test |
+| Pro | Usage-based (~$10–25/mois) | Jusqu'à 8 GB | Production |
+
+**Comment Railway facture :** vous payez ce que vous consommez (CPU + RAM + bande passante). Un serveur API standard avec 200–500 requêtes/jour consomme ~$8–15/mois.
+
+**Recommandation :** Railway pour commencer — tout est dans une seule interface (API + PostgreSQL + Redis si besoin). Migrer vers DigitalOcean si vous voulez plus de contrôle à grande échelle.
+
+### Installation pas à pas
+
+**1. Créer un compte**
+→ [railway.app](https://railway.app) → **Login with GitHub**
+
+**2. Créer un projet**
+→ **New Project** → **Deploy from GitHub repo** → sélectionner votre dépôt `sanctifie/lave`
+
+**3. Configurer le service API**
+
+Railway détecte automatiquement le monorepo. Il faut lui préciser ce qu'on déploie :
+
+→ Cliquer sur le service créé → **Settings** → **Build Command** :
+```bash
+pnpm install --frozen-lockfile && pnpm build --filter api
+```
+
+→ **Start Command** :
+```bash
+node apps/api/dist/server.js
+```
+
+→ **Root Directory** : laisser vide (Railway part de la racine)
+
+**4. Ajouter les variables d'environnement**
+
+→ Onglet **Variables** → ajouter une par une (ou coller en bulk) :
+
+```
+DATABASE_URL=postgresql://postgres:[PASS]@db.xxx.supabase.co:5432/postgres?sslmode=require
+REDIS_URL=rediss://default:[PASS]@xxx.upstash.io:6380
+JWT_SECRET=[générer avec : openssl rand -hex 32]
+JWT_EXPIRES_IN=7d
+OTP_TTL_SECONDS=300
+NODE_ENV=production
+PORT=3000
+MYPVIT_BASE_URL=https://api.mypvit.pro/v2
+MYPVIT_URL_CODE=
+MYPVIT_OPERATION_ACCOUNT_CODE=
+MYPVIT_API_PASSWORD=
+MYPVIT_CALLBACK_URL_CODE=
+EXPO_ACCESS_TOKEN=
+DAILY_API_KEY=
+AT_API_KEY=
+AT_USERNAME=
+AT_SENDER_ID=MBOLO
+```
+
+Les variables vides (`MYPVIT_*`, etc.) activent les stubs — à remplir au fur et à mesure.
+
+**5. Obtenir le domaine HTTPS**
+
+→ Onglet **Settings** → **Networking** → **Generate Domain**
+
+Vous obtenez une URL comme `mbolo-api-production.up.railway.app`. C'est l'URL à renseigner dans :
+- `apps/mobile/.env` → `EXPO_PUBLIC_API_URL=https://mbolo-api-production.up.railway.app`
+- Dashboard MyPVIT → URLs → Callback : `https://mbolo-api-production.up.railway.app/payments/webhook`
+
+**6. Premier déploiement**
+
+Chaque `git push` sur la branche `main` déclenche un redéploiement automatique.
+
+Pour les migrations initiales, ouvrir le terminal Railway :
+→ Service → **Shell** → taper :
+```bash
+pnpm db:migrate
+node apps/api/prisma/seed.js
+```
+
+---
+
+## Alternative serveur — DigitalOcean Droplet
+
+**Quand choisir DigitalOcean plutôt que Railway :** vous voulez un serveur dédié avec IP fixe (requis par MyPVIT pour les appels API), ou vous préférez contrôler l'environnement.
+
+### Tarifs Droplet
+
+| Taille | Prix/mois | RAM | CPU | Recommandé pour |
+|--------|-----------|-----|-----|-----------------|
+| Basic s-1vcpu-1gb | **$6** | 1 GB | 1 vCPU | Test / très faible charge |
+| Basic s-1vcpu-2gb | **$12** | 2 GB | 1 vCPU | Lancement (< 500 users) |
+| Basic s-2vcpu-2gb | **$18** | 2 GB | 2 vCPU | Croissance |
+| General s-2vcpu-4gb | **$24** | 4 GB | 2 vCPU | Production stable |
+
+### Installation pas à pas
+
+**1. Créer un compte**
+→ [digitalocean.com](https://digitalocean.com) → s'inscrire (carte bancaire requise)
+
+**2. Créer un Droplet**
+→ **Create** → **Droplets** → choisir :
+- Image : **Ubuntu 24.04 LTS**
+- Plan : **Basic → $12/mois** (2 GB RAM recommandé)
+- Datacenter : **Frankfurt** (le plus proche d'Afrique centrale)
+- Authentication : **SSH Key** (plus sécurisé que mot de passe)
+
+**3. Se connecter et installer Node.js**
+```bash
+ssh root@[IP_DU_DROPLET]
+
+# Installer Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+
+# Installer pnpm
+npm install -g pnpm
+
+# Installer PM2 (garde le serveur actif en permanence)
+npm install -g pm2
+```
+
+**4. Cloner et configurer le projet**
+```bash
+git clone https://github.com/sanctifie/lave.git
+cd lave
+pnpm install --frozen-lockfile
+
+# Créer le fichier .env
+nano apps/api/.env
+# Coller les variables d'environnement (même liste que Railway)
+```
+
+**5. Builder et démarrer**
+```bash
+pnpm build --filter api
+
+# Démarrer avec PM2 (redémarre automatiquement si crash)
+pm2 start apps/api/dist/server.js --name mbolo-api
+pm2 startup  # Pour redémarrer au boot du serveur
+pm2 save
+```
+
+**6. Configurer HTTPS avec Nginx + Certbot**
+```bash
+apt-get install -y nginx certbot python3-certbot-nginx
+
+# Configurer Nginx comme reverse proxy
+nano /etc/nginx/sites-available/mbolo
+```
+Contenu du fichier :
+```nginx
+server {
+    server_name api.votre-domaine.com;
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+```bash
+ln -s /etc/nginx/sites-available/mbolo /etc/nginx/sites-enabled/
+certbot --nginx -d api.votre-domaine.com  # Génère le certificat SSL gratuit
+nginx -s reload
+```
+
+**7. Déploiements futurs**
+```bash
+# Sur le droplet
+cd lave && git pull && pnpm install && pnpm build --filter api && pm2 restart mbolo-api
+```
 
 ---
 
 ## 4. Daily.co — Vidéo téléconsultation
 
-La vidéo est la partie la plus coûteuse à l'échelle. Daily.co facture au temps de connexion.
+**Tarif : $0.00099 par participant par minute**
+(une consultation de 20 min avec 2 personnes = ~$0.04 = 24 FCFA)
 
-### Tarifs
+### Installation pas à pas
 
-| Plan | Prix | Inclus |
-|------|------|--------|
-| Developer (dev) | Gratuit | 1 000 minutes/mois, 2 participants max |
-| Pay-as-you-go | **$0.00099 / participant·minute** | Illimité |
+**1. Créer un compte**
+→ [daily.co](https://daily.co) → **Start for free** → s'inscrire
 
-### Calcul concret
+**2. Créer un domaine**
+→ Lors de l'inscription, choisir un nom de domaine (ex: `mbolo`) → vos salles seront `https://mbolo.daily.co/consultation-xxx`
 
-Une consultation dure en moyenne 20 minutes avec 2 participants :
-- Coût par consultation = 20 min × 2 participants × $0.00099 = **$0.0396** (~24 FCFA)
-- 100 consultations/mois = **$3.96/mois**
-- 500 consultations/mois = **$19.80/mois**
-- 2 000 consultations/mois = **$79.20/mois**
+**3. Récupérer la clé API**
+→ Menu gauche : **Developers** → **API keys** → **Create key** → copier la clé
 
-**C'est pourquoi le frais vidéo est facturé au patient** : il est calculé automatiquement dans `consultation_base_fee` + `video_usd_per_participant_min`.
+**4. Implémenter le provider**
 
-### Remarque importante
-Le frais vidéo répercuté au patient dans l'app (calculé en FCFA selon le taux USD/FCFA configuré) couvre exactement ce que Daily.co facture — MBOLO ne perd pas d'argent sur la vidéo.
+Créer le fichier `apps/api/src/infrastructure/providers/video/daily.ts` (le code est dans `docs/PROVIDERS.md`).
 
-Site : [daily.co/pricing](https://www.daily.co/pricing)
+**5. Configurer**
+```env
+DAILY_API_KEY="votre-cle-api"
+```
+
+Le `StubVideoProvider` se désactive automatiquement dès que `DAILY_API_KEY` est renseigné.
 
 ---
 
-## 5. MyPVIT — Paiement mobile money
+## 5. MyPVIT — Paiements mobile money
 
-MyPVIT prend une **commission sur chaque transaction**. Il n'y a pas d'abonnement mensuel fixe.
+**Tarif : commission % sur chaque transaction** (à négocier avec MyPVIT, typiquement 1.5–3%)
 
-### Tarifs
+Pas d'abonnement mensuel fixe — vous ne payez que sur les transactions réelles.
 
-Les frais exacts dépendent de votre contrat marchand. À titre indicatif pour les passerelles mobile money en Afrique centrale :
+### Installation pas à pas
 
-| Type | Commission estimée |
-|------|-------------------|
-| Airtel Money Gabon | ~1.5–3% par transaction |
-| Moov Money Gabon | ~1.5–3% par transaction |
+**1. Créer un compte marchand**
+→ [mypvit.pro](https://mypvit.pro) → **S'inscrire** → remplir le formulaire marchand
 
-**À confirmer directement avec MyPVIT** lors de la signature du contrat marchand. Contacter : [mypvit.pro](https://mypvit.pro)
+**2. Compléter le KYC (1–3 jours ouvrés)**
 
-### Impact sur MBOLO
+Documents nécessaires :
+- Pièce d'identité du responsable
+- RCCM de l'entreprise (si personne morale)
+- Numéro de téléphone Airtel Money ou Moov Money pour recevoir les paiements
 
-La commission MyPVIT est un coût qui s'ajoute aux frais de service MBOLO. Deux options :
-1. **L'absorber** dans la commission MBOLO (15% actuel)
-2. **La répercuter** sur le patient (ajouter un frais de paiement)
+**3. Accéder au dashboard et récupérer les identifiants**
 
-### Prérequis
-- Compte marchand validé (KYC — 1 à 3 jours)
-- Serveur avec IP fixe déclarée dans le dashboard MyPVIT
+Une fois le compte validé :
+
+→ Menu **Comptes** → copier le **Code du compte d'opération** (format `ACC_XXXXXXXXXXXX`)
+
+→ Menu **APIs** → définir un **mot de passe API** (à conserver) → copier le **Code URL**
+
+→ Menu **URLs** → **+ Ajouter** → Type : **Callback** → URL :
+```
+https://votre-domaine.railway.app/payments/webhook
+```
+→ Copier le **Code Callback** généré
+
+**4. Déclarer l'IP de votre serveur**
+
+→ Menu **Adresses IPs** → ajouter l'IP de votre serveur Railway ou DigitalOcean
+
+*(Sur Railway, l'IP peut changer — contacter Railway support pour une IP fixe, ou utiliser DigitalOcean)*
+
+**5. Configurer**
+```env
+MYPVIT_BASE_URL="https://api.mypvit.pro/v2"
+MYPVIT_URL_CODE="votre_code_url"
+MYPVIT_OPERATION_ACCOUNT_CODE="ACC_XXXXXXXXXXXX"
+MYPVIT_API_PASSWORD="votre_mot_de_passe"
+MYPVIT_CALLBACK_URL_CODE="votre_code_callback"
+```
+
+**6. Autoriser les IPs MyPVIT dans votre firewall**
+
+Si vous utilisez DigitalOcean, créer une règle firewall entrant pour :
+```
+176.31.65.18 / 176.31.65.20 / 176.31.65.21 / 13.59.249.167
+```
+*(Railway gère le firewall automatiquement)*
+
+**7. Valider l'intégration (obligatoire)**
+
+MyPVIT exige des tests avant d'activer la production :
+- 2 paiements réussis avec montant < 1 000 XAF
+- 2 paiements échoués avec montant > 1 000 XAF
+- Vérification que le webhook répond correctement
 
 ---
 
 ## 6. Africa's Talking — SMS
 
-Utilisé pour les codes OTP d'authentification et les alertes SMS.
+**Tarif Gabon : vérifier sur [africastalking.com/sms](https://africastalking.com/sms)** après création du compte.
+Estimé ~$0.03–0.05 par SMS.
 
-### Tarifs (Gabon)
+### Installation pas à pas
 
-| Type de SMS | Tarif estimé |
-|-------------|-------------|
-| SMS sortant (Gabon) | ~$0.03–0.05 / SMS |
+**1. Créer un compte**
+→ [africastalking.com](https://africastalking.com) → **Register** → s'inscrire
 
-**Vérifier le tarif exact Gabon** sur [africastalking.com/pricing](https://africastalking.com/pricing) après création du compte — les tarifs varient par opérateur et par pays.
+**2. Créer une application**
+→ Menu **Apps** → **Create app** → nommer `mbolo-sante`
 
-### Calcul concret
+**3. Récupérer les identifiants**
+→ Cliquer sur l'application → **Settings** → copier la **API Key**
+→ Le **Username** est votre identifiant de compte AT (visible en haut à droite)
 
-Chaque connexion = 1 SMS OTP. Chaque alerte = 1 SMS.
-- 200 connexions/mois + 100 alertes = 300 SMS × $0.04 = **$12/mois**
-- 1 000 connexions/mois + 500 alertes = 1 500 SMS × $0.04 = **$60/mois**
+**4. Demander un Sender ID (nom expéditeur)**
 
-### Optimisation possible
-- Les SMS OTP sont obligatoires (sécurité)
-- Les alertes (ex: "Votre médecin est prêt") sont remplacées par des push notifications gratuites si le patient a installé l'app — le SMS n'est envoyé qu'en backup
+Sans Sender ID, les SMS partent d'un numéro court générique. Avec `MBOLO`, les patients voient "De : MBOLO".
 
----
+→ Menu **SMS** → **Sender IDs** → **Request** → nom : `MBOLO` → justification : plateforme santé
 
-## 7. Expo Push Notifications — Gratuit
+*(Approbation par Africa's Talking en 1–3 jours)*
 
-Les notifications push (alertes en temps réel dans l'app) sont **entièrement gratuites**.
+**5. Alimenter le compte**
+→ Menu **Billing** → **Top Up** → virement par carte ou virement bancaire
 
-Expo ne facture pas les notifications push.
+**6. Implémenter et configurer**
 
-Seule contrainte : avec un Access Token, les notifications sont prioritaires et sans limite de débit. Sans token, il y a une limite de débit mais ça reste gratuit.
-
-Site : [expo.dev/pricing](https://expo.dev/pricing)
-
----
-
-## 8. Firebase Cloud Messaging (FCM) — Gratuit
-
-FCM est le service Google qui délivre les notifications push sur Android. Il est **entièrement gratuit**, sans limite de volume.
-
----
-
-## 9. Build APK — GitHub Actions (Gratuit)
-
-Le workflow de build APK (`.github/workflows/build-apk.yml`) tourne sur GitHub Actions.
-
-| Plan GitHub | Minutes gratuites/mois |
-|-------------|----------------------|
-| Free (dépôt public) | Illimité |
-| Free (dépôt privé) | 2 000 min |
-| Pro | 3 000 min |
-
-Un build APK prend ~15–20 minutes. Avec 2 000 minutes gratuites = ~100 builds/mois.
-
----
-
-## Estimations mensuelles par volume
-
-### Phase de lancement (< 100 patients actifs)
-
-| Service | Plan | Coût |
-|---------|------|------|
-| Serveur API | Railway Starter | $5 |
-| PostgreSQL | Supabase Free | $0 |
-| Redis | Upstash Free | $0 |
-| Daily.co | Pay-as-you-go | ~$2 |
-| Africa's Talking | Pay-as-you-go | ~$5 |
-| MyPVIT | % transactions | % CA |
-| Expo / Firebase | Gratuit | $0 |
-| **Total fixe** | | **~$12/mois** |
-
-### Croissance (500 patients actifs, ~200 consultations/mois)
-
-| Service | Plan | Coût |
-|---------|------|------|
-| Serveur API | Railway Pro ou DO $12 | $12–20 |
-| PostgreSQL | Supabase Pro | $25 |
-| Redis | Upstash pay-as-you-go | ~$3 |
-| Daily.co | Pay-as-you-go | ~$8 |
-| Africa's Talking | Pay-as-you-go | ~$20 |
-| MyPVIT | % transactions | % CA |
-| **Total fixe** | | **~$70–80/mois** |
-
-### Opérationnel (2 000 patients actifs, ~1 000 consultations/mois)
-
-| Service | Plan | Coût |
-|---------|------|------|
-| Serveur API | VPS 2 vCPU / 4 GB | ~$25 |
-| PostgreSQL | DO Managed ou Supabase Pro | $25–50 |
-| Redis | Redis Cloud Essentials | $15 |
-| Daily.co | Pay-as-you-go | ~$40 |
-| Africa's Talking | Pay-as-you-go | ~$80 |
-| MyPVIT | % transactions | % CA |
-| **Total fixe** | | **~$185–210/mois** |
-
----
-
-## Ordre de mise en place pour la production
-
-1. **MyPVIT** (1–3 jours validation KYC) — commencer les démarches en premier
-2. **Serveur + PostgreSQL + Redis** — Railway ou DigitalOcean, 30 min
-3. **Expo Push** — création compte expo.dev, 10 min
-4. **Firebase** — télécharger `google-services.json`, 10 min
-5. **Daily.co** — créer compte + clé API, 10 min
-6. **Africa's Talking** — créer compte + alimenter, 20 min
-
----
-
-## Variables d'environnement de production
-
-Une fois tous les services configurés, compléter `apps/api/.env` sur le serveur :
+Le code du provider est dans `docs/PROVIDERS.md` (section Africa's Talking).
 
 ```env
-# Base de données (Supabase / Railway / DigitalOcean)
-DATABASE_URL="postgresql://user:pass@host:5432/dbname?sslmode=require"
-REDIS_URL="rediss://default:pass@host:6380"
-
-# JWT
-JWT_SECRET="minimum-32-caracteres-generes-aleatoirement"
-JWT_EXPIRES_IN="7d"
-OTP_TTL_SECONDS=300
-
-NODE_ENV=production
-PORT=3000
-
-# MyPVIT
-MYPVIT_BASE_URL="https://api.mypvit.pro/v2"
-MYPVIT_URL_CODE="votre_code_url"
-MYPVIT_OPERATION_ACCOUNT_CODE="ACC_XXXXXXXXXXXX"
-MYPVIT_API_PASSWORD="votre_mot_de_passe_api"
-MYPVIT_CALLBACK_URL_CODE="votre_code_callback"
-
-# Expo Push
-EXPO_ACCESS_TOKEN="votre_token_expo"
-
-# Daily.co
-DAILY_API_KEY="votre_cle_api_daily"
-
-# Africa's Talking
 AT_API_KEY="votre_cle_api"
 AT_USERNAME="votre_username"
 AT_SENDER_ID="MBOLO"
 ```
+
+---
+
+## 7. Firebase — Gratuit
+
+Firebase est requis uniquement pour les notifications push Android. **Complètement gratuit.**
+
+### Installation pas à pas
+
+**1. Créer un projet Firebase**
+→ [console.firebase.google.com](https://console.firebase.google.com) → **Créer un projet** → nom : `mbolo-sante`
+
+**2. Ajouter une application Android**
+→ Dans le projet → **Ajouter une application** → icône Android
+→ Package name : `com.mbolo.sante`
+→ Télécharger `google-services.json`
+
+**3. Placer le fichier**
+```bash
+cp google-services.json apps/mobile/google-services.json
+```
+
+**4. Ajouter comme secret GitHub** (pour le build APK automatique)
+→ GitHub → Settings → Secrets and variables → Actions → **New repository secret**
+→ Nom : `GOOGLE_SERVICES_JSON` → Valeur : coller le contenu du fichier JSON
+
+---
+
+## 8. Expo — Gratuit
+
+**Expo Push Notifications est gratuit**, sans limite de volume.
+
+### Installation pas à pas
+
+**1. Créer un compte**
+→ [expo.dev](https://expo.dev) → **Sign Up**
+
+**2. Créer un projet**
+→ **Create Project** → nom : `mbolo-sante` → récupérer le **Project ID** (UUID)
+
+**3. Générer un Access Token**
+→ Icône compte → **Access Tokens** → **Create Token** → copier
+
+**4. Configurer**
+
+`apps/mobile/app.json` → section `extra.eas.projectId` : mettre le Project ID
+
+`apps/api/.env` :
+```env
+EXPO_ACCESS_TOKEN="votre_token"
+```
+
+`apps/mobile/.env` :
+```env
+EXPO_PUBLIC_PROJECT_ID="votre-project-id-uuid"
+```
+
+---
+
+## Récapitulatif des coûts par phase
+
+### Phase 1 — Lancement et tests (< 100 utilisateurs actifs)
+
+| Service | Plan | Prix/mois |
+|---------|------|-----------|
+| Railway (serveur API) | Hobby | $5 |
+| Supabase (PostgreSQL) | Free | $0 |
+| Upstash (Redis) | Free | $0 |
+| Daily.co (vidéo) | Pay-as-you-go | ~$2 |
+| Africa's Talking (SMS) | Pay-as-you-go | ~$5 |
+| MyPVIT (paiements) | % transactions | % du CA |
+| Firebase + Expo | Gratuit | $0 |
+| **Total fixe mensuel** | | **~$12/mois** |
+
+### Phase 2 — Croissance (500 utilisateurs, 200 consultations/mois)
+
+| Service | Plan | Prix/mois |
+|---------|------|-----------|
+| Railway (serveur API) | Pro | ~$15 |
+| Supabase (PostgreSQL) | Pro | $25 |
+| Upstash (Redis) | Pay-as-you-go | ~$3 |
+| Daily.co (vidéo) | Pay-as-you-go | ~$8 |
+| Africa's Talking (SMS) | Pay-as-you-go | ~$25 |
+| MyPVIT (paiements) | % transactions | % du CA |
+| Firebase + Expo | Gratuit | $0 |
+| **Total fixe mensuel** | | **~$76/mois** |
+
+### Phase 3 — Production stable (2 000 utilisateurs, 1 000 consultations/mois)
+
+| Service | Plan | Prix/mois |
+|---------|------|-----------|
+| DigitalOcean Droplet ($24) | General 2vCPU/4GB | $24 |
+| Supabase (PostgreSQL) | Pro | $25 |
+| Redis Cloud | Essentials | $15 |
+| Daily.co (vidéo) | Pay-as-you-go | ~$40 |
+| Africa's Talking (SMS) | Pay-as-you-go | ~$80 |
+| MyPVIT (paiements) | % transactions | % du CA |
+| Firebase + Expo | Gratuit | $0 |
+| **Total fixe mensuel** | | **~$184/mois** |
+
+---
+
+## Ma recommandation de stack pour démarrer
+
+```
+Serveur API     → Railway          ($5/mois, déploiement en 5 min depuis GitHub)
+Base de données → Supabase         (gratuit au démarrage)
+Redis           → Upstash          (gratuit au démarrage)
+Vidéo           → Daily.co         (paiement à l'usage)
+Paiements       → MyPVIT           (commission uniquement)
+SMS             → Africa's Talking (paiement à l'usage)
+Push            → Expo + Firebase  (gratuit)
+```
+
+**Coût total au lancement : ~$12/mois** — soit moins de 8 000 FCFA par mois pour faire tourner toute la plateforme.
