@@ -1,30 +1,175 @@
 import { prisma } from '../../infrastructure/prisma/client';
-import { AppointmentStatus } from '@mbolo/shared';
+import { AppointmentStatus, ConsultationStatus } from '@mbolo/shared';
+
+const DOCTOR_INCLUDE = {
+  doctor: {
+    include: {
+      user:     { select: { name: true } },
+      specialty: { select: { name: true } },
+    },
+  },
+} as const;
+
+const PATIENT_INCLUDE = {
+  patient: { select: { name: true } },
+} as const;
+
+const FULL_INCLUDE = {
+  ...DOCTOR_INCLUDE,
+  ...PATIENT_INCLUDE,
+  consultation: {
+    include: {
+      videoSession: true,
+    },
+  },
+} as const;
 
 export class AppointmentRepository {
-  async create(data: {
-    patientId: string;
-    doctorId: string;
-    type: string;
-    scheduledAt?: Date;
-    notes?: string;
-  }) {
-    return prisma.appointment.create({ data: data as Parameters<typeof prisma.appointment.create>[0]['data'] });
+  /** Patient : ses propres RDV */
+  async listForPatient(patientId: string) {
+    return prisma.appointment.findMany({
+      where:   { patientId },
+      include: DOCTOR_INCLUDE,
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
-  async listForUser(userId: string) {
+  /** Médecin : la file de son profil */
+  async listForDoctor(doctorProfileId: string) {
     return prisma.appointment.findMany({
-      where: { patientId: userId },
-      include: { doctor: { include: { user: { select: { name: true } } } } },
+      where:   { doctorId: doctorProfileId },
+      include: PATIENT_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async findById(id: string) {
-    return prisma.appointment.findUnique({ where: { id }, include: { consultation: true } });
+    return prisma.appointment.findUnique({
+      where:   { id },
+      include: FULL_INCLUDE,
+    });
+  }
+
+  async create(data: {
+    patientId:      string;
+    doctorId:       string;
+    type:           string;
+    scheduledAt?:   Date;
+    chiefComplaint?: string;
+  }) {
+    return prisma.appointment.create({
+      data: {
+        patientId:   data.patientId,
+        doctorId:    data.doctorId,
+        type:        data.type as Parameters<typeof prisma.appointment.create>[0]['data']['type'],
+        scheduledAt: data.scheduledAt,
+        notes:       data.chiefComplaint,
+      },
+      include: DOCTOR_INCLUDE,
+    });
   }
 
   async cancel(id: string) {
-    return prisma.appointment.update({ where: { id }, data: { status: AppointmentStatus.CANCELLED } });
+    return prisma.appointment.update({
+      where:  { id },
+      data:   { status: AppointmentStatus.CANCELLED },
+      include: DOCTOR_INCLUDE,
+    });
+  }
+
+  /** Démarre la consultation : crée Consultation + VideoSession, passe appointment → in_progress */
+  async startConsultation(data: {
+    appointmentId:   string;
+    doctorProfileId: string;
+    roomName:        string;
+    roomUrl:         string;
+    hostToken:       string;
+    guestToken:      string;
+    expiresAt:       Date;
+  }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return prisma.$transaction(async (tx: any) => {
+      const consultation = await tx.consultation.create({
+        data: {
+          appointmentId: data.appointmentId,
+          doctorId:      data.doctorProfileId,
+          status:        ConsultationStatus.IN_PROGRESS,
+          startedAt:     new Date(),
+          videoSession: {
+            create: {
+              providerRoomName: data.roomName,
+              providerRoomUrl:  data.roomUrl,
+              hostToken:        data.hostToken,
+              guestToken:       data.guestToken,
+              startedAt:        new Date(),
+            },
+          },
+        },
+        include: { videoSession: true },
+      });
+
+      await tx.appointment.update({
+        where: { id: data.appointmentId },
+        data:  { status: AppointmentStatus.IN_PROGRESS },
+      });
+
+      return consultation;
+    });
+  }
+
+  /** Clôture : calcule durée, persiste notes, fees, prescription optionnelle */
+  async completeConsultation(data: {
+    appointmentId:   string;
+    consultationId:  string;
+    doctorProfileId: string;
+    patientId:       string;
+    notes:           string;
+    durationSeconds: number;
+    serviceFeeFcfa:  number;
+    videoFeeFcfa:    number;
+    prescriptionText?: string;
+  }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return prisma.$transaction(async (tx: any) => {
+      await tx.videoSession.updateMany({
+        where: { consultationId: data.consultationId },
+        data:  { endedAt: new Date() },
+      });
+
+      const consultation = await tx.consultation.update({
+        where: { id: data.consultationId },
+        data: {
+          status:          ConsultationStatus.COMPLETED,
+          notes:           data.notes,
+          durationSeconds: data.durationSeconds,
+          serviceFeeFcfa:  data.serviceFeeFcfa,
+          videoFeeFcfa:    data.videoFeeFcfa,
+          endedAt:         new Date(),
+        },
+      });
+
+      await tx.appointment.update({
+        where: { id: data.appointmentId },
+        data:  { status: AppointmentStatus.COMPLETED },
+      });
+
+      let prescription = null;
+      if (data.prescriptionText) {
+        prescription = await tx.prescription.create({
+          data: {
+            patientId:     data.patientId,
+            source:        'teleconsultation',
+            type:          'drug',
+            status:        'pending_validation',
+            consultationId: data.consultationId,
+            issuedById:    data.doctorProfileId,
+            issuedAt:      new Date(),
+            notes:         data.prescriptionText,
+          } as any,
+        });
+      }
+
+      return { consultation, prescription };
+    });
   }
 }

@@ -7,7 +7,9 @@ export class PartnerService {
   constructor(private readonly repo: PartnerRepository) {}
 
   async list(type?: PartnerType) {
-    return this.repo.list(type);
+    const partners = await this.repo.list(type);
+    // Expose `address` alias for mobile clients that read landmark as address
+    return (partners as any[]).map((p: any) => ({ ...p, address: p.landmark as string }));
   }
 
   async getById(id: string) {
