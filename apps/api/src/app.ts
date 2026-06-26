@@ -16,6 +16,10 @@ import { ordersRouter } from './domains/orders/router';
 import { deliveriesRouter } from './domains/deliveries/router';
 import { paymentsRouter } from './domains/payments/router';
 import { pricingRouter } from './domains/pricing/router';
+import { ridesRouter } from './domains/rides/router';
+import { mealsRouter } from './domains/meals/router';
+import { chatRouter } from './domains/chat/router';
+import { adminRouter } from './domains/admin/router';
 
 export const app = express();
 
@@ -41,5 +45,9 @@ app.use('/orders', ordersRouter);
 app.use('/deliveries', deliveriesRouter);
 app.use('/payments', paymentsRouter);
 app.use('/pricing', pricingRouter);
+app.use('/rides', ridesRouter);
+app.use('/meals', mealsRouter);
+app.use('/chat', chatRouter);
+app.use('/admin', adminRouter);
 
 app.use(errorHandler);

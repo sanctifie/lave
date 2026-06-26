@@ -42,7 +42,9 @@ const SERVICES = [
   { icon: '📋', label: 'Ordonnance', route: '/(patient)/prescriptions', bg: colors.primarySurface },
   { icon: '👨‍⚕️', label: 'Médecin',    route: '/(patient)/appointments',  bg: '#FFF0EB' },
   { icon: '📦', label: 'Commandes',  route: '/(patient)/orders',         bg: '#E0F2FE' },
-  { icon: '👤', label: 'Mon profil', route: '/(patient)/profile',        bg: '#F0FDF4' },
+  { icon: '🚗', label: 'Transport',  route: '/(patient)/rides',          bg: '#F0FDF4' },
+  { icon: '🥗', label: 'Repas',      route: '/(patient)/meals',          bg: '#FFF7ED' },
+  { icon: '👤', label: 'Mon profil', route: '/(patient)/profile',        bg: '#F5F3FF' },
 ];
 
 function formatTime(iso: string) {
@@ -212,6 +214,24 @@ export default function PatientHomeScreen() {
           <View style={styles.quickBody}>
             <Text style={styles.quickTitle}>Consulter un médecin</Text>
             <Text style={styles.quickSub}>Téléconsultation vidéo immédiate</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+
+        <Pressable style={styles.quickCard} onPress={() => router.push('/(patient)/rides/new' as never)}>
+          <Text style={styles.quickIcon}>🚗</Text>
+          <View style={styles.quickBody}>
+            <Text style={styles.quickTitle}>Demander un transport</Text>
+            <Text style={styles.quickSub}>Domicile, hôpital, examen médical</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+
+        <Pressable style={styles.quickCard} onPress={() => router.push('/(patient)/meals' as never)}>
+          <Text style={styles.quickIcon}>🥗</Text>
+          <View style={styles.quickBody}>
+            <Text style={styles.quickTitle}>Commander un repas</Text>
+            <Text style={styles.quickSub}>Menus diététiques livrés à domicile</Text>
           </View>
           <Text style={styles.chevron}>›</Text>
         </Pressable>

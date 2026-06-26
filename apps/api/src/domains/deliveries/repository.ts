@@ -9,6 +9,8 @@ const DELIVERY_INCLUDE = {
       items:   true,
     },
   },
+  ride: { include: { request: true } },
+  mealOrder: { include: { mealPlan: { select: { name: true, partnerId: true } } } },
   tracking: true,
 } as const;
 
