@@ -96,7 +96,11 @@ export default function DoctorConsultationScreen() {
   if (loading) return <ActivityIndicator style={styles.center} color={colors.primary} />;
   if (!appt)   return null;
 
-  const isPending   = appt.status === AppointmentStatus.PENDING || appt.status === AppointmentStatus.CONFIRMED;
+  const isPending = [
+    AppointmentStatus.PENDING,
+    AppointmentStatus.CONFIRMED,
+    AppointmentStatus.WAITING_ROOM,
+  ].includes(appt.status as AppointmentStatus);
   const isInProgress = appt.status === AppointmentStatus.IN_PROGRESS;
   const isDone      = appt.status === AppointmentStatus.COMPLETED;
 

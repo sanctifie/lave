@@ -11,7 +11,7 @@ const DOCTOR_INCLUDE = {
 } as const;
 
 const PATIENT_INCLUDE = {
-  patient: { select: { name: true } },
+  patient: { select: { name: true, phone: true } },
 } as const;
 
 const FULL_INCLUDE = {
