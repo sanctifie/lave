@@ -66,7 +66,9 @@ router.get('/partner/:id', requireAuth, requireRole(UserRole.PARTNER_STAFF), asy
   if (!partner) throw HTTP.forbidden('Vous n\'êtes rattaché à aucun partenaire');
   const rx = await repo.findWithMedia(req.params.id);
   if (!rx) throw HTTP.notFound('Ordonnance introuvable');
-  if (rx.targetPartnerId !== partner.id) throw HTTP.forbidden();
+  const isOwned      = rx.targetPartnerId === partner.id;
+  const isTeleconsult = rx.targetPartnerId === null && (rx as any).source === 'teleconsultation';
+  if (!isOwned && !isTeleconsult) throw HTTP.forbidden();
   res.json(rx);
 }));
 

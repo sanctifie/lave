@@ -56,7 +56,9 @@ export class PrescriptionService {
   async validate(rxId: string, pharmacistUserId: string, partnerId: string, input: ValidatePrescriptionInput) {
     const rx = await this.repo.findById(rxId);
     if (!rx) throw HTTP.notFound('Ordonnance introuvable');
-    if (rx.targetPartnerId !== partnerId) throw HTTP.forbidden();
+    const isOwned      = rx.targetPartnerId === partnerId;
+    const isTeleconsult = rx.targetPartnerId === null && (rx as any).source === 'teleconsultation';
+    if (!isOwned && !isTeleconsult) throw HTTP.forbidden();
     if (rx.status !== PrescriptionStatus.PENDING_VALIDATION) {
       throw HTTP.unprocessable('Ordonnance déjà traitée');
     }
