@@ -1,0 +1,75 @@
+import { apiClient } from './client';
+
+export interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPriceFcfa: number;
+  totalFcfa: number;
+}
+
+export interface Order {
+  id: string;
+  status: string;
+  totalFcfa: number;
+  serviceFeeFcfa: number;
+  pharmacyName: string | null;
+  createdAt: string;
+  items: OrderItem[];
+  delivery: { status: string; handoverCode: string } | null;
+}
+
+export interface OrderDetail extends Order {
+  deliveryId: string | null;
+  deliveryStatus: string | null;
+  deliveryFeeFcfa: number | null;
+  handoverCode: string | null;
+  transactionStatus: string | null;
+}
+
+function normalizeItem(i: any): OrderItem {
+  return {
+    id:            i.id,
+    name:          i.name,
+    quantity:      i.quantity,
+    unitPriceFcfa: i.unitPriceFcfa,
+    totalFcfa:     i.totalFcfa,
+  };
+}
+
+export const ordersService = {
+  async list(): Promise<Order[]> {
+    const { data } = await apiClient.get<any>('/orders');
+    const raw: any[] = data.data ?? data;
+    return raw.map((o) => ({
+      id:             o.id,
+      status:         o.status,
+      totalFcfa:      o.totalFcfa,
+      serviceFeeFcfa: o.serviceFeeFcfa,
+      pharmacyName:   o.partner?.legalName ?? null,
+      createdAt:      o.createdAt,
+      items:          (o.items ?? []).map(normalizeItem),
+      delivery:       o.delivery ?? null,
+    }));
+  },
+
+  async getById(id: string): Promise<OrderDetail> {
+    const { data } = await apiClient.get<any>(`/orders/${id}`);
+    const raw = data.data ?? data;
+    return {
+      id:                raw.id,
+      status:            raw.status,
+      totalFcfa:         raw.totalFcfa,
+      serviceFeeFcfa:    raw.serviceFeeFcfa,
+      pharmacyName:      raw.partner?.legalName ?? null,
+      createdAt:         raw.createdAt,
+      items:             (raw.items ?? []).map(normalizeItem),
+      delivery:          raw.delivery ?? null,
+      deliveryId:        raw.delivery?.id ?? null,
+      deliveryStatus:    raw.delivery?.status ?? null,
+      deliveryFeeFcfa:   raw.delivery?.deliveryFeeFcfa ?? null,
+      handoverCode:      raw.delivery?.handoverCode ?? null,
+      transactionStatus: raw.transaction?.status ?? null,
+    };
+  },
+};

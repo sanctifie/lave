@@ -1,0 +1,654 @@
+// ─────────────────────────────────────────────────────────────
+// MBOLO Santé — Schéma Prisma complet v2
+// Corrections : FK explicite User↔PartnerProfile, polymorphisme
+// Review via strings, targetPartnerId sur Prescription
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  patient
+  accompagnant
+  courier
+  partner_staff
+  doctor
+  admin
+}
+
+enum PartnerType {
+  pharmacy
+  kitchen
+  device_supplier
+  transporter
+}
+
+enum VerificationStatus {
+  pending_verification
+  pending_manual
+  verified
+  rejected
+}
+
+enum MediaKind {
+  prescription_scan
+  id_document
+  profile_photo
+  courier_photo
+  doctor_credential
+}
+
+enum PrescriptionSource {
+  manual
+  teleconsultation
+}
+
+enum PrescriptionType {
+  drug
+  osteo
+}
+
+enum PrescriptionStatus {
+  pending_validation
+  validated
+  rejected
+  partially_filled
+  filled
+}
+
+enum OrderStatus {
+  pending_pharmacy
+  pharmacy_accepted
+  pharmacy_rejected
+  preparing
+  ready_for_pickup
+  dispatched
+  delivered
+  cancelled
+}
+
+enum DeliveryStatus {
+  pending_assignment
+  assigned
+  en_route_pickup
+  picked_up
+  en_route_delivery
+  delivered
+  failed
+}
+
+enum TransactionKind {
+  escrow
+  cod
+  payout
+  refund
+}
+
+enum TransactionStatus {
+  pending
+  held
+  captured
+  released
+  failed
+}
+
+enum RideType {
+  home
+  hospital
+  exam
+}
+
+enum RideStatus {
+  pending
+  assigned
+  en_route
+  arrived
+  completed
+  cancelled
+}
+
+enum AppointmentType {
+  immediate
+  scheduled
+}
+
+enum AppointmentStatus {
+  pending
+  confirmed
+  waiting_room
+  in_progress
+  completed
+  cancelled
+  no_show
+}
+
+enum ConsultationStatus {
+  waiting_room
+  in_progress
+  completed
+  abandoned
+}
+
+enum PricingKind {
+  delivery_base
+  delivery_per_km
+  service_fee
+  consultation_base_fee
+  video_usd_per_participant_min
+  usd_to_fcfa_rate
+  platform_commission_pct
+  meal_delivery_fee
+  ride_base_fee
+  ride_per_km
+}
+
+// ─────────────────────────────────────────────────────────────
+// IDENTITÉ & CONFIANCE
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id               String   @id @default(cuid())
+  phone            String   @unique
+  name             String
+  role             UserRole
+  isActive         Boolean  @default(true)
+  // FK explicite vers le partenaire dont cet user est staff
+  partnerProfileId String?
+  pushToken        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  partnerStaffOf     PartnerProfile? @relation("StaffMember", fields: [partnerProfileId], references: [id])
+  patientProfile     PatientProfile?
+  doctorProfile      DoctorProfile?
+  courierProfile     Courier?
+  prescriptionsOwned Prescription[]  @relation("PrescriptionPatient")
+  ordersPlaced       Order[]         @relation("OrderPatient")
+  reviewsGiven       Review[]        @relation("ReviewAuthor")
+  sentMessages       Message[]       @relation("MessageSender")
+  appointments       Appointment[]   @relation("AppointmentPatient")
+  media              Media[]
+
+  @@map("users")
+}
+
+model PatientProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  dateOfBirth DateTime?
+  bloodType   String?
+  allergies   String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("patient_profiles")
+}
+
+model PartnerProfile {
+  id                 String             @id @default(cuid())
+  type               PartnerType
+  legalName          String
+  phone              String
+  whatsappNumber     String?
+  lat                Decimal            @db.Decimal(10, 7)
+  lng                Decimal            @db.Decimal(10, 7)
+  landmark           String
+  isActive           Boolean            @default(true)
+  verificationStatus VerificationStatus @default(pending_verification)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  staff                 User[]         @relation("StaffMember")
+  orders                Order[]
+  incomingPrescriptions Prescription[] @relation("PrescriptionTarget")
+
+  @@map("partner_profiles")
+}
+
+model DoctorProfile {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  cnomNumber          String             @unique
+  specialtyId         String
+  bio                 String?
+  languages           String[]           @default(["fr"])
+  consultationFeeFcfa Int
+  verificationStatus  VerificationStatus @default(pending_verification)
+  isAvailableNow      Boolean            @default(false)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  user                User                 @relation(fields: [userId], references: [id])
+  specialty           DoctorSpecialty      @relation(fields: [specialtyId], references: [id])
+  availabilities      DoctorAvailability[]
+  appointments        Appointment[]        @relation("AppointmentDoctor")
+  consultations       Consultation[]
+  prescriptionsIssued Prescription[]       @relation("PrescriptionDoctor")
+
+  @@map("doctor_profiles")
+}
+
+model DoctorSpecialty {
+  id      String          @id @default(cuid())
+  name    String          @unique
+  doctors DoctorProfile[]
+
+  @@map("doctor_specialties")
+}
+
+model DoctorAvailability {
+  id           String        @id @default(cuid())
+  doctorId     String
+  dayOfWeek    Int
+  startTimeUtc String
+  endTimeUtc   String
+  isActive     Boolean       @default(true)
+
+  doctor DoctorProfile @relation(fields: [doctorId], references: [id])
+
+  @@map("doctor_availabilities")
+}
+
+model Media {
+  id           String    @id @default(cuid())
+  kind         MediaKind
+  url          String
+  mimeType     String
+  uploadedById String
+  // Polymorphe : refTable + refId (pas de relation Prisma, gestion applicative)
+  refTable     String?
+  refId        String?
+  createdAt    DateTime  @default(now())
+
+  uploadedBy User @relation(fields: [uploadedById], references: [id])
+
+  @@map("media")
+}
+
+// ─────────────────────────────────────────────────────────────
+// MESSAGERIE
+// ─────────────────────────────────────────────────────────────
+
+model Conversation {
+  id        String   @id @default(cuid())
+  refTable  String
+  refId     String
+  createdAt DateTime @default(now())
+
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+// ─────────────────────────────────────────────────────────────
+// TÉLÉCONSULTATION
+// ─────────────────────────────────────────────────────────────
+
+model Appointment {
+  id          String            @id @default(cuid())
+  patientId   String
+  doctorId    String
+  type        AppointmentType
+  status      AppointmentStatus @default(pending)
+  scheduledAt DateTime?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  patient      User          @relation("AppointmentPatient", fields: [patientId], references: [id])
+  doctor       DoctorProfile @relation("AppointmentDoctor", fields: [doctorId], references: [id])
+  consultation Consultation?
+
+  @@map("appointments")
+}
+
+model Consultation {
+  id              String             @id @default(cuid())
+  appointmentId   String             @unique
+  doctorId        String
+  status          ConsultationStatus @default(waiting_room)
+  notes           String?
+  durationSeconds Int?
+  serviceFeeFcfa  Int?
+  videoFeeFcfa    Int?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  appointment  Appointment   @relation(fields: [appointmentId], references: [id])
+  doctor       DoctorProfile @relation(fields: [doctorId], references: [id])
+  videoSession VideoSession?
+  prescription Prescription?
+  transaction  Transaction?
+
+  @@map("consultations")
+}
+
+model VideoSession {
+  id               String    @id @default(cuid())
+  consultationId   String    @unique
+  providerRoomName String    @unique
+  providerRoomUrl  String
+  hostToken        String
+  guestToken       String
+  startedAt        DateTime?
+  endedAt          DateTime?
+
+  consultation Consultation @relation(fields: [consultationId], references: [id])
+
+  @@map("video_sessions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// PRESCRIPTION & ORDONNANCE
+// ─────────────────────────────────────────────────────────────
+
+model Prescription {
+  id              String             @id @default(cuid())
+  patientId       String
+  source          PrescriptionSource @default(manual)
+  type            PrescriptionType   @default(drug)
+  status          PrescriptionStatus @default(pending_validation)
+  // Pharmacie cible choisie par le patient à l'upload
+  targetPartnerId String?
+  consultationId  String?            @unique
+  notes           String?
+  // Validation médicale (médecin, si teleconsultation)
+  issuedById      String?
+  issuedAt        DateTime?
+  // Validation pharmacien (TOUJOURS obligatoire légalement)
+  validatedById   String?
+  validatedAt     DateTime?
+  rejectionReason String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  patient       User           @relation("PrescriptionPatient", fields: [patientId], references: [id])
+  issuedBy      DoctorProfile? @relation("PrescriptionDoctor", fields: [issuedById], references: [id])
+  targetPartner PartnerProfile? @relation("PrescriptionTarget", fields: [targetPartnerId], references: [id])
+  consultation  Consultation?   @relation(fields: [consultationId], references: [id])
+  orders        Order[]
+
+  @@map("prescriptions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMMANDES (médicaments & ostéo)
+// ─────────────────────────────────────────────────────────────
+
+model Order {
+  id             String      @id @default(cuid())
+  patientId      String
+  prescriptionId String
+  partnerId      String
+  status         OrderStatus @default(pending_pharmacy)
+  totalFcfa      Int
+  serviceFeeFcfa Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  patient      User           @relation("OrderPatient", fields: [patientId], references: [id])
+  prescription Prescription   @relation(fields: [prescriptionId], references: [id])
+  partner      PartnerProfile @relation(fields: [partnerId], references: [id])
+  items        OrderItem[]
+  delivery     Delivery?
+  transaction  Transaction?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String @id @default(cuid())
+  orderId       String
+  name          String
+  quantity      Int
+  unitPriceFcfa Int
+  totalFcfa     Int
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────────────────────
+// TRANSPORT (prévu — non activé MVP)
+// ─────────────────────────────────────────────────────────────
+
+model RideRequest {
+  id             String    @id @default(cuid())
+  patientId      String
+  type           RideType
+  originLat      Decimal   @db.Decimal(10, 7)
+  originLng      Decimal   @db.Decimal(10, 7)
+  originLandmark String
+  destLat        Decimal   @db.Decimal(10, 7)
+  destLng        Decimal   @db.Decimal(10, 7)
+  destLandmark   String
+  scheduledAt    DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  ride Ride?
+
+  @@map("ride_requests")
+}
+
+model Ride {
+  id            String     @id @default(cuid())
+  requestId     String     @unique
+  courierId     String?
+  status        RideStatus @default(pending)
+  fareEstFcfa   Int
+  fareFinalFcfa Int?
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  request     RideRequest  @relation(fields: [requestId], references: [id])
+  delivery    Delivery?
+  transaction Transaction?
+
+  @@map("rides")
+}
+
+// ─────────────────────────────────────────────────────────────
+// REPAS (prévu — non activé MVP)
+// ─────────────────────────────────────────────────────────────
+
+model MealPlan {
+  id          String   @id @default(cuid())
+  partnerId   String
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  items  MealPlanItem[]
+  orders MealOrder[]
+
+  @@map("meal_plans")
+}
+
+model MealPlanItem {
+  id            String   @id @default(cuid())
+  mealPlanId    String
+  name          String
+  unitPriceFcfa Int
+  isAvailable   Boolean  @default(true)
+
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id])
+
+  @@map("meal_plan_items")
+}
+
+model MealOrder {
+  id              String   @id @default(cuid())
+  patientId       String
+  mealPlanId      String
+  totalFcfa       Int
+  deliveryFeeFcfa Int      @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  mealPlan    MealPlan     @relation(fields: [mealPlanId], references: [id])
+  delivery    Delivery?
+  transaction Transaction?
+
+  @@map("meal_orders")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LOGISTIQUE (transverse)
+// ─────────────────────────────────────────────────────────────
+
+model Courier {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  isAvailable Boolean  @default(false)
+  lat         Decimal? @db.Decimal(10, 7)
+  lng         Decimal? @db.Decimal(10, 7)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  deliveries Delivery[]
+
+  @@map("couriers")
+}
+
+model Delivery {
+  id           String         @id @default(cuid())
+  courierId    String?
+  orderId      String?        @unique
+  rideId       String?        @unique
+  mealOrderId  String?        @unique
+  status       DeliveryStatus @default(pending_assignment)
+  handoverCode String         @unique @default(cuid())
+  distanceKm   Decimal?       @db.Decimal(8, 2)
+  feeFcfa      Int            @default(0)
+  assignedAt   DateTime?
+  deliveredAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  courier   Courier?   @relation(fields: [courierId], references: [id])
+  order     Order?     @relation(fields: [orderId], references: [id])
+  ride      Ride?      @relation(fields: [rideId], references: [id])
+  mealOrder MealOrder? @relation(fields: [mealOrderId], references: [id])
+  tracking  Tracking[]
+
+  @@map("deliveries")
+}
+
+model Tracking {
+  id         String         @id @default(cuid())
+  deliveryId String
+  lat        Decimal        @db.Decimal(10, 7)
+  lng        Decimal        @db.Decimal(10, 7)
+  status     DeliveryStatus
+  recordedAt DateTime       @default(now())
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id])
+
+  @@map("tracking")
+}
+
+// ─────────────────────────────────────────────────────────────
+// PAIEMENT (transverse)
+// ─────────────────────────────────────────────────────────────
+
+model Transaction {
+  id                    String            @id @default(cuid())
+  kind                  TransactionKind
+  status                TransactionStatus @default(pending)
+  amountFcfa            Int
+  idempotencyKey        String            @unique
+  providerTransactionId String?
+  orderId               String?           @unique
+  rideId                String?           @unique
+  mealOrderId           String?           @unique
+  consultationId        String?           @unique
+  paidAt                DateTime?
+  releasedAt            DateTime?
+  failureReason         String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  order        Order?       @relation(fields: [orderId], references: [id])
+  ride         Ride?        @relation(fields: [rideId], references: [id])
+  mealOrder    MealOrder?   @relation(fields: [mealOrderId], references: [id])
+  consultation Consultation? @relation(fields: [consultationId], references: [id])
+
+  @@map("transactions")
+}
+
+model Pricing {
+  id        String      @id @default(cuid())
+  kind      PricingKind @unique
+  valueFcfa Int?
+  valueNum  Decimal?    @db.Decimal(12, 6)
+  updatedAt DateTime    @updatedAt
+  updatedBy String?
+
+  @@map("pricing")
+}
+
+model Payout {
+  id                    String            @id @default(cuid())
+  recipientId           String
+  amountFcfa            Int
+  idempotencyKey        String            @unique
+  providerTransactionId String?
+  status                TransactionStatus @default(pending)
+  paidAt                DateTime?
+  createdAt             DateTime          @default(now())
+
+  @@map("payouts")
+}
+
+// ─────────────────────────────────────────────────────────────
+// AVIS (polymorphe via strings — pas de relation Prisma)
+// ─────────────────────────────────────────────────────────────
+
+model Review {
+  id        String   @id @default(cuid())
+  authorId  String
+  rating    Int
+  comment   String?
+  // refTable = "partner_profiles" | "doctor_profiles" | "couriers"
+  refTable  String
+  refId     String
+  createdAt DateTime @default(now())
+
+  author User @relation("ReviewAuthor", fields: [authorId], references: [id])
+
+  @@map("reviews")
+}

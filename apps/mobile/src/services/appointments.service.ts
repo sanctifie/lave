@@ -1,0 +1,91 @@
+import { apiClient } from './client';
+
+export type AppointmentType = 'immediate' | 'scheduled';
+
+export interface AppointmentListItem {
+  id:              string;
+  doctorName:      string;
+  doctorSpecialty: string;
+  patientName:     string;
+  type:            AppointmentType;
+  scheduledAt:     string | null;
+  status:          string;
+  feeFcfa:         number;
+}
+
+export interface ConsultationDetail {
+  id:              string;
+  status:          string;
+  notes:           string | null;
+  durationSeconds: number | null;
+  serviceFeeFcfa:  number | null;
+  videoFeeFcfa:    number | null;
+  startedAt:       string | null;
+  endedAt:         string | null;
+  prescription:    { id: string; notes: string | null } | null;
+  transaction:     { id: string; status: string; paidAt: string | null } | null;
+  videoSession:    { providerRoomUrl: string } | null;
+}
+
+export interface AppointmentDetail {
+  id:           string;
+  type:         AppointmentType;
+  status:       string;
+  scheduledAt:  string | null;
+  notes:        string | null;
+  doctor: {
+    id:       string;
+    user:     { name: string };
+    specialty: { name: string };
+    consultationFeeFcfa: number;
+  };
+  patient:      { name: string };
+  consultation: ConsultationDetail | null;
+}
+
+export interface CreateAppointmentInput {
+  doctorId?:       string;
+  type:            AppointmentType;
+  scheduledAt?:    string;
+  chiefComplaint?: string;
+  specialty?:      string;
+}
+
+export const appointmentsService = {
+  async list(): Promise<AppointmentListItem[]> {
+    const res = await apiClient.get<{ data: any[] }>('/appointments');
+    const raw: any[] = res.data.data ?? (res.data as any);
+    return raw.map((a) => ({
+      id:              a.id,
+      type:            a.type,
+      status:          a.status,
+      scheduledAt:     a.scheduledAt ?? null,
+      feeFcfa:         a.doctor?.consultationFeeFcfa ?? a.feeFcfa ?? 0,
+      doctorName:      a.doctor?.user?.name ?? '—',
+      doctorSpecialty: a.doctor?.specialty?.name ?? '—',
+      patientName:     a.patient?.name ?? '—',
+    }));
+  },
+
+  async getById(id: string): Promise<AppointmentDetail> {
+    const res = await apiClient.get<{ data: AppointmentDetail }>(`/appointments/${id}`);
+    return res.data.data ?? (res.data as any);
+  },
+
+  async create(input: CreateAppointmentInput) {
+    const res = await apiClient.post<{ data: AppointmentListItem }>('/appointments', input);
+    return res.data.data;
+  },
+
+  async enterWaitingRoom(id: string): Promise<{ appointment: AppointmentDetail; doctorBusy: boolean }> {
+    const res = await apiClient.post<{ data: { appointment: AppointmentDetail; doctorBusy: boolean } }>(
+      `/appointments/${id}/waiting-room`,
+    );
+    return res.data.data;
+  },
+
+  async cancel(id: string) {
+    const res = await apiClient.patch<{ data: AppointmentListItem }>(`/appointments/${id}/cancel`);
+    return res.data.data ?? (res.data as any);
+  },
+};
