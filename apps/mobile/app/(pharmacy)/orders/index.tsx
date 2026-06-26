@@ -27,6 +27,7 @@ function formatDate(iso: string) {
 }
 
 const NEXT_ACTION: Partial<Record<OrderStatus, { label: string; action: 'prepare' | 'ready' | 'reject'; variant: 'primary' | 'danger' }>> = {
+  [OrderStatus.PENDING_PHARMACY]:  { label: 'Accepter et préparer',    action: 'prepare', variant: 'primary' },
   [OrderStatus.PHARMACY_ACCEPTED]: { label: 'Commencer la préparation', action: 'prepare', variant: 'primary' },
   [OrderStatus.PREPARING]:         { label: 'Marquer prête',            action: 'ready',   variant: 'primary' },
 };
@@ -53,7 +54,7 @@ export default function PharmacyOrdersScreen() {
   useEffect(() => { load(); }, [load]);
 
   const visible = orders.filter((o) => {
-    if (tab === 'active') return [OrderStatus.PHARMACY_ACCEPTED, OrderStatus.PREPARING].includes(o.status as OrderStatus);
+    if (tab === 'active') return [OrderStatus.PENDING_PHARMACY, OrderStatus.PHARMACY_ACCEPTED, OrderStatus.PREPARING].includes(o.status as OrderStatus);
     if (tab === 'ready')  return o.status === OrderStatus.READY_FOR_PICKUP;
     return [OrderStatus.DISPATCHED, OrderStatus.DELIVERED].includes(o.status as OrderStatus);
   });

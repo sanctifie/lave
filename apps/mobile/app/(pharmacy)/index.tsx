@@ -39,7 +39,8 @@ export default function PharmacyDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  const pendingRx   = inbox.filter((r) => r.status === PrescriptionStatus.PENDING_VALIDATION).length;
+  const pendingRx    = inbox.filter((r) => r.status === PrescriptionStatus.PENDING_VALIDATION).length;
+  const newOrders    = orders.filter((o) => o.status === OrderStatus.PENDING_PHARMACY);
   const activeOrders = orders.filter((o) =>
     [OrderStatus.PHARMACY_ACCEPTED, OrderStatus.PREPARING].includes(o.status as OrderStatus)
   ).length;
@@ -75,9 +76,9 @@ export default function PharmacyDashboard() {
       <Text style={styles.sectionTitle}>Vue d'ensemble</Text>
       <View style={styles.statsRow}>
         {[
-          { label: 'Ordonnances\nen attente', value: pendingRx,    color: colors.warning, icon: '📋' },
-          { label: 'Commandes\nen cours',     value: activeOrders,  color: colors.info,    icon: '🔧' },
-          { label: 'Prêtes à\nlivrer',         value: readyOrders,   color: colors.success, icon: '📦' },
+          { label: 'Ordonnances\nen attente', value: pendingRx,          color: colors.warning, icon: '📋' },
+          { label: 'Commandes\nen cours',     value: activeOrders,        color: colors.info,    icon: '🔧' },
+          { label: 'Prêtes à\nlivrer',         value: readyOrders,         color: colors.success, icon: '📦' },
         ].map((s) => (
           <View key={s.label} style={styles.statCard}>
             <Text style={styles.statIcon}>{s.icon}</Text>
@@ -87,7 +88,37 @@ export default function PharmacyDashboard() {
         ))}
       </View>
 
-      {/* Recent inbox */}
+      {/* Nouvelles commandes à traiter */}
+      {!loading && newOrders.length > 0 && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🆕 Nouvelles commandes</Text>
+            <Pressable onPress={() => router.push('/(pharmacy)/orders' as never)}>
+              <Text style={styles.seeAll}>Voir tout</Text>
+            </Pressable>
+          </View>
+          {newOrders.slice(0, 3).map((o) => (
+            <Pressable
+              key={o.id}
+              style={[styles.rxCard, styles.orderCard]}
+              onPress={() => router.push('/(pharmacy)/orders' as never)}
+            >
+              <View style={[styles.rxIconBox, { backgroundColor: colors.warningSurface }]}>
+                <Text style={{ fontSize: 22 }}>💊</Text>
+              </View>
+              <View style={styles.rxBody}>
+                <Text style={styles.rxPatient}>{o.patientName}</Text>
+                <Text style={styles.rxDate}>{formatDate(o.createdAt)} — {o.totalFcfa.toLocaleString('fr-FR')} FCFA</Text>
+              </View>
+              <View style={[styles.urgentBadge, { backgroundColor: colors.errorSurface }]}>
+                <Text style={[styles.urgentText, { color: colors.error }]}>À traiter</Text>
+              </View>
+            </Pressable>
+          ))}
+        </>
+      )}
+
+      {/* Dernières ordonnances */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Dernières ordonnances</Text>
         <Pressable onPress={() => router.push('/(pharmacy)/prescriptions' as never)}>
@@ -183,6 +214,10 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md,
     ...shadows.card,
+  },
+  orderCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.error,
   },
   rxIconBox: {
     width: 48, height: 48,

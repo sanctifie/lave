@@ -15,8 +15,9 @@ import { prisma } from '../../infrastructure/prisma/client';
 import { HTTP } from '../../lib/errors';
 
 const router = Router();
+const repo    = new PrescriptionRepository();
 const service = new PrescriptionService(
-  new PrescriptionRepository(),
+  repo,
   new OrderRepository(),
   new DeliveryRepository(),
   new PricingRepository(),
@@ -55,6 +56,18 @@ router.get('/partner/inbox', requireAuth, requireRole(UserRole.PARTNER_STAFF), a
   });
   if (!partner) throw HTTP.forbidden('Vous n\'êtes rattaché à aucun partenaire');
   res.json(await service.listForPartner(partner.id));
+}));
+
+// Pharmacien : voir le détail d'une ordonnance de son officine
+router.get('/partner/:id', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
+  const partner = await prisma.partnerProfile.findFirst({
+    where: { staff: { some: { id: req.user!.userId } } },
+  });
+  if (!partner) throw HTTP.forbidden('Vous n\'êtes rattaché à aucun partenaire');
+  const rx = await repo.findWithMedia(req.params.id);
+  if (!rx) throw HTTP.notFound('Ordonnance introuvable');
+  if (rx.targetPartnerId !== partner.id) throw HTTP.forbidden();
+  res.json(rx);
 }));
 
 // Pharmacien : valide (+ crée la commande) ou refuse
