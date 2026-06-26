@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { doctorsService, DoctorListItem } from '../../../src/services/doctors.service';
+import { doctorsService, DoctorListItem, TimeSlot } from '../../../src/services/doctors.service';
 import { appointmentsService } from '../../../src/services/appointments.service';
 import { Button } from '../../../src/components/ui/Button';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
@@ -19,7 +19,6 @@ import { fr } from '../../../src/i18n/fr';
 
 type ConsultType = 'immediate' | 'scheduled';
 
-// Spécialités consultables à distance
 const SPECIALTIES = [
   { key: '',               label: 'Généraliste',    icon: '🩺' },
   { key: 'Pédiatre',       label: 'Pédiatre',       icon: '👶' },
@@ -41,23 +40,30 @@ const SPECIALTIES = [
 
 function formatFcfa(n: number) { return `${n.toLocaleString('fr-FR')} FCFA`; }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function NewAppointmentScreen() {
   const router = useRouter();
 
-  // specialty key = '' → médecin généraliste / tous
-  const [specialty, setSpecialty]       = useState('');
-  const [type, setType]                 = useState<ConsultType>('immediate');
-  const [doctors, setDoctors]           = useState<DoctorListItem[]>([]);
-  const [loadingDr, setLoadingDr]       = useState(false);
-  const [selectedDr, setSelectedDr]     = useState<DoctorListItem | null>(null);
-  const [complaint, setComplaint]       = useState('');
-  const [submitting, setSubmitting]     = useState(false);
+  const [specialty, setSpecialty]           = useState('');
+  const [type, setType]                     = useState<ConsultType>('immediate');
+  const [doctors, setDoctors]               = useState<DoctorListItem[]>([]);
+  const [loadingDr, setLoadingDr]           = useState(false);
+  const [selectedDr, setSelectedDr]         = useState<DoctorListItem | null>(null);
+  const [complaint, setComplaint]           = useState('');
+  const [submitting, setSubmitting]         = useState(false);
 
-  // Nombre de médecins disponibles maintenant pour la spécialité choisie
   const [availableCount, setAvailableCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount]     = useState(true);
 
-  // Recharge le compteur dès que la spécialité change
+  // Scheduled: date + slots
+  const [selectedDate, setSelectedDate]     = useState(todayISO());
+  const [slots, setSlots]                   = useState<TimeSlot[]>([]);
+  const [loadingSlots, setLoadingSlots]     = useState(false);
+  const [selectedSlot, setSelectedSlot]     = useState<string | null>(null);
+
   useEffect(() => {
     setLoadingCount(true);
     doctorsService
@@ -67,11 +73,11 @@ export default function NewAppointmentScreen() {
       .finally(() => setLoadingCount(false));
   }, [specialty]);
 
-  // Charge la liste de médecins uniquement en mode "programmé"
   useEffect(() => {
     if (type === 'immediate') { setDoctors([]); return; }
     setLoadingDr(true);
     setSelectedDr(null);
+    setSelectedSlot(null);
     doctorsService
       .list({ specialty: specialty || undefined })
       .then(setDoctors)
@@ -79,11 +85,23 @@ export default function NewAppointmentScreen() {
       .finally(() => setLoadingDr(false));
   }, [specialty, type]);
 
+  // Load slots when doctor or date changes
+  useEffect(() => {
+    if (!selectedDr || type !== 'scheduled') { setSlots([]); return; }
+    setLoadingSlots(true);
+    setSelectedSlot(null);
+    doctorsService
+      .getSlots(selectedDr.id, selectedDate)
+      .then(setSlots)
+      .catch(() => setSlots([]))
+      .finally(() => setLoadingSlots(false));
+  }, [selectedDr, selectedDate, type]);
+
   const immediateAvailable = (availableCount ?? 0) > 0;
 
   const canSubmit = type === 'immediate'
     ? immediateAvailable && !submitting
-    : !!selectedDr && !submitting;
+    : !!selectedDr && !!selectedSlot && !submitting;
 
   const submit = async () => {
     setSubmitting(true);
@@ -103,7 +121,7 @@ export default function NewAppointmentScreen() {
         await appointmentsService.create({
           doctorId:       selectedDr!.id,
           type:           'scheduled',
-          specialty:      specialty || undefined,
+          scheduledAt:    selectedSlot!,
           chiefComplaint: complaint.trim() || undefined,
         });
         Alert.alert('Rendez-vous créé !', 'Le professionnel a été notifié.', [
@@ -134,7 +152,7 @@ export default function NewAppointmentScreen() {
         <View style={{ width: 64 }} />
       </View>
 
-      {/* ── ÉTAPE 1 : Choisir la spécialité ── */}
+      {/* Spécialité */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Quel professionnel voulez-vous consulter ?</Text>
         <FlatList
@@ -148,7 +166,7 @@ export default function NewAppointmentScreen() {
             return (
               <Pressable
                 style={styles.specialtyItem}
-                onPress={() => { setSpecialty(sp.key); setSelectedDr(null); }}
+                onPress={() => { setSpecialty(sp.key); setSelectedDr(null); setSelectedSlot(null); }}
               >
                 <View style={[styles.specialtyCircle, active && styles.specialtyCircleActive]}>
                   <Text style={styles.specialtyIcon}>{sp.icon}</Text>
@@ -162,12 +180,11 @@ export default function NewAppointmentScreen() {
         />
       </View>
 
-      {/* ── ÉTAPE 2 : Immédiat ou Programmé ── */}
+      {/* Type */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Quand souhaitez-vous consulter ?</Text>
         <View style={styles.typeRow}>
 
-          {/* Carte Immédiat */}
           <Pressable
             style={[
               styles.typeCard,
@@ -195,7 +212,6 @@ export default function NewAppointmentScreen() {
             )}
           </Pressable>
 
-          {/* Carte Programmé */}
           <Pressable
             style={[styles.typeCard, type === 'scheduled' && styles.typeCardActive]}
             onPress={() => setType('scheduled')}
@@ -209,7 +225,7 @@ export default function NewAppointmentScreen() {
         </View>
       </View>
 
-      {/* ── CONTENU selon le type ── */}
+      {/* Contenu selon type */}
       {type === 'immediate' ? (
         <View style={styles.section}>
           {immediateAvailable ? (
@@ -235,58 +251,111 @@ export default function NewAppointmentScreen() {
           )}
         </View>
       ) : (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            {selectedSpecialty
-              ? `Choisir un ${selectedSpecialty.label.toLowerCase()}`
-              : 'Choisir un médecin généraliste'}
-          </Text>
-          {loadingDr ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
-          ) : doctors.length === 0 ? (
-            <Text style={styles.noDoctors}>{fr.appointment.noDoctor}</Text>
-          ) : (
-            <View style={styles.doctorList}>
-              {doctors.map((dr) => {
-                const selected = selectedDr?.id === dr.id;
-                return (
-                  <Pressable
-                    key={dr.id}
-                    style={[styles.doctorCard, selected && styles.doctorCardSelected]}
-                    onPress={() => setSelectedDr(dr)}
-                  >
-                    <View style={[styles.drAvatar, selected && styles.drAvatarSelected]}>
-                      <Text style={{ fontSize: 22 }}>👨‍⚕️</Text>
-                    </View>
-                    <View style={styles.drInfo}>
-                      <Text style={[styles.drName, selected && { color: colors.primary }]}>
-                        Dr. {dr.name}
-                      </Text>
-                      <Text style={styles.drSpecialty}>{dr.specialty}</Text>
-                      <View style={styles.ratingRow}>
-                        <Text style={styles.star}>★</Text>
-                        <Text style={styles.rating}>
-                          {dr.rating.toFixed(1)} ({dr.reviewCount})
-                        </Text>
+        <>
+          {/* Sélection médecin */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>
+              {selectedSpecialty
+                ? `Choisir un ${selectedSpecialty.label.toLowerCase()}`
+                : 'Choisir un médecin généraliste'}
+            </Text>
+            {loadingDr ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
+            ) : doctors.length === 0 ? (
+              <Text style={styles.noDoctors}>{fr.appointment.noDoctor}</Text>
+            ) : (
+              <View style={styles.doctorList}>
+                {doctors.map((dr) => {
+                  const selected = selectedDr?.id === dr.id;
+                  return (
+                    <Pressable
+                      key={dr.id}
+                      style={[styles.doctorCard, selected && styles.doctorCardSelected]}
+                      onPress={() => { setSelectedDr(dr); setSelectedSlot(null); }}
+                    >
+                      <View style={[styles.drAvatar, selected && styles.drAvatarSelected]}>
+                        <Text style={{ fontSize: 22 }}>👨‍⚕️</Text>
                       </View>
-                    </View>
-                    <View style={styles.drRight}>
-                      <Text style={styles.fee}>{formatFcfa(dr.consultationFeeFcfa)}</Text>
-                      <View style={[styles.bookBtn, selected && styles.bookBtnSelected]}>
-                        <Text style={[styles.bookBtnText, selected && styles.bookBtnTextSelected]}>
-                          {selected ? '✓ Choisi' : 'Choisir'}
+                      <View style={styles.drInfo}>
+                        <Text style={[styles.drName, selected && { color: colors.primary }]}>
+                          Dr. {dr.name}
                         </Text>
+                        <Text style={styles.drSpecialty}>{dr.specialty}</Text>
+                        <View style={styles.ratingRow}>
+                          <Text style={styles.star}>★</Text>
+                          <Text style={styles.rating}>
+                            {dr.rating.toFixed(1)} ({dr.reviewCount})
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
+                      <View style={styles.drRight}>
+                        <Text style={styles.fee}>{formatFcfa(dr.consultationFeeFcfa)}</Text>
+                        <View style={[styles.bookBtn, selected && styles.bookBtnSelected]}>
+                          <Text style={[styles.bookBtnText, selected && styles.bookBtnTextSelected]}>
+                            {selected ? '✓ Choisi' : 'Choisir'}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {/* Sélection date + créneau */}
+          {selectedDr && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Choisir une date</Text>
+              <TextInput
+                style={styles.dateInput}
+                value={selectedDate}
+                onChangeText={(v) => { setSelectedDate(v); setSelectedSlot(null); }}
+                placeholder="AAAA-MM-JJ"
+                placeholderTextColor={colors.textDisabled}
+                keyboardType="numeric"
+                maxLength={10}
+              />
+
+              <Text style={[styles.sectionLabel, { marginTop: spacing.sm }]}>Créneaux disponibles</Text>
+              {loadingSlots ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : slots.length === 0 ? (
+                <Text style={styles.noDoctors}>Aucun créneau pour cette date</Text>
+              ) : (
+                <View style={styles.slotGrid}>
+                  {slots.map((slot) => {
+                    const time = new Date(slot.datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    const isSelected = selectedSlot === slot.datetime;
+                    return (
+                      <Pressable
+                        key={slot.datetime}
+                        style={[
+                          styles.slotBtn,
+                          isSelected && styles.slotBtnSelected,
+                          !slot.available && styles.slotBtnDisabled,
+                        ]}
+                        onPress={() => slot.available && setSelectedSlot(slot.datetime)}
+                        disabled={!slot.available}
+                      >
+                        <Text style={[
+                          styles.slotText,
+                          isSelected && styles.slotTextSelected,
+                          !slot.available && styles.slotTextDisabled,
+                        ]}>
+                          {time}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           )}
-        </View>
+        </>
       )}
 
-      {/* ── Motif de consultation ── */}
+      {/* Motif */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Motif de consultation (optionnel)</Text>
         <TextInput
@@ -329,9 +398,8 @@ const styles = StyleSheet.create({
   section:      { gap: spacing.sm },
   sectionLabel: { ...typography.bodyMedium, color: colors.text },
 
-  // Spécialités
-  specialtyRow: { gap: spacing.md, paddingVertical: spacing.xs },
-  specialtyItem: { alignItems: 'center', gap: spacing.xs, width: 72 },
+  specialtyRow:          { gap: spacing.md, paddingVertical: spacing.xs },
+  specialtyItem:         { alignItems: 'center', gap: spacing.xs, width: 72 },
   specialtyCircle: {
     width: 60, height: 60,
     borderRadius: radii.full,
@@ -346,7 +414,6 @@ const styles = StyleSheet.create({
   specialtyLabel:        { ...typography.small, color: colors.textSecondary, textAlign: 'center' },
   specialtyLabelActive:  { color: colors.primary, fontWeight: '600' },
 
-  // Type cards
   typeRow: { flexDirection: 'row', gap: spacing.md },
   typeCard: {
     flex: 1,
@@ -370,7 +437,6 @@ const styles = StyleSheet.create({
   availableBadge:   { ...typography.small, color: '#16A34A', fontWeight: '600' },
   unavailableBadge: { ...typography.small, color: colors.textDisabled },
 
-  // Info immédiat
   immediateInfo: {
     backgroundColor: colors.primarySurface,
     borderRadius: radii.lg,
@@ -379,14 +445,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary + '40',
   },
-  immediateInfoUnavailable: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  },
+  immediateInfoUnavailable: { backgroundColor: colors.surface, borderColor: colors.border },
   immediateTitle: { ...typography.bodyMedium, color: colors.text },
   immediateText:  { ...typography.body, color: colors.textSecondary, lineHeight: 20 },
 
-  // Liste médecins
   doctorList: { gap: spacing.md },
   doctorCard: {
     flexDirection: 'row',
@@ -428,6 +490,36 @@ const styles = StyleSheet.create({
   bookBtnTextSelected: { color: colors.textOnDark },
 
   noDoctors: { ...typography.body, color: colors.textSecondary, textAlign: 'center', padding: spacing.md },
+
+  dateInput: {
+    ...typography.body,
+    color: colors.text,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+
+  slotGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  slotBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  slotBtnSelected: { borderColor: colors.primary, backgroundColor: colors.primarySurface },
+  slotBtnDisabled: { opacity: 0.4 },
+  slotText:        { ...typography.label, color: colors.text },
+  slotTextSelected:{ color: colors.primary },
+  slotTextDisabled:{ color: colors.textDisabled },
 
   textArea: {
     ...typography.body,

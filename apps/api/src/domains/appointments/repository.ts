@@ -1,5 +1,5 @@
 import { prisma } from '../../infrastructure/prisma/client';
-import { AppointmentStatus, ConsultationStatus } from '@mbolo/shared';
+import { AppointmentStatus, ConsultationStatus, PrescriptionSource, PrescriptionType, PrescriptionStatus } from '@mbolo/shared';
 
 const DOCTOR_INCLUDE = {
   doctor: {
@@ -38,7 +38,7 @@ export class AppointmentRepository {
   async listForDoctor(doctorProfileId: string) {
     return prisma.appointment.findMany({
       where:   { doctorId: doctorProfileId },
-      include: PATIENT_INCLUDE,
+      include: { ...DOCTOR_INCLUDE, ...PATIENT_INCLUDE },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -177,15 +177,15 @@ export class AppointmentRepository {
       if (data.prescriptionText) {
         prescription = await tx.prescription.create({
           data: {
-            patientId:     data.patientId,
-            source:        'teleconsultation',
-            type:          'drug',
-            status:        'pending_validation',
+            patientId:      data.patientId,
+            source:         PrescriptionSource.TELECONSULTATION,
+            type:           PrescriptionType.DRUG,
+            status:         PrescriptionStatus.PENDING_VALIDATION,
             consultationId: data.consultationId,
-            issuedById:    data.doctorProfileId,
-            issuedAt:      new Date(),
-            notes:         data.prescriptionText,
-          } as any,
+            issuedById:     data.doctorProfileId,
+            issuedAt:       new Date(),
+            notes:          data.prescriptionText,
+          },
         });
       }
 

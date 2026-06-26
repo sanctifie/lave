@@ -378,6 +378,7 @@ model Prescription {
   // Pharmacie cible choisie par le patient à l'upload
   targetPartnerId String?
   consultationId  String?            @unique
+  notes           String?
   // Validation médicale (médecin, si teleconsultation)
   issuedById      String?
   issuedAt        DateTime?

@@ -55,7 +55,12 @@ export class PrescriptionRepository {
 
   async listForPartner(partnerId: string) {
     return prisma.prescription.findMany({
-      where: { targetPartnerId: partnerId, status: PrescriptionStatus.PENDING_VALIDATION },
+      where: {
+        OR: [
+          { targetPartnerId: partnerId },
+          { targetPartnerId: null, source: PrescriptionSource.TELECONSULTATION },
+        ],
+      },
       include: { patient: { select: { name: true, phone: true } } },
       orderBy: { createdAt: 'desc' },
     });

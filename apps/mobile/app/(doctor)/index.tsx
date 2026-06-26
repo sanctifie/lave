@@ -56,7 +56,7 @@ export default function DoctorDashboard() {
   const toggleAvailability = async (val: boolean) => {
     setAvailable(val);
     try {
-      await apiClient.patch('/doctors/me/availability', { isAvailable: val });
+      await apiClient.patch('/doctors/me/availability', { isAvailableNow: val });
     } catch {
       setAvailable(!val);
     }

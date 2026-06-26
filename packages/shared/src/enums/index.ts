@@ -1,3 +1,11 @@
+export enum MediaKind {
+  PRESCRIPTION_SCAN = 'prescription_scan',
+  ID_DOCUMENT = 'id_document',
+  PROFILE_PHOTO = 'profile_photo',
+  COURIER_PHOTO = 'courier_photo',
+  DOCTOR_CREDENTIAL = 'doctor_credential',
+}
+
 export enum UserRole {
   PATIENT = 'patient',
   ACCOMPAGNANT = 'accompagnant',
