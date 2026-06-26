@@ -112,7 +112,7 @@ export default function WaitingRoomScreen() {
         {status === 'in_progress' ? (
           <>
             <Text style={styles.messageTitle}>La consultation commence !</Text>
-            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing[2] }} />
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xs }} />
           </>
         ) : isDoctorBusy || isDelayed ? (
           <>
@@ -164,19 +164,19 @@ const styles = StyleSheet.create({
   root: {
     flex:            1,
     backgroundColor: colors.background,
-    padding:         spacing[5],
+    padding:         spacing.md,
     alignItems:      'center',
     justifyContent:  'center',
-    gap:             spacing[5],
+    gap:             spacing.md,
   },
 
   doctorCard: {
     flexDirection:   'row',
     alignItems:      'center',
-    gap:             spacing[3],
+    gap:             spacing.sm,
     backgroundColor: colors.surface,
     borderRadius:    radii.lg,
-    padding:         spacing[4],
+    padding:         spacing.md,
     width:           '100%',
     ...shadows.card,
   },
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   pulseContainer: {
     alignItems:     'center',
     justifyContent: 'center',
-    marginVertical: spacing[3],
+    marginVertical: spacing.sm,
   },
   pulseOuter: {
     width:           120,
@@ -218,9 +218,9 @@ const styles = StyleSheet.create({
   messageBox: {
     backgroundColor: colors.surface,
     borderRadius:    radii.lg,
-    padding:         spacing[4],
+    padding:         spacing.md,
     width:           '100%',
-    gap:             spacing[2],
+    gap:             spacing.xs,
     ...shadows.card,
   },
   messageTitle: { ...typography.h3, color: colors.text, textAlign: 'center' },
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems:      'center',
     backgroundColor: colors.surface,
     borderRadius:    radii.md,
-    padding:         spacing[3],
+    padding:         spacing.sm,
     width:           '100%',
     ...shadows.card,
   },
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     borderWidth:  1.5,
     borderColor:  colors.border,
     borderRadius: radii.lg,
-    padding:      spacing[3],
+    padding:      spacing.sm,
     width:        '100%',
     alignItems:   'center',
   },

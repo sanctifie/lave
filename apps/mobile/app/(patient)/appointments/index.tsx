@@ -17,7 +17,8 @@ import { fr } from '../../../src/i18n/fr';
 type Tab = 'upcoming' | 'past' | 'cancelled';
 
 const UPCOMING = new Set<string>([
-  AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS,
+  AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED,
+  AppointmentStatus.WAITING_ROOM, AppointmentStatus.IN_PROGRESS,
 ]);
 const PAST      = new Set<string>([AppointmentStatus.COMPLETED]);
 const CANCELLED = new Set<string>([AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW]);

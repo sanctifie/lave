@@ -18,18 +18,18 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   res.json(await service.listMine(req.user!.userId));
 }));
 
-// Patient : détail d'une commande
-router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
-  res.json(await service.getById(req.params.id, req.user!.userId));
-}));
-
-// Pharmacien : liste les commandes de son officine
+// Pharmacien : liste les commandes de son officine (avant /:id pour éviter le conflit)
 router.get('/partner/list', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
   const partner = await prisma.partnerProfile.findFirst({
     where: { staff: { some: { id: req.user!.userId } } },
   });
   if (!partner) throw HTTP.forbidden('Vous n\'êtes rattaché à aucun partenaire');
   res.json(await service.listForPartner(partner.id));
+}));
+
+// Patient : détail d'une commande
+router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
+  res.json(await service.getById(req.params.id, req.user!.userId));
 }));
 
 // Pharmacien : action sur une commande (prepare / ready / reject)

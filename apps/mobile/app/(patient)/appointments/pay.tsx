@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { paymentsService } from '../../../src/services/payments.service';
-import { useAuthStore } from '../../../src/stores/auth.store';
+import { useAuthStore } from '../../../src/store/auth.store';
 import { colors, spacing, radii, shadows, typography } from '../../../src/theme';
 
 type Operator = 'airtel' | 'moov';
@@ -25,17 +25,17 @@ const OPERATORS: { key: Operator; label: string; color: string; prefix: string }
 ];
 
 const POLL_INTERVAL_MS = 3000;
-const MAX_POLLS        = 20; // 1 min max
+const MAX_POLLS        = 20;
 
 export default function PayScreen() {
   const { consultationId, amount } = useLocalSearchParams<{ consultationId: string; amount: string }>();
   const router  = useRouter();
   const user    = useAuthStore((s) => s.user);
 
-  const [step,         setStep]         = useState<Step>('form');
-  const [operator,     setOperator]     = useState<Operator>('orange');
-  const [phoneNumber,  setPhoneNumber]  = useState(user?.phone ?? '');
-  const [submitting,   setSubmitting]   = useState(false);
+  const [step,          setStep]          = useState<Step>('form');
+  const [operator,      setOperator]      = useState<Operator>('airtel');
+  const [phoneNumber,   setPhoneNumber]   = useState(user?.phone ?? '');
+  const [submitting,    setSubmitting]    = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
 
   const pollCount = useRef(0);
@@ -97,8 +97,6 @@ export default function PayScreen() {
     }
   };
 
-  // ─── Écran de succès ─────────────────────────────────────────────────────────
-
   if (step === 'success') {
     return (
       <View style={styles.resultContainer}>
@@ -110,14 +108,12 @@ export default function PayScreen() {
           {amountFcfa.toLocaleString('fr-FR')} FCFA reçus.{'\n'}
           Votre médecin a été rémunéré.
         </Text>
-        <Pressable style={styles.primaryBtn} onPress={() => router.replace('/(patient)/appointments')}>
+        <Pressable style={styles.primaryBtn} onPress={() => router.replace('/(patient)/appointments' as any)}>
           <Text style={styles.primaryBtnText}>Retour aux RDV</Text>
         </Pressable>
       </View>
     );
   }
-
-  // ─── Écran d'échec ────────────────────────────────────────────────────────────
 
   if (step === 'failed') {
     return (
@@ -136,13 +132,11 @@ export default function PayScreen() {
     );
   }
 
-  // ─── Écran en attente ─────────────────────────────────────────────────────────
-
   if (step === 'pending') {
     return (
       <View style={styles.resultContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.resultTitle, { marginTop: spacing[6] }]}>En attente de confirmation</Text>
+        <Text style={[styles.resultTitle, { marginTop: spacing.lg }]}>En attente de confirmation</Text>
         <Text style={styles.resultSub}>
           Acceptez le paiement sur votre téléphone{'\n'}({phoneNumber})
         </Text>
@@ -152,8 +146,6 @@ export default function PayScreen() {
       </View>
     );
   }
-
-  // ─── Formulaire ───────────────────────────────────────────────────────────────
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -224,38 +216,38 @@ export default function PayScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content:   { padding: spacing[4], gap: spacing[4] },
+  content:   { padding: spacing.md, gap: spacing.md },
 
   amountCard: {
     backgroundColor: colors.primary,
     borderRadius:    radii.xl,
-    padding:         spacing[6],
+    padding:         spacing.lg,
     alignItems:      'center',
     ...shadows.modal,
   },
   amountLabel: { ...typography.caption, color: 'rgba(255,255,255,0.8)' },
-  amountValue: { fontSize: 36, fontWeight: '800', color: colors.textOnDark, marginVertical: spacing[1] },
+  amountValue: { fontSize: 36, fontWeight: '800', color: colors.textOnDark, marginVertical: spacing.xs },
   amountSub:   { ...typography.caption, color: 'rgba(255,255,255,0.7)' },
 
-  section:      { gap: spacing[2] },
+  section:      { gap: spacing.xs },
   sectionTitle: { ...typography.h3, color: colors.text },
   sectionHint:  { ...typography.caption, color: colors.textSecondary },
 
-  operatorRow: { flexDirection: 'row', gap: spacing[3] },
+  operatorRow: { flexDirection: 'row', gap: spacing.sm },
   operatorCard: {
     flex:            1,
     flexDirection:   'row',
     alignItems:      'center',
-    gap:             spacing[2],
+    gap:             spacing.xs,
     backgroundColor: colors.surface,
     borderRadius:    radii.lg,
-    padding:         spacing[3],
+    padding:         spacing.sm,
     borderWidth:     1.5,
     borderColor:     colors.border,
     ...shadows.card,
   },
   operatorDot:   { width: 12, height: 12, borderRadius: 6 },
-  operatorLabel: { ...typography.body2, color: colors.text, flex: 1 },
+  operatorLabel: { ...typography.body, color: colors.text, flex: 1 },
   checkmark:     { fontWeight: '700' },
 
   input: {
@@ -263,31 +255,30 @@ const styles = StyleSheet.create({
     borderWidth:     1.5,
     borderColor:     colors.border,
     borderRadius:    radii.lg,
-    padding:         spacing[4],
-    ...typography.body1,
+    padding:         spacing.md,
+    ...typography.bodyMedium,
     color:           colors.text,
   },
 
   primaryBtn: {
     backgroundColor: colors.primary,
     borderRadius:    radii.full,
-    padding:         spacing[4],
+    padding:         spacing.md,
     alignItems:      'center',
     ...shadows.card,
   },
   primaryBtnDisabled: { opacity: 0.6 },
-  primaryBtnText: { ...typography.body1, color: colors.textOnDark, fontWeight: '700' },
+  primaryBtnText: { ...typography.bodyMedium, color: colors.textOnDark },
 
   secureNote: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
 
-  // Résultat (succès/échec/attente)
   resultContainer: {
     flex:            1,
     backgroundColor: colors.background,
     justifyContent:  'center',
     alignItems:      'center',
-    padding:         spacing[8],
-    gap:             spacing[4],
+    padding:         spacing.xl,
+    gap:             spacing.md,
   },
   iconCircle: {
     width:           80,
@@ -299,6 +290,6 @@ const styles = StyleSheet.create({
   },
   resultIcon:  { fontSize: 36, color: colors.success },
   resultTitle: { ...typography.h2, color: colors.text, textAlign: 'center' },
-  resultSub:   { ...typography.body2, color: colors.textSecondary, textAlign: 'center' },
-  pendingHint: { ...typography.caption, color: colors.primary, textAlign: 'center', marginTop: spacing[2] },
+  resultSub:   { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+  pendingHint: { ...typography.caption, color: colors.primary, textAlign: 'center', marginTop: spacing.xs },
 });

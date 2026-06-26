@@ -87,7 +87,6 @@ export default function AppointmentDetailScreen() {
   const canCancel   = ['pending', 'confirmed'].includes(appt.status);
   const durationMin = consult?.durationSeconds ? Math.ceil(consult.durationSeconds / 60) : null;
 
-  // Bouton "Entrer en salle d'attente" : RDV programmé, statut pending/confirmed, dans moins de 10 min
   const canEnterWaitingRoom = (() => {
     if (!['pending', 'confirmed'].includes(appt.status)) return false;
     if (appt.type !== 'scheduled' || !appt.scheduledAt) return false;
@@ -103,10 +102,10 @@ export default function AppointmentDetailScreen() {
         pathname: '/(patient)/appointments/waiting-room' as any,
         params: {
           id,
-          doctorName:    appt.doctor.user.name,
+          doctorName:      appt.doctor.user.name,
           doctorSpecialty: appt.doctor.specialty.name,
-          doctorBusy:    result.doctorBusy ? '1' : '0',
-          scheduledAt:   appt.scheduledAt ?? '',
+          doctorBusy:      result.doctorBusy ? '1' : '0',
+          scheduledAt:     appt.scheduledAt ?? '',
         },
       });
     } catch (e: any) {
@@ -219,7 +218,10 @@ export default function AppointmentDetailScreen() {
               ) : (
                 <Pressable
                   style={styles.payBtn}
-                  onPress={() => router.push(`/appointments/${id}/pay?consultationId=${consult.id}&amount=${consult.serviceFeeFcfa ?? 0}`)}
+                  onPress={() => router.push({
+                    pathname: '/(patient)/appointments/pay' as any,
+                    params: { consultationId: consult.id, amount: String(consult.serviceFeeFcfa ?? 0) },
+                  })}
                 >
                   <Text style={styles.payBtnText}>Payer maintenant</Text>
                 </Pressable>
@@ -262,22 +264,22 @@ export default function AppointmentDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content:   { padding: spacing[4], gap: spacing[4] },
+  content:   { padding: spacing.md, gap: spacing.md },
   center:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   card: {
     backgroundColor: colors.surface,
     borderRadius:    radii.lg,
-    padding:         spacing[4],
+    padding:         spacing.md,
     ...shadows.card,
   },
   sectionTitle: {
     ...typography.h3,
     color:        colors.text,
-    marginBottom: spacing[3],
+    marginBottom: spacing.sm,
   },
 
-  doctorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  doctorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   avatar: {
     width:           52,
     height:          52,
@@ -294,74 +296,74 @@ const styles = StyleSheet.create({
   divider: {
     height:          1,
     backgroundColor: colors.border,
-    marginVertical:  spacing[3],
+    marginVertical:  spacing.sm,
   },
   metaRow: {
     flexDirection:  'row',
     justifyContent: 'space-between',
     alignItems:     'center',
-    marginBottom:   spacing[2],
+    marginBottom:   spacing.xs,
   },
-  metaLabel: { ...typography.caption, color: colors.textSecondary, flex: 0 },
-  metaValue: { ...typography.body2, color: colors.text, textAlign: 'right', flex: 1, marginLeft: spacing[3] },
+  metaLabel: { ...typography.caption, color: colors.textSecondary },
+  metaValue: { ...typography.body, color: colors.text, textAlign: 'right', flex: 1, marginLeft: spacing.sm },
   feeValue:  { ...typography.h3, color: colors.primary, textAlign: 'right' },
 
   videoBtn: {
     backgroundColor: colors.primary,
     borderRadius:    radii.lg,
-    padding:         spacing[3],
+    padding:         spacing.sm,
     alignItems:      'center',
-    marginTop:       spacing[3],
+    marginTop:       spacing.sm,
   },
-  videoBtnText: { ...typography.body1, color: colors.textOnDark, fontWeight: '700' },
+  videoBtnText: { ...typography.bodyMedium, color: colors.textOnDark },
 
   prescriptionBanner: {
     flexDirection:   'row',
     alignItems:      'center',
-    gap:             spacing[2],
+    gap:             spacing.xs,
     backgroundColor: colors.warningSurface,
     borderRadius:    radii.md,
-    padding:         spacing[3],
-    marginTop:       spacing[3],
+    padding:         spacing.sm,
+    marginTop:       spacing.sm,
   },
   prescriptionIcon: { fontSize: 18 },
   prescriptionText: { ...typography.caption, color: colors.warning, flex: 1 },
 
-  paymentRow: { marginTop: spacing[4], alignItems: 'center' },
+  paymentRow: { marginTop: spacing.md, alignItems: 'center' },
   paidBadge: {
     backgroundColor: colors.successSurface,
     borderRadius:    radii.full,
-    paddingHorizontal: spacing[4],
-    paddingVertical:   spacing[2],
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.xs,
   },
-  paidText: { ...typography.body2, color: colors.success, fontWeight: '600' },
+  paidText: { ...typography.body, color: colors.success, fontWeight: '600' },
 
   payBtn: {
     backgroundColor: colors.primary,
     borderRadius:    radii.full,
-    paddingHorizontal: spacing[8],
-    paddingVertical:   spacing[3],
+    paddingHorizontal: spacing.xxl,
+    paddingVertical:   spacing.sm,
     ...shadows.card,
   },
-  payBtnText: { ...typography.body1, color: colors.textOnDark, fontWeight: '700', textAlign: 'center' },
+  payBtnText: { ...typography.bodyMedium, color: colors.textOnDark, textAlign: 'center' },
 
   waitingRoomBtn: {
     backgroundColor: colors.primary,
     borderRadius:    radii.lg,
-    padding:         spacing[4],
+    padding:         spacing.md,
     alignItems:      'center',
     ...shadows.card,
   },
   waitingRoomBtnDisabled: { opacity: 0.6 },
-  waitingRoomBtnText: { ...typography.body1, color: colors.textOnDark, fontWeight: '700' },
+  waitingRoomBtnText: { ...typography.bodyMedium, color: colors.textOnDark },
 
   cancelBtn: {
     borderWidth:   1.5,
     borderColor:   colors.error,
     borderRadius:  radii.lg,
-    padding:       spacing[4],
+    padding:       spacing.md,
     alignItems:    'center',
   },
   cancelBtnDisabled: { opacity: 0.5 },
-  cancelBtnText: { ...typography.body1, color: colors.error, fontWeight: '600' },
+  cancelBtnText: { ...typography.body, color: colors.error, fontWeight: '600' },
 });
