@@ -29,7 +29,8 @@ export class RideService {
     private readonly push?: PushService,
   ) {}
 
-  async requestRide(patientId: string, input: CreateRideRequestInput) {
+  /** Calcule la distance, le tarif estimé et les paramètres tarifaires courants. */
+  async estimateFare(originLat: number, originLng: number, destLat: number, destLng: number) {
     const [baseEntry, perKmEntry] = await Promise.all([
       this.pricingRepo.getByKind(PricingKind.RIDE_BASE_FEE),
       this.pricingRepo.getByKind(PricingKind.RIDE_PER_KM),
@@ -37,14 +38,27 @@ export class RideService {
 
     const baseFee = baseEntry?.valueFcfa ?? 1500;
     const perKm = perKmEntry?.valueFcfa ?? 200;
-    const distanceKm = haversineKm(input.originLat, input.originLng, input.destLat, input.destLng);
+    const distanceKm = haversineKm(originLat, originLng, destLat, destLng);
     const fareEstFcfa = Math.ceil(baseFee + distanceKm * perKm);
+
+    return {
+      distanceKm: Math.round(distanceKm * 100) / 100,
+      fareEstFcfa,
+      baseFee,
+      perKm,
+    };
+  }
+
+  async requestRide(patientId: string, input: CreateRideRequestInput) {
+    const { distanceKm, fareEstFcfa } = await this.estimateFare(
+      input.originLat, input.originLng, input.destLat, input.destLng,
+    );
 
     return this.repo.createWithDelivery(patientId, {
       ...input,
       scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : undefined,
       fareEstFcfa,
-      distanceKm: Math.round(distanceKm * 100) / 100,
+      distanceKm,
     });
   }
 

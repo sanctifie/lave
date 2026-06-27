@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../lib/asyncHandler';
-import { CreateRideRequestSchema, UpdateRideStatusSchema } from './schema';
+import { CreateRideRequestSchema, UpdateRideStatusSchema, EstimateRideSchema } from './schema';
 import { RideService } from './service';
 import { RideRepository } from './repository';
 import { PricingRepository } from '../pricing/repository';
@@ -35,6 +35,17 @@ router.post(
   validate(CreateRideRequestSchema),
   asyncHandler(async (req, res) => {
     res.status(201).json({ data: await service.requestRide(req.user!.userId, req.body) });
+  }),
+);
+
+router.post(
+  '/estimate',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  validate(EstimateRideSchema),
+  asyncHandler(async (req, res) => {
+    const { originLat, originLng, destLat, destLng } = req.body;
+    res.json({ data: await service.estimateFare(originLat, originLng, destLat, destLng) });
   }),
 );
 

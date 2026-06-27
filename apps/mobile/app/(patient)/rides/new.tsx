@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -10,7 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ridesService } from '../../../src/services/rides.service';
+import { ridesService, RideEstimate } from '../../../src/services/rides.service';
+import { locationService, LIBREVILLE, Coords } from '../../../src/services/location.service';
 import { Input } from '../../../src/components/ui/Input';
 import { Button } from '../../../src/components/ui/Button';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
@@ -21,6 +23,8 @@ const RIDE_TYPES = [
   { value: 'exam',     label: 'Examen',    emoji: '🔬', desc: 'Transport pour un examen médical' },
 ] as const;
 
+function formatFcfa(n: number) { return `${n.toLocaleString('fr-FR')} FCFA`; }
+
 export default function NewRideScreen() {
   const router = useRouter();
   const [type, setType] = useState<'home' | 'hospital' | 'exam'>('hospital');
@@ -28,8 +32,59 @@ export default function NewRideScreen() {
   const [destLandmark, setDestLandmark]     = useState('');
   const [notes, setNotes]                   = useState('');
   const [loading, setLoading]               = useState(false);
+  const [errors, setErrors]                 = useState<Record<string, string>>({});
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Géolocalisation + estimation
+  const [locating, setLocating]     = useState(true);
+  const [estimating, setEstimating] = useState(false);
+  const [estimate, setEstimate]     = useState<RideEstimate | null>(null);
+  const originCoordsRef = useRef<Coords>(LIBREVILLE);
+  const destCoordsRef   = useRef<Coords | null>(null);
+  const gpsOriginRef    = useRef<Coords | null>(null);
+
+  // Récupère la position GPS au montage et préremplit le point de départ.
+  useEffect(() => {
+    (async () => {
+      const coords = await locationService.getCurrentCoords();
+      const resolved = coords ?? LIBREVILLE;
+      gpsOriginRef.current  = resolved;
+      originCoordsRef.current = resolved;
+      if (coords) {
+        const label = await locationService.reverseGeocode(coords);
+        if (label) setOriginLandmark((prev) => prev || label);
+      }
+      setLocating(false);
+    })();
+  }, []);
+
+  // Estimation tarifaire en direct (débattue) dès qu'une destination est saisie.
+  useEffect(() => {
+    if (destLandmark.trim().length < 3) { setEstimate(null); return; }
+    const timer = setTimeout(async () => {
+      setEstimating(true);
+      try {
+        const oc = (originLandmark.trim().length >= 3
+          ? await locationService.geocode(originLandmark.trim())
+          : null) ?? gpsOriginRef.current ?? LIBREVILLE;
+        const dc = await locationService.geocode(destLandmark.trim());
+        originCoordsRef.current = oc;
+        destCoordsRef.current   = dc;
+        if (dc) {
+          const est = await ridesService.estimate({
+            originLat: oc.lat, originLng: oc.lng, destLat: dc.lat, destLng: dc.lng,
+          });
+          setEstimate(est);
+        } else {
+          setEstimate(null);
+        }
+      } catch {
+        setEstimate(null);
+      } finally {
+        setEstimating(false);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [originLandmark, destLandmark]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -43,14 +98,21 @@ export default function NewRideScreen() {
     if (!validate()) return;
     setLoading(true);
     try {
+      // Résout les coordonnées définitives (géocodage à la volée si nécessaire).
+      const oc = originCoordsRef.current
+        ?? (await locationService.geocode(originLandmark.trim()))
+        ?? gpsOriginRef.current ?? LIBREVILLE;
+      const dc = destCoordsRef.current
+        ?? (await locationService.geocode(destLandmark.trim()))
+        ?? oc;
+
       await ridesService.request({
         type,
-        // Coordonnées Libreville par défaut — en production, utiliser expo-location
-        originLat: 0.3924,
-        originLng: 9.4536,
+        originLat: oc.lat,
+        originLng: oc.lng,
         originLandmark: originLandmark.trim(),
-        destLat: 0.3924,
-        destLng: 9.4536,
+        destLat: dc.lat,
+        destLng: dc.lng,
         destLandmark: destLandmark.trim(),
         notes: notes.trim() || undefined,
       });
@@ -76,7 +138,7 @@ export default function NewRideScreen() {
         <Text style={styles.title}>Nouveau transport</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Type de transport */}
         <Text style={styles.sectionLabel}>Type de transport</Text>
         <View style={styles.typeRow}>
@@ -99,12 +161,18 @@ export default function NewRideScreen() {
         <View style={styles.form}>
           <Input
             label="Point de départ"
-            placeholder="Ex : Hôpital Owendo, Libreville"
+            placeholder={locating ? 'Localisation en cours…' : 'Ex : Hôpital Owendo, Libreville'}
             value={originLandmark}
             onChangeText={setOriginLandmark}
             error={errors.origin}
             autoCapitalize="words"
           />
+          {locating && (
+            <View style={styles.locatingRow}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.locatingText}>Récupération de votre position…</Text>
+            </View>
+          )}
           <Input
             label="Destination"
             placeholder="Ex : Domicile, Quartier Louis"
@@ -125,11 +193,34 @@ export default function NewRideScreen() {
           />
         </View>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            Le tarif sera estimé automatiquement et affiché avant la confirmation.
-          </Text>
-        </View>
+        {/* Estimation tarifaire en direct */}
+        {estimating ? (
+          <View style={styles.estimateBox}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.estimatingText}>Calcul du tarif…</Text>
+          </View>
+        ) : estimate ? (
+          <View style={styles.estimateCard}>
+            <View style={styles.estimateRow}>
+              <Text style={styles.estimateLabel}>Distance estimée</Text>
+              <Text style={styles.estimateValue}>{estimate.distanceKm.toFixed(1)} km</Text>
+            </View>
+            <View style={styles.estimateDivider} />
+            <View style={styles.estimateRow}>
+              <Text style={styles.estimateFareLabel}>Tarif estimé</Text>
+              <Text style={styles.estimateFare}>{formatFcfa(estimate.fareEstFcfa)}</Text>
+            </View>
+            <Text style={styles.estimateHint}>
+              Base {formatFcfa(estimate.baseFee)} + {formatFcfa(estimate.perKm)}/km · tarif final confirmé en fin de course
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              Saisissez votre destination pour obtenir une estimation de tarif instantanée.
+            </Text>
+          </View>
+        )}
 
         <Button label="Demander le transport" loading={loading} onPress={submit} />
       </ScrollView>
@@ -176,6 +267,32 @@ const styles = StyleSheet.create({
   typeDesc:       { ...typography.small, color: colors.textDisabled, textAlign: 'center' },
 
   form: { gap: spacing.md },
+
+  locatingRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: -spacing.sm },
+  locatingText: { ...typography.caption, color: colors.textSecondary },
+
+  estimateBox: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md,
+    ...shadows.card,
+  },
+  estimatingText: { ...typography.body, color: colors.textSecondary },
+
+  estimateCard: {
+    backgroundColor: colors.primarySurface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.primaryLight,
+  },
+  estimateRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  estimateLabel: { ...typography.body, color: colors.textSecondary },
+  estimateValue: { ...typography.bodyMedium, color: colors.text },
+  estimateDivider: { height: 1, backgroundColor: colors.primaryLight, opacity: 0.5 },
+  estimateFareLabel: { ...typography.bodyMedium, color: colors.text },
+  estimateFare:  { ...typography.h2, color: colors.primary },
+  estimateHint:  { ...typography.small, color: colors.textSecondary },
 
   infoBox: {
     backgroundColor: '#E0F2FE',

@@ -25,7 +25,22 @@ export interface Ride {
   delivery: { status: string; tracking: { lat: number; lng: number; recordedAt: string }[] } | null;
 }
 
+export interface RideEstimate {
+  distanceKm: number;
+  fareEstFcfa: number;
+  baseFee: number;
+  perKm: number;
+}
+
 export const ridesService = {
+  async estimate(data: {
+    originLat: number; originLng: number;
+    destLat: number; destLng: number;
+  }): Promise<RideEstimate> {
+    const { data: res } = await apiClient.post('/rides/estimate', data);
+    return res.data;
+  },
+
   async request(data: {
     type: 'home' | 'hospital' | 'exam';
     originLat: number; originLng: number; originLandmark: string;

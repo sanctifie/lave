@@ -16,5 +16,13 @@ export const UpdateRideStatusSchema = z.object({
   status: z.enum(['en_route', 'arrived', 'completed', 'cancelled']),
 });
 
+export const EstimateRideSchema = z.object({
+  originLat: z.number(),
+  originLng: z.number(),
+  destLat: z.number(),
+  destLng: z.number(),
+});
+
 export type CreateRideRequestInput = z.infer<typeof CreateRideRequestSchema>;
 export type UpdateRideStatusInput = z.infer<typeof UpdateRideStatusSchema>;
+export type EstimateRideInput = z.infer<typeof EstimateRideSchema>;

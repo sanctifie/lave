@@ -8,10 +8,14 @@
     "platforms": ["ios", "android"],
     "android": {
       "package": "com.mbolo.sante",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "ios": {
-      "bundleIdentifier": "com.mbolo.sante"
+      "bundleIdentifier": "com.mbolo.sante",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "MBOLO Santé utilise votre position pour estimer le trajet et le tarif de vos transports médicaux."
+      }
     },
     "plugins": [
       [
@@ -21,6 +25,12 @@
           "color": "#006D77",
           "defaultChannel": "default",
           "sounds": []
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "MBOLO Santé utilise votre position pour estimer le trajet et le tarif de vos transports médicaux."
         }
       ]
     ],
