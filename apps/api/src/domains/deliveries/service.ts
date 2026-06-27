@@ -58,6 +58,10 @@ export class DeliveryService {
     return this.repo.setCourierAvailability(userId, isAvailable);
   }
 
+  async getCourierAvailability(userId: string) {
+    return { isAvailable: await this.repo.getCourierAvailability(userId) };
+  }
+
   async getById(id: string) {
     const d = await this.repo.findById(id);
     if (!d) throw HTTP.notFound('Livraison introuvable');

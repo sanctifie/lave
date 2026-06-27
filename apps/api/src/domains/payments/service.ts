@@ -11,6 +11,7 @@ import {
 } from './schema';
 import { PricingKind, ConsultationStatus } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
+import { payoutAfterCommission } from '../../lib/money';
 import { randomUUID } from 'crypto';
 
 export class PaymentService {
@@ -235,7 +236,7 @@ export class PaymentService {
 
     const commissionEntry = await this.pricingRepo.getByKind(PricingKind.PLATFORM_COMMISSION_PCT);
     const commissionPct   = Number(commissionEntry?.valueNum ?? 15);
-    const doctorPayout    = Math.floor(totalFcfa * (1 - commissionPct / 100));
+    const doctorPayout    = payoutAfterCommission(totalFcfa, commissionPct);
     const doctorPhone     = consult.doctor?.user?.phone;
 
     if (!doctorPhone || doctorPayout <= 0) return;
@@ -262,7 +263,7 @@ export class PaymentService {
 
     const commissionEntry = await this.pricingRepo.getByKind(PricingKind.PLATFORM_COMMISSION_PCT);
     const commissionPct   = Number(commissionEntry?.valueNum ?? 15);
-    const courierPayout   = Math.floor(totalFcfa * (1 - commissionPct / 100));
+    const courierPayout   = payoutAfterCommission(totalFcfa, commissionPct);
     const courierPhone    = ride.delivery.courier.user?.phone;
     const courierUserId   = ride.delivery.courier.user?.id;
 
@@ -297,7 +298,7 @@ export class PaymentService {
 
     const commissionEntry = await this.pricingRepo.getByKind(PricingKind.PLATFORM_COMMISSION_PCT);
     const commissionPct   = Number(commissionEntry?.valueNum ?? 15);
-    const kitchenPayout   = Math.floor(totalFcfa * (1 - commissionPct / 100));
+    const kitchenPayout   = payoutAfterCommission(totalFcfa, commissionPct);
     if (kitchenPayout <= 0) return;
 
     const idempotencyKey = `payout_meal_${mealOrderId}`;

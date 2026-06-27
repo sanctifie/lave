@@ -26,8 +26,12 @@ export default function CourierDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const data = await deliveriesService.list();
+      const [data, avail] = await Promise.all([
+        deliveriesService.list(),
+        deliveriesService.getAvailability().catch(() => false),
+      ]);
       setDeliveries(data);
+      setAvailable(avail);
     } catch {}
     finally { setLoading(false); }
   }, []);

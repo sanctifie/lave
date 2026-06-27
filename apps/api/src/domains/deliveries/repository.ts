@@ -103,5 +103,13 @@ export class DeliveryRepository {
       create: { userId, isAvailable },
     });
   }
+
+  async getCourierAvailability(userId: string): Promise<boolean> {
+    const courier = await prisma.courier.findUnique({
+      where:  { userId },
+      select: { isAvailable: true },
+    });
+    return courier?.isAvailable ?? false;
+  }
 }
 

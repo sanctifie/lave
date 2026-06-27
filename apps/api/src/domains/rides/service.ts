@@ -38,11 +38,13 @@ export class RideService {
 
     const baseFee = baseEntry?.valueFcfa ?? 1500;
     const perKm = perKmEntry?.valueFcfa ?? 200;
-    const distanceKm = haversineKm(originLat, originLng, destLat, destLng);
+    // On arrondit la distance AVANT de calculer le tarif pour que le montant
+    // facturé corresponde exactement à la distance affichée au patient.
+    const distanceKm = Math.round(haversineKm(originLat, originLng, destLat, destLng) * 100) / 100;
     const fareEstFcfa = Math.ceil(baseFee + distanceKm * perKm);
 
     return {
-      distanceKm: Math.round(distanceKm * 100) / 100,
+      distanceKm,
       fareEstFcfa,
       baseFee,
       perKm,

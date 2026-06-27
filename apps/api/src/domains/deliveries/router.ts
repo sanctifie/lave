@@ -34,6 +34,11 @@ router.get('/', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (
   res.json({ data: await service.listAll(req.user!.userId) });
 }));
 
+// Courier : disponibilité actuelle
+router.get('/me/availability', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
+  res.json({ data: await service.getCourierAvailability(req.user!.userId) });
+}));
+
 // Courier : toggle disponibilité
 router.patch('/me/availability', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
   const { isAvailable } = req.body;
