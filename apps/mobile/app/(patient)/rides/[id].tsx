@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,7 +9,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ridesService, Ride } from '../../../src/services/rides.service';
-import { Button } from '../../../src/components/ui/Button';
+import { paymentsService } from '../../../src/services/payments.service';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
 
 const STATUS_STEPS = [
@@ -24,12 +25,16 @@ function formatFcfa(n: number) { return `${n.toLocaleString('fr-FR')} FCFA`; }
 export default function RideDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router  = useRouter();
-  const [ride, setRide]     = useState<Ride | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [ride, setRide]         = useState<Ride | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [hasPaid, setHasPaid]   = useState(false);
 
   const load = useCallback(async () => {
-    try { setRide(await ridesService.getById(id)); }
-    catch { /* handled below */ }
+    try {
+      setRide(await ridesService.getById(id));
+      const payStatus = await paymentsService.getRidePaymentStatus(id).catch(() => null);
+      setHasPaid(!!payStatus?.transaction);
+    } catch { /* handled below */ }
     finally { setLoading(false); }
   }, [id]);
 
@@ -127,6 +132,29 @@ export default function RideDetailScreen() {
           </Text>
         </View>
       )}
+
+      {/* Paiement */}
+      {!isCancelled && (
+        hasPaid ? (
+          <View style={[styles.card, { backgroundColor: '#F0FDF4' }]}>
+            <Text style={{ ...typography.body, color: '#16A34A', textAlign: 'center' }}>
+              ✓ Paiement en escrow — libéré à la fin de la course
+            </Text>
+          </View>
+        ) : (
+          <Pressable
+            style={styles.payBtn}
+            onPress={() => router.push({
+              pathname: '/(patient)/rides/pay' as any,
+              params: { rideId: id, amount: String(ride.fareEstFcfa) },
+            })}
+          >
+            <Text style={styles.payBtnText}>
+              💳 Payer {ride.fareEstFcfa.toLocaleString('fr-FR')} FCFA
+            </Text>
+          </Pressable>
+        )
+      )}
     </ScrollView>
   );
 }
@@ -173,4 +201,13 @@ const styles = StyleSheet.create({
 
   infoBox:  { backgroundColor: '#FFF7ED', borderRadius: radii.md, padding: spacing.md },
   infoText: { ...typography.caption, color: '#92400E' },
+
+  payBtn: {
+    backgroundColor: colors.primary,
+    borderRadius:    radii.full,
+    padding:         spacing.md,
+    alignItems:      'center',
+    ...shadows.card,
+  },
+  payBtnText: { ...typography.bodyMedium, color: colors.textOnDark },
 });

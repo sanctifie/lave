@@ -43,6 +43,13 @@ export default function PharmacyLayout() {
           tabBarIcon: ({ focused }) => <Icon emoji="💊" focused={focused} />,
         }}
       />
+      <Tabs.Screen
+        name="meals"
+        options={{
+          title: 'Cuisine',
+          tabBarIcon: ({ focused }) => <Icon emoji="🥗" focused={focused} />,
+        }}
+      />
     </Tabs>
   );
 }

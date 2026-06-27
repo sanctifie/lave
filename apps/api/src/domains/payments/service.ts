@@ -156,6 +156,30 @@ export class PaymentService {
     });
   }
 
+  async getRidePaymentStatus(patientId: string, rideId: string) {
+    const ride = await this.repo.findRideForPayment(rideId);
+    if (!ride) throw HTTP.notFound('Course introuvable');
+    if (ride.request.patientId !== patientId) throw HTTP.forbidden();
+    const txn = await this.repo.findByRideId(rideId);
+    return {
+      rideId,
+      amountFcfa: ride.fareEstFcfa,
+      transaction: txn ? { id: txn.id, status: txn.status, paidAt: txn.paidAt } : null,
+    };
+  }
+
+  async getMealPaymentStatus(patientId: string, mealOrderId: string) {
+    const order = await this.repo.findMealOrderForPayment(mealOrderId);
+    if (!order) throw HTTP.notFound('Commande repas introuvable');
+    if ((order as any).patientId !== patientId) throw HTTP.forbidden();
+    const txn = await this.repo.findByMealOrderId(mealOrderId);
+    return {
+      mealOrderId,
+      amountFcfa: (order as any).totalFcfa as number,
+      transaction: txn ? { id: txn.id, status: txn.status, paidAt: txn.paidAt } : null,
+    };
+  }
+
   async releaseRideEscrow(rideId: string) {
     const txn = await this.repo.findByRideId(rideId);
     if (!txn?.providerTransactionId) return;

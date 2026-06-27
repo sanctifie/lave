@@ -47,11 +47,11 @@ export default function MealPlanDetailScreen() {
   const placeOrder = async () => {
     setOrdering(true);
     try {
-      await mealsService.placeOrder(plan.id, notes.trim() || undefined);
-      Alert.alert('Commande confirmée !', 'Votre repas est en cours de préparation. Un livreur vous l\'apportera.', [
-        { text: 'Voir mes commandes', onPress: () => router.replace('/(patient)/meals/orders' as never) },
-        { text: 'Retour', onPress: () => router.back() },
-      ]);
+      const order = await mealsService.placeOrder(plan.id, notes.trim() || undefined);
+      router.replace({
+        pathname: '/(patient)/meals/pay' as any,
+        params: { mealOrderId: order.id, amount: String(order.totalFcfa) },
+      });
     } catch {
       Alert.alert('Erreur', 'Impossible de passer la commande. Réessayez.');
     } finally {

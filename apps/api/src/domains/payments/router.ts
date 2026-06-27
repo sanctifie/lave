@@ -76,6 +76,24 @@ router.post(
   }),
 );
 
+router.get(
+  '/ride/:rideId/status',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.getRidePaymentStatus(req.user!.userId, req.params.rideId) });
+  }),
+);
+
+router.get(
+  '/meal/:mealOrderId/status',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.getMealPaymentStatus(req.user!.userId, req.params.mealOrderId) });
+  }),
+);
+
 // ─── Webhook MyPVIT ───────────────────────────────────────────────────────────
 // Pas d'auth JWT — MyPVIT appelle cette route directement.
 // Réponse obligatoire : { transactionId, responseCode } — cf. docs MyPVIT section 3.

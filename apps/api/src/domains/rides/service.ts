@@ -2,6 +2,7 @@ import { HTTP } from '../../lib/errors';
 import { RideRepository } from './repository';
 import { PricingRepository } from '../pricing/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
+import { PushService } from '../../infrastructure/push/service';
 import { PricingKind } from '@mbolo/shared';
 import { CreateRideRequestInput } from './schema';
 import { prisma } from '../../infrastructure/prisma/client';
@@ -25,6 +26,7 @@ export class RideService {
     private readonly pricingRepo: PricingRepository,
     private readonly notif: NotificationService,
     private readonly paymentService?: PaymentService,
+    private readonly push?: PushService,
   ) {}
 
   async requestRide(patientId: string, input: CreateRideRequestInput) {
@@ -95,11 +97,29 @@ export class RideService {
     if (!courier || ride.courierId !== courier.id) throw HTTP.forbidden();
 
     const updated = await this.repo.updateStatus(rideId, status);
+    const patientId = ride.request.patientId;
 
-    if (status === 'completed' && this.paymentService) {
-      this.paymentService.releaseRideEscrow(rideId).catch((e) =>
-        console.error('[RideService] escrow release failed', e),
-      );
+    if (status === 'arrived' && this.push) {
+      this.push.sendToUser(patientId, {
+        title: '🚗 Chauffeur arrivé',
+        body:  'Votre chauffeur vous attend au point de départ.',
+        data:  { type: 'ride_arrived', rideId },
+      });
+    }
+
+    if (status === 'completed') {
+      if (this.push) {
+        this.push.sendToUser(patientId, {
+          title: '✅ Course terminée',
+          body:  'Votre course est terminée. Merci d\'avoir utilisé MBOLO.',
+          data:  { type: 'ride_completed', rideId },
+        });
+      }
+      if (this.paymentService) {
+        this.paymentService.releaseRideEscrow(rideId).catch((e) =>
+          console.error('[RideService] escrow release failed', e),
+        );
+      }
     }
 
     return updated;

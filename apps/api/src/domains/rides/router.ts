@@ -25,6 +25,7 @@ const service = new RideService(
   new PricingRepository(),
   notificationService,
   paymentService,
+  pushService,
 );
 
 router.post(
