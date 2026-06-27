@@ -31,8 +31,15 @@ export default function MealsScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Text style={styles.title}>Repas & Nutrition</Text>
-        <Text style={styles.subtitle}>Menus diététiques livrés à domicile</Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Repas & Nutrition</Text>
+            <Text style={styles.subtitle}>Menus diététiques livrés à domicile</Text>
+          </View>
+          <Pressable style={styles.ordersBtn} onPress={() => router.push('/(patient)/meals/orders' as never)}>
+            <Text style={styles.ordersBtnText}>Mes commandes</Text>
+          </Pressable>
+        </View>
       </View>
 
       {loading ? (
@@ -117,8 +124,17 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     gap: spacing.xs,
   },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   title:    { ...typography.h3, color: colors.text },
   subtitle: { ...typography.caption, color: colors.textSecondary },
+  ordersBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   spacing.xs,
+    borderRadius:      radii.full,
+    borderWidth:       1.5,
+    borderColor:       colors.primary,
+  },
+  ordersBtnText: { ...typography.label, color: colors.primary },
 
   list:   { padding: spacing.md, gap: spacing.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },

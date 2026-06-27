@@ -38,7 +38,7 @@ function formatDate(iso: string) {
 }
 
 const COLUMNS: Column<RideRow>[] = [
-  { key: 'id',      header: 'ID',     render: (r) => <code style={{ fontSize: 12, color: '#6366F1' }}>…{r.id.slice(-8)}</code>, width: '100px' },
+  { key: 'id',      header: 'ID',     render: (r) => <code style={{ fontSize: 12, color: '#006D77' }}>…{r.id.slice(-8)}</code>, width: '100px' },
   { key: 'type',    header: 'Type',   render: (r) => TYPE_FR[r.request.type] ?? r.request.type },
   { key: 'trajet',  header: 'Trajet', render: (r) => <div><div style={{ fontWeight: 600 }}>{r.request.originLandmark}</div><div style={{ fontSize: 12, color: '#64748B' }}>→ {r.request.destLandmark}</div></div> },
   { key: 'fare',    header: 'Tarif',  render: (r) => <strong>{formatFcfa(r.fareFinalFcfa ?? r.fareEstFcfa)}</strong> },

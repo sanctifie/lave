@@ -34,7 +34,7 @@ export function Dashboard() {
       <p style={styles.subtitle}>Vue d'ensemble de la plateforme MBOLO Santé</p>
 
       <div style={styles.grid}>
-        <StatCard icon="📦" label="Commandes"     value={stats.orders}       color="#6366F1" bg="#EEF2FF" />
+        <StatCard icon="📦" label="Commandes"     value={stats.orders}       color="#006D77" bg="#EDF6F9" />
         <StatCard icon="🚚" label="Livraisons"    value={stats.deliveries}   color="#0EA5E9" bg="#E0F2FE" />
         <StatCard icon="🚗" label="Courses"       value={stats.rides}        color="#10B981" bg="#DCFCE7" />
         <StatCard icon="🥗" label="Repas"         value={stats.mealOrders}   color="#F59E0B" bg="#FEF3C7" />

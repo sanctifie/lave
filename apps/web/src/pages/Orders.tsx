@@ -40,7 +40,7 @@ function formatDate(iso: string) {
 }
 
 const COLUMNS: Column<Order>[] = [
-  { key: 'id',       header: 'ID',        render: (o) => <code style={{ fontSize: 12, color: '#6366F1' }}>…{o.id.slice(-8)}</code>, width: '100px' },
+  { key: 'id',       header: 'ID',        render: (o) => <code style={{ fontSize: 12, color: '#006D77' }}>…{o.id.slice(-8)}</code>, width: '100px' },
   { key: 'patient',  header: 'Patient',   render: (o) => <div><div style={{ fontWeight: 600 }}>{o.patient.name}</div><div style={{ fontSize: 12, color: '#64748B' }}>{o.patient.phone}</div></div> },
   { key: 'partner',  header: 'Pharmacie', render: (o) => o.partner.legalName },
   { key: 'items',    header: 'Articles',  render: (o) => <span>{o.items.length} article{o.items.length > 1 ? 's' : ''}</span> },

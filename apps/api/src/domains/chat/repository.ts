@@ -31,4 +31,46 @@ export class ChatRepository {
       include: { sender: { select: { id: true, name: true, role: true } } },
     });
   }
+
+  /**
+   * Résout la liste des userId autorisés à accéder à une conversation,
+   * selon l'entité référencée (refTable/refId). Retourne null si l'entité
+   * est introuvable.
+   */
+  async resolveParticipants(refTable: string, refId: string): Promise<string[] | null> {
+    switch (refTable) {
+      case 'appointment': {
+        const appt = await prisma.appointment.findUnique({
+          where:  { id: refId },
+          select: { patientId: true, doctor: { select: { userId: true } } },
+        });
+        if (!appt) return null;
+        return [appt.patientId, appt.doctor.userId];
+      }
+      case 'order': {
+        const order = await prisma.order.findUnique({
+          where:  { id: refId },
+          select: { patientId: true, partner: { select: { staff: { select: { id: true } } } } },
+        });
+        if (!order) return null;
+        return [order.patientId, ...order.partner.staff.map((s: { id: string }) => s.id)];
+      }
+      case 'delivery': {
+        const delivery = await prisma.delivery.findUnique({
+          where:  { id: refId },
+          select: {
+            courier: { select: { userId: true } },
+            order:   { select: { patientId: true } },
+          },
+        });
+        if (!delivery) return null;
+        return [
+          ...(delivery.order?.patientId ? [delivery.order.patientId] : []),
+          ...(delivery.courier?.userId ? [delivery.courier.userId] : []),
+        ];
+      }
+      default:
+        return null;
+    }
+  }
 }

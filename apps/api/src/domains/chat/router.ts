@@ -15,7 +15,7 @@ router.post(
   requireAuth,
   validate(GetOrCreateConversationSchema),
   asyncHandler(async (req, res) => {
-    res.json({ data: await service.getOrCreate(req.body) });
+    res.json({ data: await service.getOrCreate(req.body, req.user!.userId, req.user!.role) });
   }),
 );
 
@@ -25,7 +25,7 @@ router.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     const after = req.query.after as string | undefined;
-    res.json({ data: await service.listMessages(req.params.id, after) });
+    res.json({ data: await service.listMessages(req.params.id, req.user!.userId, req.user!.role, after) });
   }),
 );
 
@@ -36,7 +36,7 @@ router.post(
   validate(SendMessageSchema),
   asyncHandler(async (req, res) => {
     res.status(201).json({
-      data: await service.send(req.params.id, req.user!.userId, req.body),
+      data: await service.send(req.params.id, req.user!.userId, req.user!.role, req.body),
     });
   }),
 );

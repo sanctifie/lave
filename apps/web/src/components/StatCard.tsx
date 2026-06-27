@@ -8,7 +8,7 @@ interface StatCardProps {
   bg?: string;
 }
 
-export function StatCard({ icon, label, value, color = '#6366F1', bg = '#EEF2FF' }: StatCardProps) {
+export function StatCard({ icon, label, value, color = '#006D77', bg = '#EDF6F9' }: StatCardProps) {
   return (
     <div style={{ ...styles.card, borderLeft: `4px solid ${color}` }}>
       <div style={{ ...styles.iconBox, backgroundColor: bg, color }}>

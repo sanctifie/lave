@@ -50,7 +50,7 @@ export function Table<T>({ columns, data, keyFn, emptyMessage = 'Aucune donnée'
   );
 }
 
-export function Badge({ label, color = '#6366F1', bg = '#EEF2FF' }: { label: string; color?: string; bg?: string }) {
+export function Badge({ label, color = '#006D77', bg = '#EDF6F9' }: { label: string; color?: string; bg?: string }) {
   return (
     <span style={{ backgroundColor: bg, color, borderRadius: 999, padding: '2px 10px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
       {label}

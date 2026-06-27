@@ -18,7 +18,7 @@ const STATUS_COLOR: Record<string, { color: string; bg: string }> = {
   assigned:           { color: '#2563EB', bg: '#DBEAFE' },
   en_route_pickup:    { color: '#7C3AED', bg: '#EDE9FE' },
   picked_up:          { color: '#0891B2', bg: '#CFFAFE' },
-  en_route_delivery:  { color: '#6366F1', bg: '#EEF2FF' },
+  en_route_delivery:  { color: '#006D77', bg: '#EDF6F9' },
   delivered:          { color: '#16A34A', bg: '#DCFCE7' },
   failed:             { color: '#DC2626', bg: '#FEE2E2' },
 };
@@ -40,7 +40,7 @@ function formatDate(iso: string) {
 }
 
 const COLUMNS: Column<DeliveryRow>[] = [
-  { key: 'id',     header: 'ID',      render: (d) => <code style={{ fontSize: 12, color: '#6366F1' }}>…{d.id.slice(-8)}</code>, width: '100px' },
+  { key: 'id',     header: 'ID',      render: (d) => <code style={{ fontSize: 12, color: '#006D77' }}>…{d.id.slice(-8)}</code>, width: '100px' },
   { key: 'type',   header: 'Contenu', render: typeLabel },
   { key: 'courier',header: 'Coursier',render: (d) => d.courier?.user.name ?? <span style={{ color: '#94A3B8' }}>Non assigné</span> },
   { key: 'fee',    header: 'Frais',   render: (d) => formatFcfa(d.feeFcfa) },

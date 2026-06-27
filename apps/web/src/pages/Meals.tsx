@@ -29,7 +29,7 @@ function formatDate(iso: string) {
 }
 
 const COLUMNS: Column<MealOrderRow>[] = [
-  { key: 'id',      header: 'ID',     render: (o) => <code style={{ fontSize: 12, color: '#6366F1' }}>…{o.id.slice(-8)}</code>, width: '100px' },
+  { key: 'id',      header: 'ID',     render: (o) => <code style={{ fontSize: 12, color: '#006D77' }}>…{o.id.slice(-8)}</code>, width: '100px' },
   { key: 'plan',    header: 'Menu',   render: (o) => <strong>{o.mealPlan.name}</strong> },
   { key: 'total',   header: 'Total',  render: (o) => formatFcfa(o.totalFcfa) },
   { key: 'delivery',header: 'Livraison', render: (o) => {

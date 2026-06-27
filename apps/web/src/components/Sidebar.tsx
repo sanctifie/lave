@@ -93,8 +93,8 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'background 0.15s',
   } as React.CSSProperties,
   linkActive: {
-    backgroundColor: 'rgba(99,102,241,0.2)',
-    color: '#A5B4FC',
+    backgroundColor: 'rgba(0,109,119,0.25)',
+    color: '#83C5BE',
   },
 
   footer: {
@@ -107,7 +107,7 @@ const styles: Record<string, React.CSSProperties> = {
   footerUser: { display: 'flex', alignItems: 'center', gap: 10 },
   avatar: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#006D77',
     color: '#fff', fontWeight: 700, fontSize: 15,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,

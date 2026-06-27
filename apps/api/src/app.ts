@@ -23,8 +23,15 @@ import { adminRouter } from './domains/admin/router';
 
 export const app = express();
 
+// CORS — en prod, restreindre aux origines déclarées dans CORS_ORIGINS (séparées par des virgules).
+// Vide ou non défini → autorise toutes les origines (pratique en dev).
+const corsOrigins = (process.env.CORS_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(helmet());
-app.use(cors());
+app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins, credentials: true } : undefined));
 app.use(morgan('dev'));
 app.use(express.json());
 

@@ -138,12 +138,12 @@ const styles: Record<string, React.CSSProperties> = {
   hint: { fontSize: 14, color: '#64748B' },
   error:{ backgroundColor: '#FEF2F2', color: '#DC2626', padding: '10px 14px', borderRadius: 8, fontSize: 14 },
   btn: {
-    height: 52, backgroundColor: '#6366F1', color: '#fff',
+    height: 52, backgroundColor: '#006D77', color: '#fff',
     border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 600,
     cursor: 'pointer', marginTop: 4,
   },
   backBtn: {
-    background: 'none', border: 'none', color: '#6366F1',
+    background: 'none', border: 'none', color: '#006D77',
     fontSize: 14, cursor: 'pointer', textAlign: 'center', padding: 0,
   },
 };
