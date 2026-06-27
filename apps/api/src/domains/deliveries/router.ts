@@ -7,16 +7,26 @@ import { DeliveryService } from './service';
 import { DeliveryRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
 import { PaymentRepository } from '../payments/repository';
-import { notificationService, paymentProvider } from '../../infrastructure/container';
+import { PricingRepository } from '../pricing/repository';
+import { PaymentService } from '../payments/service';
+import { notificationService, paymentProvider, pushService } from '../../infrastructure/container';
 import { UserRole, DeliveryStatus } from '@mbolo/shared';
 
 const router = Router();
+const paymentService = new PaymentService(
+  new PaymentRepository(),
+  new OrderRepository(),
+  new PricingRepository(),
+  paymentProvider,
+  pushService,
+);
 const service = new DeliveryService(
   new DeliveryRepository(),
   new OrderRepository(),
   new PaymentRepository(),
   notificationService,
   paymentProvider,
+  paymentService,
 );
 
 // Courier : liste combinée (mes livraisons + disponibles)

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../lib/asyncHandler';
-import { InitEscrowSchema, InitConsultationPaymentSchema, MyPVITWebhookSchema } from './schema';
+import { InitEscrowSchema, InitConsultationPaymentSchema, InitRidePaymentSchema, InitMealPaymentSchema, MyPVITWebhookSchema } from './schema';
 import { PaymentService } from './service';
 import { PaymentRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
@@ -49,6 +49,30 @@ router.get(
   requireRole(UserRole.PATIENT),
   asyncHandler(async (req, res) => {
     res.json({ data: await service.getConsultationPaymentStatus(req.user!.userId, req.params.consultationId) });
+  }),
+);
+
+// ─── Course (transport) ───────────────────────────────────────────────────────
+
+router.post(
+  '/ride',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  validate(InitRidePaymentSchema),
+  asyncHandler(async (req, res) => {
+    res.status(201).json({ data: await service.initRidePayment(req.user!.userId, req.body) });
+  }),
+);
+
+// ─── Repas ────────────────────────────────────────────────────────────────────
+
+router.post(
+  '/meal',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  validate(InitMealPaymentSchema),
+  asyncHandler(async (req, res) => {
+    res.status(201).json({ data: await service.initMealPayment(req.user!.userId, req.body) });
   }),
 );
 

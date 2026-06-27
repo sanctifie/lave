@@ -7,6 +7,7 @@ import { PaymentProvider } from '../../infrastructure/providers/payment';
 import { DeliveryStatus, OrderStatus } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 import { randomUUID } from 'crypto';
+import type { PaymentService } from '../payments/service';
 
 export class DeliveryService {
   constructor(
@@ -15,6 +16,7 @@ export class DeliveryService {
     private readonly paymentRepo: PaymentRepository,
     private readonly notif: NotificationService,
     private readonly paymentProvider: PaymentProvider,
+    private readonly paymentService?: PaymentService,
   ) {}
 
   async listAll(courierUserId: string) {
@@ -144,6 +146,13 @@ export class DeliveryService {
           ]);
         }
       }
+    }
+
+    // ── Libération escrow repas ───────────────────────────────────────────
+    if (delivery.mealOrderId && this.paymentService) {
+      this.paymentService.releaseMealOrderEscrow(delivery.mealOrderId).catch((e) =>
+        console.error('[DeliveryService] meal escrow release failed', e),
+      );
     }
 
     return delivery;

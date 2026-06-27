@@ -5,6 +5,7 @@ import { NotificationService } from '../../infrastructure/providers/notification
 import { PricingKind } from '@mbolo/shared';
 import { CreateRideRequestInput } from './schema';
 import { prisma } from '../../infrastructure/prisma/client';
+import type { PaymentService } from '../payments/service';
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -23,6 +24,7 @@ export class RideService {
     private readonly repo: RideRepository,
     private readonly pricingRepo: PricingRepository,
     private readonly notif: NotificationService,
+    private readonly paymentService?: PaymentService,
   ) {}
 
   async requestRide(patientId: string, input: CreateRideRequestInput) {
@@ -92,6 +94,14 @@ export class RideService {
     const courier = await prisma.courier.findUnique({ where: { userId: courierUserId } });
     if (!courier || ride.courierId !== courier.id) throw HTTP.forbidden();
 
-    return this.repo.updateStatus(rideId, status);
+    const updated = await this.repo.updateStatus(rideId, status);
+
+    if (status === 'completed' && this.paymentService) {
+      this.paymentService.releaseRideEscrow(rideId).catch((e) =>
+        console.error('[RideService] escrow release failed', e),
+      );
+    }
+
+    return updated;
   }
 }

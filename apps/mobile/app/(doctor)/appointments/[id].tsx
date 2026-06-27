@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppointmentStatus } from '@mbolo/shared';
 import { apiClient } from '../../../src/services/client';
+import { chatService } from '../../../src/services/chat.service';
 import { Button } from '../../../src/components/ui/Button';
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
@@ -37,7 +38,8 @@ export default function DoctorConsultationScreen() {
   const [loading, setLoading]   = useState(true);
   const [notes, setNotes]       = useState('');
   const [rxText, setRxText]     = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
+  const [openingChat, setOpeningChat] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -88,6 +90,18 @@ export default function DoctorConsultationScreen() {
       Alert.alert('Erreur', 'Impossible de terminer la consultation.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openChat = async () => {
+    setOpeningChat(true);
+    try {
+      const conv = await chatService.getOrCreate('appointment', id);
+      router.push(`/(doctor)/chat/${conv.id}` as never);
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'ouvrir le chat');
+    } finally {
+      setOpeningChat(false);
     }
   };
 
@@ -212,6 +226,20 @@ export default function DoctorConsultationScreen() {
           <Text style={styles.doneText}>Consultation terminée. Dossier enregistré.</Text>
         </View>
       )}
+
+      {/* Bouton chat patient */}
+      {!isDone && (
+        <Pressable
+          style={[styles.chatBtn, openingChat && styles.chatBtnDisabled]}
+          onPress={openChat}
+          disabled={openingChat}
+        >
+          {openingChat
+            ? <ActivityIndicator color={colors.primary} />
+            : <Text style={styles.chatBtnText}>💬 Contacter le patient</Text>
+          }
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -298,4 +326,14 @@ const styles = StyleSheet.create({
   },
   doneIcon: { fontSize: 24 },
   doneText: { ...typography.bodyMedium, color: colors.success, flex: 1 },
+
+  chatBtn: {
+    borderWidth:  1.5,
+    borderColor:  colors.primary,
+    borderRadius: radii.lg,
+    padding:      spacing.sm,
+    alignItems:   'center',
+  },
+  chatBtnDisabled: { opacity: 0.5 },
+  chatBtnText: { ...typography.body, color: colors.primary, fontWeight: '600' },
 });

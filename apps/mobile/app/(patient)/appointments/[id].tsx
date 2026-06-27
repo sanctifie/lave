@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { appointmentsService, AppointmentDetail } from '../../../src/services/appointments.service';
+import { chatService } from '../../../src/services/chat.service';
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { colors, spacing, radii, shadows, typography } from '../../../src/theme';
 
@@ -36,6 +37,7 @@ export default function AppointmentDetailScreen() {
   const [loading, setLoading]       = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [entering, setEntering]     = useState(false);
+  const [openingChat, setOpeningChat] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -69,6 +71,19 @@ export default function AppointmentDetailScreen() {
         },
       },
     ]);
+  };
+
+  const openChat = async () => {
+    if (!appt) return;
+    setOpeningChat(true);
+    try {
+      const conv = await chatService.getOrCreate('appointment', id);
+      router.push(`/(patient)/chat/${conv.id}` as never);
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'ouvrir le chat');
+    } finally {
+      setOpeningChat(false);
+    }
   };
 
   if (loading) {
@@ -231,6 +246,20 @@ export default function AppointmentDetailScreen() {
         </View>
       )}
 
+      {/* Bouton chat médecin */}
+      {!['cancelled', 'no_show'].includes(appt.status) && (
+        <Pressable
+          style={[styles.chatBtn, openingChat && styles.chatBtnDisabled]}
+          onPress={openChat}
+          disabled={openingChat}
+        >
+          {openingChat
+            ? <ActivityIndicator color={colors.primary} />
+            : <Text style={styles.chatBtnText}>💬 Contacter le médecin</Text>
+          }
+        </Pressable>
+      )}
+
       {/* Salle d'attente */}
       {canEnterWaitingRoom && (
         <Pressable
@@ -366,4 +395,14 @@ const styles = StyleSheet.create({
   },
   cancelBtnDisabled: { opacity: 0.5 },
   cancelBtnText: { ...typography.body, color: colors.error, fontWeight: '600' },
+
+  chatBtn: {
+    borderWidth:   1.5,
+    borderColor:   colors.primary,
+    borderRadius:  radii.lg,
+    padding:       spacing.sm,
+    alignItems:    'center',
+  },
+  chatBtnDisabled: { opacity: 0.5 },
+  chatBtnText: { ...typography.body, color: colors.primary, fontWeight: '600' },
 });

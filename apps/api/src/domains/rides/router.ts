@@ -6,14 +6,25 @@ import { CreateRideRequestSchema, UpdateRideStatusSchema } from './schema';
 import { RideService } from './service';
 import { RideRepository } from './repository';
 import { PricingRepository } from '../pricing/repository';
-import { notificationService } from '../../infrastructure/container';
+import { PaymentService } from '../payments/service';
+import { PaymentRepository } from '../payments/repository';
+import { OrderRepository } from '../orders/repository';
+import { notificationService, paymentProvider, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 
 const router = Router();
+const paymentService = new PaymentService(
+  new PaymentRepository(),
+  new OrderRepository(),
+  new PricingRepository(),
+  paymentProvider,
+  pushService,
+);
 const service = new RideService(
   new RideRepository(),
   new PricingRepository(),
   notificationService,
+  paymentService,
 );
 
 router.post(

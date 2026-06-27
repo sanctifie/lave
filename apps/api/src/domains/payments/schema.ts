@@ -26,6 +26,20 @@ export const MyPVITWebhookSchema = z.object({
   chargeOwner:         z.string().optional(),
 });
 
+export const InitRidePaymentSchema = z.object({
+  rideId:      z.string().cuid(),
+  phoneNumber: z.string().min(8).max(15),
+  operator:    z.enum(['airtel', 'moov']),
+});
+
+export const InitMealPaymentSchema = z.object({
+  mealOrderId: z.string().cuid(),
+  phoneNumber: z.string().min(8).max(15),
+  operator:    z.enum(['airtel', 'moov']),
+});
+
 export type InitEscrowInput              = z.infer<typeof InitEscrowSchema>;
 export type InitConsultationPaymentInput = z.infer<typeof InitConsultationPaymentSchema>;
+export type InitRidePaymentInput         = z.infer<typeof InitRidePaymentSchema>;
+export type InitMealPaymentInput         = z.infer<typeof InitMealPaymentSchema>;
 export type MyPVITWebhookInput           = z.infer<typeof MyPVITWebhookSchema>;
