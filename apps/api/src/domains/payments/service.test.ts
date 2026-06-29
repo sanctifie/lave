@@ -1,0 +1,99 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Le service importe le client Prisma au chargement — on le neutralise.
+vi.mock('../../infrastructure/prisma/client', () => ({ prisma: {} }));
+
+import { PaymentService } from './service';
+
+function makeRepo(overrides: Record<string, any> = {}) {
+  return {
+    findRideForPayment:     vi.fn(),
+    findByRideId:           vi.fn().mockResolvedValue(null),
+    createRideTransaction:  vi.fn().mockResolvedValue({ id: 'txn_ride' }),
+    findMealOrderForPayment: vi.fn(),
+    findByMealOrderId:      vi.fn().mockResolvedValue(null),
+    createMealTransaction:  vi.fn().mockResolvedValue({ id: 'txn_meal' }),
+    ...overrides,
+  };
+}
+
+const provider = {
+  initEscrow:    vi.fn().mockResolvedValue({ providerTransactionId: 'prov_1', status: 'pending' }),
+  releaseEscrow: vi.fn(),
+  payout:        vi.fn(),
+};
+
+function makeService(repo: any) {
+  return new PaymentService(repo, {} as any, {} as any, provider as any, {} as any);
+}
+
+const rideInput = { rideId: 'r1', phoneNumber: '24107000000', operator: 'airtel' as const };
+
+describe('PaymentService.initRidePayment', () => {
+  beforeEach(() => {
+    provider.initEscrow.mockClear();
+  });
+
+  it('crée l\'escrow pour le propriétaire de la course', async () => {
+    const repo = makeRepo({
+      findRideForPayment: vi.fn().mockResolvedValue({ fareEstFcfa: 1700, request: { patientId: 'p1' } }),
+    });
+    const txn = await makeService(repo).initRidePayment('p1', rideInput);
+
+    expect(provider.initEscrow).toHaveBeenCalledWith(expect.objectContaining({ amountFcfa: 1700 }));
+    expect(repo.createRideTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ rideId: 'r1', amountFcfa: 1700, providerTransactionId: 'prov_1' }),
+    );
+    expect(txn).toEqual({ id: 'txn_ride' });
+  });
+
+  it('renvoie 404 si la course est introuvable', async () => {
+    const repo = makeRepo({ findRideForPayment: vi.fn().mockResolvedValue(null) });
+    await expect(makeService(repo).initRidePayment('p1', rideInput))
+      .rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('refuse un patient qui n\'est pas le propriétaire (403)', async () => {
+    const repo = makeRepo({
+      findRideForPayment: vi.fn().mockResolvedValue({ fareEstFcfa: 1700, request: { patientId: 'autre' } }),
+    });
+    await expect(makeService(repo).initRidePayment('p1', rideInput))
+      .rejects.toMatchObject({ statusCode: 403 });
+    expect(provider.initEscrow).not.toHaveBeenCalled();
+  });
+
+  it('refuse un double paiement (409)', async () => {
+    const repo = makeRepo({
+      findRideForPayment: vi.fn().mockResolvedValue({ fareEstFcfa: 1700, request: { patientId: 'p1' } }),
+      findByRideId:       vi.fn().mockResolvedValue({ id: 'deja' }),
+    });
+    await expect(makeService(repo).initRidePayment('p1', rideInput))
+      .rejects.toMatchObject({ statusCode: 409 });
+    expect(provider.initEscrow).not.toHaveBeenCalled();
+  });
+});
+
+describe('PaymentService.initMealPayment', () => {
+  const mealInput = { mealOrderId: 'm1', phoneNumber: '24107000000', operator: 'moov' as const };
+
+  beforeEach(() => provider.initEscrow.mockClear());
+
+  it('crée l\'escrow avec le total de la commande', async () => {
+    const repo = makeRepo({
+      findMealOrderForPayment: vi.fn().mockResolvedValue({ patientId: 'p1', totalFcfa: 4000 }),
+    });
+    await makeService(repo).initMealPayment('p1', mealInput);
+    expect(provider.initEscrow).toHaveBeenCalledWith(expect.objectContaining({ amountFcfa: 4000 }));
+    expect(repo.createMealTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ mealOrderId: 'm1', amountFcfa: 4000 }),
+    );
+  });
+
+  it('refuse un patient non propriétaire (403)', async () => {
+    const repo = makeRepo({
+      findMealOrderForPayment: vi.fn().mockResolvedValue({ patientId: 'autre', totalFcfa: 4000 }),
+    });
+    await expect(makeService(repo).initMealPayment('p1', mealInput))
+      .rejects.toMatchObject({ statusCode: 403 });
+  });
+});
