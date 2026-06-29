@@ -11,7 +11,8 @@ Ce document explique **à quoi sert chaque service externe**, comment créer un 
 | [Expo](#expo) | Framework mobile + push notifications | Oui |
 | [MyPVIT](#mypvit) | Paiement mobile money (Airtel / Moov) | Oui |
 | [Daily.co](#dailyco) | Sessions vidéo téléconsultation | Oui |
-| [Africa's Talking](#africas-talking) | SMS (OTP, alertes) | Recommandé |
+| [WhatsApp Cloud API](#whatsapp-cloud-api) | Notifications WhatsApp (canal prioritaire) | Recommandé |
+| [Africa's Talking](#africas-talking) | SMS (OTP, alertes — repli) | Recommandé |
 | [Firebase](#firebase-google-services) | Push Android (requis par Expo) | Oui (Android) |
 
 ---
@@ -326,6 +327,51 @@ AT_SENDER_ID="MBOLO"
 
 ---
 
+## WhatsApp Cloud API
+
+### Qu'est-ce que c'est ?
+
+L'**API WhatsApp Cloud** de Meta permet d'envoyer des messages WhatsApp depuis le
+serveur. Au Gabon, WhatsApp est le canal de communication dominant — c'est donc
+le **canal de notification prioritaire** de MBOLO Santé (OTP, alertes, rappels),
+avec le SMS (Africa's Talking) en **repli automatique** si l'envoi WhatsApp
+échoue.
+
+`NotificationService` essaie d'abord WhatsApp ; en cas d'erreur, il bascule sur
+le SMS — sans intervention.
+
+### Sans configuration
+
+Le `StubNotificationProvider` (logs console) est utilisé tant que
+`WHATSAPP_ACCESS_TOKEN` n'est pas défini. L'application fonctionne normalement.
+
+### Provider implémenté ✅
+
+Déjà codé dans `apps/api/src/infrastructure/providers/notification/whatsapp.ts`
+(via `fetch`, sans SDK). Envoie un message **texte** ; il s'active automatiquement
+dans `container.ts` comme canal prioritaire dès que `WHATSAPP_ACCESS_TOKEN` est
+défini.
+
+### Créer l'accès
+
+1. [developers.facebook.com](https://developers.facebook.com) → créer une app **Business**
+2. Ajouter le produit **WhatsApp** → récupérer le **Phone Number ID** et un **token d'accès**
+3. En production : générer un **System User token** (longue durée) et vérifier le numéro
+
+**`apps/api/.env`** :
+```env
+WHATSAPP_PHONE_NUMBER_ID="votre_phone_number_id"
+WHATSAPP_ACCESS_TOKEN="votre_token"
+WHATSAPP_API_VERSION="v21.0"
+```
+
+> ⚠️ **Production** : Meta exige des **modèles (templates) pré-approuvés** pour les
+> messages initiés par l'entreprise hors fenêtre de 24h. Le provider envoie
+> actuellement du texte simple (valable en session/test) ; pour un envoi
+> transactionnel à grande échelle, passer à l'envoi de templates.
+
+---
+
 ## Firebase (Google Services)
 
 ### Qu'est-ce que c'est ?
@@ -433,7 +479,13 @@ EXPO_ACCESS_TOKEN=""
 DAILY_API_KEY=""
 DAILY_DOMAIN="mbolo.daily.co"
 
-# ── Africa's Talking (SMS) ────────────────────────────────────
+# ── WhatsApp Cloud API (notification prioritaire) ─────────────
+# Laisser vide → StubNotificationProvider (logs console)
+WHATSAPP_PHONE_NUMBER_ID=""
+WHATSAPP_ACCESS_TOKEN=""
+WHATSAPP_API_VERSION="v21.0"
+
+# ── Africa's Talking (SMS — repli) ────────────────────────────
 # Laisser vide → StubNotificationProvider (logs console)
 AT_API_KEY=""
 AT_USERNAME=""          # "sandbox" pour l'environnement de test
@@ -458,4 +510,5 @@ EXPO_PUBLIC_PROJECT_ID=""
 1. **MyPVIT** — bloquant : sans paiement, le modèle économique ne fonctionne pas
 2. **Expo + Firebase** — important : les notifications temps réel sont critiques pour la téléconsultation
 3. **Daily.co** — important : requis pour les consultations vidéo
-4. **Africa's Talking** — recommandé : les OTP en prod (les logs ne suffisent pas)
+4. **WhatsApp Cloud API** — recommandé : canal de notification prioritaire (OTP, alertes)
+5. **Africa's Talking** — recommandé : repli SMS si WhatsApp échoue / non configuré
