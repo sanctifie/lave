@@ -256,86 +256,20 @@ En développement, le `StubVideoProvider` simule la création de salles vidéo (
 2. Créer un espace (ex: `mbolo`)
 3. Menu → **Developers** → récupérer la **clé API**
 
-### Implémenter le provider
+### Provider implémenté ✅
 
-Créer `apps/api/src/infrastructure/providers/video/daily.ts` :
+Le provider est déjà codé dans `apps/api/src/infrastructure/providers/video/daily.ts`
+(via `fetch`, sans SDK). Il crée une salle **privée** qui expire, génère un token
+**hôte** (médecin) et un token **invité** (patient), réutilise la salle si elle
+existe déjà (409), et la supprime sur `closeRoom`.
 
-```typescript
-import { VideoProvider, VideoRoomParams, VideoRoomResult } from './index';
-
-export class DailyVideoProvider implements VideoProvider {
-  constructor(private readonly apiKey: string) {}
-
-  async createRoom(params: VideoRoomParams): Promise<VideoRoomResult> {
-    const resp = await fetch('https://api.daily.co/v1/rooms', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        name:       `mbolo-${params.consultationId}`,
-        properties: {
-          exp:           Math.floor(params.expiresAt.getTime() / 1000),
-          enable_chat:   false,
-          max_participants: 2,
-        },
-      }),
-    });
-    const room: any = await resp.json();
-
-    // Générer les tokens d'accès hôte et invité
-    const [hostToken, guestToken] = await Promise.all([
-      this.createToken(room.name, true),
-      this.createToken(room.name, false),
-    ]);
-
-    return {
-      roomName:   room.name,
-      roomUrl:    room.url,
-      hostToken,
-      guestToken,
-    };
-  }
-
-  async closeRoom(roomName: string): Promise<void> {
-    await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
-      method:  'DELETE',
-      headers: { 'Authorization': `Bearer ${this.apiKey}` },
-    });
-  }
-
-  private async createToken(roomName: string, isOwner: boolean): Promise<string> {
-    const resp = await fetch('https://api.daily.co/v1/meeting-tokens', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        properties: { room_name: roomName, is_owner: isOwner },
-      }),
-    });
-    const data: any = await resp.json();
-    return data.token;
-  }
-}
-```
-
-### Activer le provider
-
-Dans `apps/api/src/infrastructure/container.ts` :
-```typescript
-import { DailyVideoProvider } from './providers/video/daily';
-
-export const videoProvider = process.env.DAILY_API_KEY
-  ? new DailyVideoProvider(process.env.DAILY_API_KEY)
-  : new StubVideoProvider();
-```
+Il s'active **automatiquement** dans `container.ts` dès que `DAILY_API_KEY` est
+défini ; sinon le `StubVideoProvider` (URLs fictives) est utilisé.
 
 **`apps/api/.env`** :
 ```env
 DAILY_API_KEY="votre_cle_api_daily"
+DAILY_DOMAIN="mbolo.daily.co"   # votre domaine Daily.co
 ```
 
 ---
@@ -370,55 +304,23 @@ En développement, les SMS sont simulés (`StubNotificationProvider`) — les me
 3. Menu → **SMS** → récupérer la **clé API** et le **nom d'expéditeur** (Sender ID)
 4. Alimenter le compte avec du crédit SMS
 
-### Implémenter le provider
+### Provider implémenté ✅
 
-Créer `apps/api/src/infrastructure/providers/notification/africastalking.ts` :
+Le provider est déjà codé dans
+`apps/api/src/infrastructure/providers/notification/africastalking.ts` (via
+`fetch`, **sans SDK** — aucune dépendance à installer). Il détecte
+automatiquement l'environnement *sandbox* (quand `AT_USERNAME=sandbox`) et
+remonte une erreur si un destinataire est rejeté.
 
-```typescript
-import { NotificationProvider, NotificationParams } from './index';
-import AfricasTalking from 'africastalking';
-
-export class AfricasTalkingProvider implements NotificationProvider {
-  private readonly sms;
-
-  constructor(apiKey: string, username: string) {
-    const client = AfricasTalking({ apiKey, username });
-    this.sms = client.SMS;
-  }
-
-  async send(params: NotificationParams): Promise<void> {
-    await this.sms.send({
-      to:   [params.to],
-      message: params.message,
-      from: process.env.AT_SENDER_ID,
-    });
-  }
-}
-```
-
-Installer le SDK :
-```bash
-pnpm --filter api add africastalking
-pnpm --filter api add -D @types/africastalking
-```
-
-### Activer le provider
-
-Dans `apps/api/src/infrastructure/container.ts` :
-```typescript
-import { AfricasTalkingProvider } from './providers/notification/africastalking';
-
-const smsProvider = process.env.AT_API_KEY
-  ? new AfricasTalkingProvider(process.env.AT_API_KEY, process.env.AT_USERNAME!)
-  : new StubNotificationProvider();
-
-export const notificationService = new NotificationService(smsProvider, smsProvider);
-```
+Il s'active **automatiquement** dans `container.ts` comme **canal SMS de repli**
+dès que `AT_API_KEY` est défini ; sinon le `StubNotificationProvider` (logs
+console) est utilisé. Le canal WhatsApp prioritaire reste sur stub tant qu'aucun
+provider WhatsApp n'est branché — le repli SMS prend alors le relais.
 
 **`apps/api/.env`** :
 ```env
 AT_API_KEY="votre_cle_api"
-AT_USERNAME="votre_username"
+AT_USERNAME="votre_username"   # "sandbox" pour l'environnement de test
 AT_SENDER_ID="MBOLO"
 ```
 
@@ -510,6 +412,10 @@ OTP_TTL_SECONDS=300
 PORT=3000
 NODE_ENV=development
 
+# ── CORS ──────────────────────────────────────────────────────
+# Vide → toutes origines (dev). En prod : liste blanche séparée par des virgules.
+CORS_ORIGINS="http://localhost:5173,https://admin.mbolo-sante.com"
+
 # ── MyPVIT (paiement) ─────────────────────────────────────────
 # Laisser vide → StubPaymentProvider (simulation)
 MYPVIT_BASE_URL="https://api.mypvit.pro/v2"
@@ -525,11 +431,12 @@ EXPO_ACCESS_TOKEN=""
 # ── Daily.co (vidéo) ──────────────────────────────────────────
 # Laisser vide → StubVideoProvider (URLs fictives)
 DAILY_API_KEY=""
+DAILY_DOMAIN="mbolo.daily.co"
 
 # ── Africa's Talking (SMS) ────────────────────────────────────
 # Laisser vide → StubNotificationProvider (logs console)
 AT_API_KEY=""
-AT_USERNAME=""
+AT_USERNAME=""          # "sandbox" pour l'environnement de test
 AT_SENDER_ID="MBOLO"
 ```
 
