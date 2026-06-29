@@ -6,7 +6,7 @@ import { CreateMealOrderSchema, CreateMealPlanSchema, UpdateMealPlanItemSchema }
 import { MealService } from './service';
 import { MealRepository } from './repository';
 import { PricingRepository } from '../pricing/repository';
-import { notificationService } from '../../infrastructure/container';
+import { notificationService, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 
 const router = Router();
@@ -14,6 +14,7 @@ const service = new MealService(
   new MealRepository(),
   new PricingRepository(),
   notificationService,
+  pushService,
 );
 
 // ─── Menus ────────────────────────────────────────────────────────────────────

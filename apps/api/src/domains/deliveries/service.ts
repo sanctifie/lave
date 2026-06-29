@@ -8,6 +8,7 @@ import { DeliveryStatus, OrderStatus } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 import { randomUUID } from 'crypto';
 import type { PaymentService } from '../payments/service';
+import type { PushService } from '../../infrastructure/push/service';
 
 export class DeliveryService {
   constructor(
@@ -17,6 +18,7 @@ export class DeliveryService {
     private readonly notif: NotificationService,
     private readonly paymentProvider: PaymentProvider,
     private readonly paymentService?: PaymentService,
+    private readonly push?: PushService,
   ) {}
 
   async listAll(courierUserId: string) {
@@ -152,11 +154,26 @@ export class DeliveryService {
       }
     }
 
-    // ── Libération escrow repas ───────────────────────────────────────────
-    if (delivery.mealOrderId && this.paymentService) {
-      this.paymentService.releaseMealOrderEscrow(delivery.mealOrderId).catch((e) =>
-        console.error('[DeliveryService] meal escrow release failed', e),
-      );
+    // ── Repas : libération escrow + notification patient ──────────────────
+    if (delivery.mealOrderId) {
+      if (this.paymentService) {
+        this.paymentService.releaseMealOrderEscrow(delivery.mealOrderId).catch((e) =>
+          console.error('[DeliveryService] meal escrow release failed', e),
+        );
+      }
+      if (this.push) {
+        const mealOrder = await prisma.mealOrder.findUnique({
+          where:  { id: delivery.mealOrderId },
+          select: { patientId: true, mealPlan: { select: { name: true } } },
+        });
+        if (mealOrder) {
+          this.push.sendToUser(mealOrder.patientId, {
+            title: '🥗 Repas livré',
+            body:  `${mealOrder.mealPlan.name} a été livré. Bon appétit !`,
+            data:  { type: 'meal_delivered', mealOrderId: delivery.mealOrderId },
+          });
+        }
+      }
     }
 
     return delivery;

@@ -5,12 +5,14 @@ import { NotificationService } from '../../infrastructure/providers/notification
 import { PricingKind } from '@mbolo/shared';
 import { CreateMealPlanInput, CreateMealOrderInput } from './schema';
 import { prisma } from '../../infrastructure/prisma/client';
+import type { PushService } from '../../infrastructure/push/service';
 
 export class MealService {
   constructor(
     private readonly repo: MealRepository,
     private readonly pricingRepo: PricingRepository,
     private readonly notif: NotificationService,
+    private readonly push?: PushService,
   ) {}
 
   async listPlans(partnerId?: string) {
@@ -58,13 +60,24 @@ export class MealService {
 
     const partner = await prisma.partnerProfile.findUnique({
       where: { id: plan.partnerId },
-      select: { phone: true, whatsappNumber: true },
+      select: { phone: true, whatsappNumber: true, staff: { select: { id: true } } },
     });
     if (partner) {
       await this.notif.send({
         to: partner.whatsappNumber ?? partner.phone,
         message: `Nouvelle commande repas : ${plan.name}. Total : ${totalFcfa} FCFA.`,
       });
+
+      // Push à chaque membre du staff cuisine (best-effort).
+      if (this.push) {
+        for (const member of partner.staff) {
+          this.push.sendToUser(member.id, {
+            title: '🥗 Nouvelle commande repas',
+            body:  `${plan.name} — ${totalFcfa.toLocaleString('fr-FR')} FCFA`,
+            data:  { type: 'meal_ordered', mealOrderId: order.id },
+          });
+        }
+      }
     }
 
     return order;

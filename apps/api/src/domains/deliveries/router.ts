@@ -27,6 +27,7 @@ const service = new DeliveryService(
   notificationService,
   paymentProvider,
   paymentService,
+  pushService,
 );
 
 // Courier : liste combinée (mes livraisons + disponibles)
