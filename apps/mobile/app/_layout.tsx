@@ -104,5 +104,13 @@ function handleNotificationTap(data: Record<string, string>, router: ReturnType<
     case 'meal_delivered':
       router.push('/(patient)/meals/orders' as any);
       break;
+    case 'chat_message':
+      if (data.conversationId) {
+        // L'écran chat existe sous (patient) et (doctor) — on route selon le rôle.
+        const role = useAuthStore.getState().user?.role;
+        const group = role === 'doctor' ? '(doctor)' : '(patient)';
+        router.push(`/${group}/chat/${data.conversationId}` as any);
+      }
+      break;
   }
 }

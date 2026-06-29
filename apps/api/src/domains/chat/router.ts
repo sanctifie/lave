@@ -5,9 +5,10 @@ import { asyncHandler } from '../../lib/asyncHandler';
 import { GetOrCreateConversationSchema, SendMessageSchema } from './schema';
 import { ChatService } from './service';
 import { ChatRepository } from './repository';
+import { pushService } from '../../infrastructure/container';
 
 const router = Router();
-const service = new ChatService(new ChatRepository());
+const service = new ChatService(new ChatRepository(), pushService);
 
 // Crée ou récupère une conversation via refTable + refId
 router.post(

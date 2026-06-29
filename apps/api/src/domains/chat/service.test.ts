@@ -74,4 +74,20 @@ describe('ChatService — autorisation', () => {
     expect(msg).toEqual(expect.objectContaining({ id: 'msg1' }));
     expect(repo.send).toHaveBeenCalledWith('conv1', 'doctor1', 'Bonjour');
   });
+
+  it('notifie les autres participants mais pas l\'expéditeur', async () => {
+    repo.resolveParticipants.mockResolvedValue(['patient1', 'doctor1']);
+    repo.send.mockResolvedValue({ id: 'msg1', body: 'Bonjour', sender: { name: 'Dr House' } });
+    const push = { sendToUser: vi.fn() };
+    service = new ChatService(repo as any, push as any);
+
+    await service.send('conv1', 'doctor1', UserRole.DOCTOR, { body: 'Bonjour' });
+
+    await vi.waitFor(() => expect(push.sendToUser).toHaveBeenCalledTimes(1));
+    expect(push.sendToUser).toHaveBeenCalledWith(
+      'patient1',
+      expect.objectContaining({ data: { type: 'chat_message', conversationId: 'conv1' } }),
+    );
+    expect(push.sendToUser).not.toHaveBeenCalledWith('doctor1', expect.anything());
+  });
 });
