@@ -97,3 +97,40 @@ describe('PaymentService.initMealPayment', () => {
       .rejects.toMatchObject({ statusCode: 403 });
   });
 });
+
+describe('PaymentService.handleWebhook', () => {
+  const baseBody = { transactionId: 'PAY9', code: 200, merchantReferenceId: 'idem1' } as any;
+
+  function repoWithTxn(txn: any) {
+    return makeRepo({
+      findByIdempotencyKey: vi.fn().mockResolvedValue(txn),
+      capture:              vi.fn().mockResolvedValue(undefined),
+      fail:                 vi.fn().mockResolvedValue(undefined),
+    });
+  }
+
+  it('capture la transaction sur statut SUCCESS et renvoie l\'accusé', async () => {
+    const repo = repoWithTxn({ id: 't1', amountFcfa: 4000, consultationId: null });
+    const echo = await makeService(repo).handleWebhook({ ...baseBody, status: 'SUCCESS' });
+
+    expect(repo.capture).toHaveBeenCalledWith('t1');
+    expect(repo.fail).not.toHaveBeenCalled();
+    expect(echo).toEqual({ transactionId: 'PAY9', responseCode: 200 });
+  });
+
+  it('marque la transaction en échec sur statut FAILED', async () => {
+    const repo = repoWithTxn({ id: 't1', amountFcfa: 4000 });
+    await makeService(repo).handleWebhook({ ...baseBody, status: 'FAILED' });
+
+    expect(repo.fail).toHaveBeenCalledWith('t1', 'FAILED');
+    expect(repo.capture).not.toHaveBeenCalled();
+  });
+
+  it('ignore une référence inconnue mais renvoie l\'accusé', async () => {
+    const repo = makeRepo({ findByIdempotencyKey: vi.fn().mockResolvedValue(null), capture: vi.fn(), fail: vi.fn() });
+    const echo = await makeService(repo).handleWebhook({ ...baseBody, status: 'SUCCESS' });
+
+    expect(repo.capture).not.toHaveBeenCalled();
+    expect(echo).toEqual({ transactionId: 'PAY9', responseCode: 200 });
+  });
+});
