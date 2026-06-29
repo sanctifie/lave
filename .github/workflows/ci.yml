@@ -39,9 +39,12 @@ jobs:
       - name: Build @mbolo/shared
         run: pnpm --filter @mbolo/shared build
 
-      # Génère le client Prisma (requis par les modules importés au chargement)
+      # Génère le client Prisma (requis pour le typage et les imports au chargement)
       - name: Generate Prisma client
         run: pnpm --filter api exec prisma generate
+
+      - name: Typecheck API
+        run: pnpm --filter api typecheck
 
       - name: Run API tests
         run: pnpm --filter api test
