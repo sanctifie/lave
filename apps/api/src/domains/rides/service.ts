@@ -102,6 +102,14 @@ export class RideService {
       });
     }
 
+    if (this.push) {
+      this.push.sendToUser(ride.request.patientId, {
+        title: '🚗 Chauffeur trouvé',
+        body:  'Un chauffeur a accepté votre course et arrive vers vous.',
+        data:  { type: 'ride_accepted', rideId },
+      });
+    }
+
     return updated;
   }
 
