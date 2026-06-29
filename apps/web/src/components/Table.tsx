@@ -1,4 +1,5 @@
 import React from 'react';
+import { theme } from '../theme';
 
 export interface Column<T> {
   key: string;
@@ -50,7 +51,7 @@ export function Table<T>({ columns, data, keyFn, emptyMessage = 'Aucune donnée'
   );
 }
 
-export function Badge({ label, color = '#006D77', bg = '#EDF6F9' }: { label: string; color?: string; bg?: string }) {
+export function Badge({ label, color = theme.brand, bg = theme.brandSurface }: { label: string; color?: string; bg?: string }) {
   return (
     <span style={{ backgroundColor: bg, color, borderRadius: 999, padding: '2px 10px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
       {label}
@@ -59,18 +60,18 @@ export function Badge({ label, color = '#006D77', bg = '#EDF6F9' }: { label: str
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  wrapper: { overflowX: 'auto', borderRadius: 12, border: '1px solid #E2E8F0' },
+  wrapper: { overflowX: 'auto', borderRadius: 12, border: `1px solid ${theme.border}` },
   table:   { width: '100%', borderCollapse: 'collapse', fontSize: 14 },
   th: {
-    backgroundColor: '#F8FAFC',
-    color: '#64748B',
+    backgroundColor: theme.canvas,
+    color: theme.muted,
     fontWeight: 600,
     padding: '12px 16px',
     textAlign: 'left',
-    borderBottom: '1px solid #E2E8F0',
+    borderBottom: `1px solid ${theme.border}`,
     whiteSpace: 'nowrap',
   },
   tr: { borderBottom: '1px solid #F1F5F9', transition: 'background 0.1s' },
-  td:    { padding: '14px 16px', color: '#334155', verticalAlign: 'middle' },
-  empty: { padding: '40px 16px', textAlign: 'center', color: '#94A3B8', fontStyle: 'italic' },
+  td:    { padding: '14px 16px', color: theme.body, verticalAlign: 'middle' },
+  empty: { padding: '40px 16px', textAlign: 'center', color: theme.faint, fontStyle: 'italic' },
 };

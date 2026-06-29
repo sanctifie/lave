@@ -1,4 +1,5 @@
 import React from 'react';
+import { theme } from '../theme';
 
 interface StatCardProps {
   icon: string;
@@ -8,7 +9,7 @@ interface StatCardProps {
   bg?: string;
 }
 
-export function StatCard({ icon, label, value, color = '#006D77', bg = '#EDF6F9' }: StatCardProps) {
+export function StatCard({ icon, label, value, color = theme.brand, bg = theme.brandSurface }: StatCardProps) {
   return (
     <div style={{ ...styles.card, borderLeft: `4px solid ${color}` }}>
       <div style={{ ...styles.iconBox, backgroundColor: bg, color }}>
@@ -40,6 +41,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
-  value: { fontSize: 26, fontWeight: 700, color: '#1E293B', lineHeight: 1 },
-  label: { fontSize: 13, color: '#64748B', marginTop: 4 },
+  value: { fontSize: 26, fontWeight: 700, color: theme.ink, lineHeight: 1 },
+  label: { fontSize: 13, color: theme.muted, marginTop: 4 },
 };

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { theme } from '../theme';
 
 interface PricingRow {
   id: string;
@@ -132,8 +133,8 @@ const styles: Record<string, React.CSSProperties> = {
   valueArea: { display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 },
   currentValue: { fontSize: 18, fontWeight: 700, color: '#1E293B' },
   unit:      { fontSize: 12, color: '#94A3B8' },
-  input:     { height: 40, width: 120, borderRadius: 8, border: '1.5px solid #006D77', paddingInline: 12, fontSize: 15, outline: 'none' },
+  input:     { height: 40, width: 120, borderRadius: 8, border: `1.5px solid ${theme.brand}`, paddingInline: 12, fontSize: 15, outline: 'none' },
   editBtn:   { height: 36, paddingInline: 16, borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#374151' },
-  saveBtn:   { height: 36, paddingInline: 16, borderRadius: 8, border: 'none', background: '#006D77', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
+  saveBtn:   { height: 36, paddingInline: 16, borderRadius: 8, border: 'none', background: theme.brand, color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
   cancelBtn: { height: 36, paddingInline: 12, borderRadius: 8, border: '1px solid #E2E8F0', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#64748B' },
 };

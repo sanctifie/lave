@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { theme } from '../theme';
 
 const LINKS = [
   { to: '/',          label: 'Tableau de bord',  icon: '📊' },
@@ -94,7 +95,7 @@ const styles: Record<string, React.CSSProperties> = {
   } as React.CSSProperties,
   linkActive: {
     backgroundColor: 'rgba(0,109,119,0.25)',
-    color: '#83C5BE',
+    color: theme.brandLight,
   },
 
   footer: {
@@ -107,7 +108,7 @@ const styles: Record<string, React.CSSProperties> = {
   footerUser: { display: 'flex', alignItems: 'center', gap: 10 },
   avatar: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#006D77',
+    backgroundColor: theme.brand,
     color: '#fff', fontWeight: 700, fontSize: 15,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,

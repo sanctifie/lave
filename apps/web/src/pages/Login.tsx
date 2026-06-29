@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../api/client';
 import { AdminUser } from '../hooks/useAuth';
+import { theme } from '../theme';
 
 interface LoginProps {
   onLogin: (user: AdminUser) => void;
@@ -138,12 +139,12 @@ const styles: Record<string, React.CSSProperties> = {
   hint: { fontSize: 14, color: '#64748B' },
   error:{ backgroundColor: '#FEF2F2', color: '#DC2626', padding: '10px 14px', borderRadius: 8, fontSize: 14 },
   btn: {
-    height: 52, backgroundColor: '#006D77', color: '#fff',
+    height: 52, backgroundColor: theme.brand, color: '#fff',
     border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 600,
     cursor: 'pointer', marginTop: 4,
   },
   backBtn: {
-    background: 'none', border: 'none', color: '#006D77',
+    background: 'none', border: 'none', color: theme.brand,
     fontSize: 14, cursor: 'pointer', textAlign: 'center', padding: 0,
   },
 };
