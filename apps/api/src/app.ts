@@ -6,6 +6,8 @@ import morgan from 'morgan';
 import path from 'path';
 
 import { errorHandler } from './middleware/error';
+import { prisma } from './infrastructure/prisma/client';
+import { redis } from './infrastructure/redis/client';
 import { authRouter } from './domains/auth/router';
 import { usersRouter } from './domains/users/router';
 import { partnersRouter } from './domains/partners/router';
@@ -38,8 +40,29 @@ app.use(express.json());
 // Fichiers uploadés (scans d'ordonnances) — en prod, remplacer par S3
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+// Liveness — process en vie (probe légère, toujours 200 si l'event loop répond)
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Readiness — vérifie que les dépendances (PostgreSQL, Redis) répondent.
+// Renvoie 503 si l'une est indisponible (utile pour load-balancer / k8s).
+app.get('/health/ready', async (_req, res) => {
+  const checks = { database: false, redis: false };
+
+  const [db, cache] = await Promise.allSettled([
+    prisma.$queryRaw`SELECT 1`,
+    redis.ping(),
+  ]);
+  checks.database = db.status === 'fulfilled';
+  checks.redis    = cache.status === 'fulfilled';
+
+  const healthy = checks.database && checks.redis;
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ready' : 'degraded',
+    checks,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use('/auth', authRouter);
