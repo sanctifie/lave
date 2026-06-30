@@ -11,11 +11,16 @@ Vue d'ensemble patient + pro :
 
 ![Accueil patient, transport, pharmacie](mobile/overview.png)
 ![Consultation médecin, coursier, messagerie](mobile/overview-2.png)
+![Ordonnance, salle d'attente, paiement, médecins](mobile/overview-3.png)
 
 | Écran | Aperçu |
 |-------|--------|
 | Accueil patient | [`mobile/patient-accueil.png`](mobile/patient-accueil.png) |
 | Demande de transport (estimation live) | [`mobile/patient-transport.png`](mobile/patient-transport.png) |
+| Envoyer une ordonnance | [`mobile/patient-ordonnance.png`](mobile/patient-ordonnance.png) |
+| Choisir un médecin | [`mobile/patient-medecins.png`](mobile/patient-medecins.png) |
+| Salle d'attente vidéo | [`mobile/patient-salle-attente.png`](mobile/patient-salle-attente.png) |
+| Paiement Mobile Money | [`mobile/patient-paiement.png`](mobile/patient-paiement.png) |
 | Espace pharmacie / cuisine | [`mobile/pharmacie-cuisine.png`](mobile/pharmacie-cuisine.png) |
 | Consultation médecin (vidéo) | [`mobile/medecin-consultation.png`](mobile/medecin-consultation.png) |
 | Espace coursier (suivi de course) | [`mobile/coursier-course.png`](mobile/coursier-course.png) |

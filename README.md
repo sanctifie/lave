@@ -6,15 +6,31 @@ Plateforme de logistique de soins pour le Gabon — téléconsultation, ordonnan
 
 ## Table des matières
 
-1. [Architecture](#architecture)
-2. [Prérequis](#prérequis)
-3. [Installation](#installation)
-4. [Variables d'environnement](#variables-denvironnement)
-5. [Base de données](#base-de-données)
-6. [Lancer l'application](#lancer-lapplication)
-7. [Build production](#build-production)
-8. [Fournisseurs externes](#fournisseurs-externes)
-9. [Contrainte légale](#contrainte-légale)
+1. [Captures d'écran](#captures-décran)
+2. [Architecture](#architecture)
+3. [Prérequis](#prérequis)
+4. [Installation](#installation)
+5. [Variables d'environnement](#variables-denvironnement)
+6. [Base de données](#base-de-données)
+7. [Lancer l'application](#lancer-lapplication)
+8. [Build production](#build-production)
+9. [Fournisseurs externes](#fournisseurs-externes)
+10. [Contrainte légale](#contrainte-légale)
+
+---
+
+## Captures d'écran
+
+**Application mobile** (patient · médecin · pharmacie · coursier) :
+
+![Aperçu mobile — patient & pro](docs/screenshots/mobile/overview.png)
+![Aperçu mobile — médecin, coursier, messagerie](docs/screenshots/mobile/overview-2.png)
+
+**Dashboard web (administration)** :
+
+![Tableau de bord admin](docs/screenshots/web/02-dashboard.png)
+
+> Galerie complète (9 pages web + 6 écrans mobiles) : [`docs/screenshots/`](docs/screenshots/README.md)
 
 ---
 
@@ -24,7 +40,8 @@ Plateforme de logistique de soins pour le Gabon — téléconsultation, ordonnan
 mbolo-sante/                  ← Monorepo Turborepo
 ├── apps/
 │   ├── api/                  ← API REST (Express · TypeScript · Prisma · PostgreSQL)
-│   └── mobile/               ← App mobile (React Native · Expo · Expo Router)
+│   ├── mobile/               ← App mobile (React Native · Expo · Expo Router)
+│   └── web/                  ← Dashboard admin (Vite · React · React Router)
 ├── packages/
 │   ├── shared/               ← Types, enums, schémas Zod partagés
 │   └── config/               ← ESLint · Prettier · TypeScript partagés
@@ -40,11 +57,13 @@ mbolo-sante/                  ← Monorepo Turborepo
 | ORM | Prisma 5 · PostgreSQL 16 |
 | Cache / OTP | Redis 7 |
 | Mobile | React Native 0.74 · Expo 51 · Expo Router 3 |
+| Dashboard web | Vite 5 · React 18 · React Router 6 |
 | État | Zustand · expo-secure-store |
+| Tests | Vitest (API) |
 | Paiement | MyPVIT (Airtel Money · Moov Money) |
 | Push | Expo Notifications |
-| Vidéo | Daily.co (interface prête, stub en dev) |
-| SMS | Africa's Talking (interface prête, stub en dev) |
+| Vidéo | Daily.co (auto-activé si `DAILY_API_KEY`, sinon stub) |
+| Notifications | WhatsApp Cloud API (prioritaire) · Africa's Talking SMS (repli) |
 
 ---
 
