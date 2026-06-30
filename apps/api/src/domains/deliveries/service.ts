@@ -4,7 +4,7 @@ import { OrderRepository } from '../orders/repository';
 import { PaymentRepository } from '../payments/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
 import { PaymentProvider } from '../../infrastructure/providers/payment';
-import { DeliveryStatus, OrderStatus } from '@mbolo/shared';
+import { DeliveryStatus, OrderStatus, TransactionStatus } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 import { randomUUID } from 'crypto';
 import type { PaymentService } from '../payments/service';
@@ -123,9 +123,9 @@ export class DeliveryService {
     if (delivery.orderId) {
       await this.orderRepo.updateStatus(delivery.orderId, OrderStatus.DELIVERED);
 
-      // ── Libération de l'escrow ────────────────────────────────────────
+      // ── Libération de l'escrow (idempotent : skip si déjà libéré) ──────
       const txn = await this.paymentRepo.findByOrderId(delivery.orderId);
-      if (txn?.providerTransactionId) {
+      if (txn?.providerTransactionId && txn.status !== TransactionStatus.RELEASED) {
         await this.paymentProvider.releaseEscrow(txn.providerTransactionId);
         await this.paymentRepo.release(txn.id, txn.providerTransactionId);
 

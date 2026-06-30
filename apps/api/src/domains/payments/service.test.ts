@@ -7,12 +7,16 @@ import { PaymentService } from './service';
 
 function makeRepo(overrides: Record<string, any> = {}) {
   return {
-    findRideForPayment:     vi.fn(),
-    findByRideId:           vi.fn().mockResolvedValue(null),
-    createRideTransaction:  vi.fn().mockResolvedValue({ id: 'txn_ride' }),
+    findRideForPayment:      vi.fn(),
+    findByRideId:            vi.fn().mockResolvedValue(null),
+    createRideTransaction:   vi.fn().mockResolvedValue({ id: 'txn_ride' }),
     findMealOrderForPayment: vi.fn(),
-    findByMealOrderId:      vi.fn().mockResolvedValue(null),
-    createMealTransaction:  vi.fn().mockResolvedValue({ id: 'txn_meal' }),
+    findByMealOrderId:       vi.fn().mockResolvedValue(null),
+    createMealTransaction:   vi.fn().mockResolvedValue({ id: 'txn_meal' }),
+    findByIdempotencyKey:    vi.fn().mockResolvedValue(null),
+    capture:                 vi.fn().mockResolvedValue(undefined),
+    fail:                    vi.fn().mockResolvedValue(undefined),
+    release:                 vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -95,6 +99,33 @@ describe('PaymentService.initMealPayment', () => {
     });
     await expect(makeService(repo).initMealPayment('p1', mealInput))
       .rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe('PaymentService.releaseRideEscrow (idempotence)', () => {
+  beforeEach(() => {
+    provider.releaseEscrow.mockClear();
+  });
+
+  it('libère l\'escrow quand la transaction est en attente', async () => {
+    const repo = makeRepo({
+      findByRideId:       vi.fn().mockResolvedValue({ id: 't1', status: 'pending', amountFcfa: 1700, providerTransactionId: 'prov_1' }),
+      release:            vi.fn().mockResolvedValue(undefined),
+      findRideForPayment: vi.fn().mockResolvedValue(null), // payoutCourier sort proprement
+    });
+    await makeService(repo).releaseRideEscrow('r1');
+    expect(provider.releaseEscrow).toHaveBeenCalledWith('prov_1');
+    expect(repo.release).toHaveBeenCalled();
+  });
+
+  it('ignore une libération déjà effectuée (anti double-versement)', async () => {
+    const repo = makeRepo({
+      findByRideId: vi.fn().mockResolvedValue({ id: 't1', status: 'released', amountFcfa: 1700, providerTransactionId: 'prov_1' }),
+      release:      vi.fn(),
+    });
+    await makeService(repo).releaseRideEscrow('r1');
+    expect(provider.releaseEscrow).not.toHaveBeenCalled();
+    expect(repo.release).not.toHaveBeenCalled();
   });
 });
 

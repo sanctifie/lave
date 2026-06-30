@@ -187,6 +187,7 @@ export class PaymentService {
   async releaseRideEscrow(rideId: string) {
     const txn = await this.repo.findByRideId(rideId);
     if (!txn?.providerTransactionId) return;
+    if (txn.status === TransactionStatus.RELEASED) return; // déjà libéré (idempotent)
     await this.provider.releaseEscrow(txn.providerTransactionId);
     await this.repo.release(txn.id, txn.providerTransactionId);
     await this.payoutCourier(rideId, txn.amountFcfa).catch((e) =>
@@ -224,6 +225,7 @@ export class PaymentService {
   async releaseMealOrderEscrow(mealOrderId: string) {
     const txn = await this.repo.findByMealOrderId(mealOrderId);
     if (!txn?.providerTransactionId) return;
+    if (txn.status === TransactionStatus.RELEASED) return; // déjà libéré (idempotent)
     await this.provider.releaseEscrow(txn.providerTransactionId);
     await this.repo.release(txn.id, txn.providerTransactionId);
     await this.payoutKitchen(mealOrderId, txn.amountFcfa).catch((e) =>
