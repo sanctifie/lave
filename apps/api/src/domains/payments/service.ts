@@ -9,7 +9,7 @@ import {
   InitRidePaymentInput, InitMealPaymentInput,
   MyPVITWebhookInput,
 } from './schema';
-import { PricingKind, ConsultationStatus } from '@mbolo/shared';
+import { PricingKind, ConsultationStatus, TransactionStatus } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 import { payoutAfterCommission } from '../../lib/money';
 import { randomUUID } from 'crypto';
@@ -108,7 +108,10 @@ export class PaymentService {
 
     if (reference) {
       const txn = await this.repo.findByIdempotencyKey(reference);
-      if (txn) {
+      // Idempotence : on ne traite que les transactions encore en attente. Les
+      // retries MyPVIT sur une transaction déjà capturée/échouée sont ignorés
+      // pour éviter un double versement.
+      if (txn && txn.status === TransactionStatus.PENDING) {
         const isSuccess = body.status === 'SUCCESS';
         if (isSuccess) {
           await this.repo.capture(txn.id);

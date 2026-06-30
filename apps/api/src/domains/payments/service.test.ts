@@ -110,7 +110,7 @@ describe('PaymentService.handleWebhook', () => {
   }
 
   it('capture la transaction sur statut SUCCESS et renvoie l\'accusé', async () => {
-    const repo = repoWithTxn({ id: 't1', amountFcfa: 4000, consultationId: null });
+    const repo = repoWithTxn({ id: 't1', status: 'pending', amountFcfa: 4000, consultationId: null });
     const echo = await makeService(repo).handleWebhook({ ...baseBody, status: 'SUCCESS' });
 
     expect(repo.capture).toHaveBeenCalledWith('t1');
@@ -119,11 +119,20 @@ describe('PaymentService.handleWebhook', () => {
   });
 
   it('marque la transaction en échec sur statut FAILED', async () => {
-    const repo = repoWithTxn({ id: 't1', amountFcfa: 4000 });
+    const repo = repoWithTxn({ id: 't1', status: 'pending', amountFcfa: 4000 });
     await makeService(repo).handleWebhook({ ...baseBody, status: 'FAILED' });
 
     expect(repo.fail).toHaveBeenCalledWith('t1', 'FAILED');
     expect(repo.capture).not.toHaveBeenCalled();
+  });
+
+  it('est idempotent : ignore un retry sur une transaction déjà capturée', async () => {
+    const repo = repoWithTxn({ id: 't1', status: 'captured', amountFcfa: 4000 });
+    const echo = await makeService(repo).handleWebhook({ ...baseBody, status: 'SUCCESS' });
+
+    expect(repo.capture).not.toHaveBeenCalled();
+    expect(repo.fail).not.toHaveBeenCalled();
+    expect(echo).toEqual({ transactionId: 'PAY9', responseCode: 200 });
   });
 
   it('ignore une référence inconnue mais renvoie l\'accusé', async () => {
