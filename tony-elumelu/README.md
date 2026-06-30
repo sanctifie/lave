@@ -50,6 +50,10 @@ Le programme suit un **rythme annuel** : ouverture chaque **1ᵉʳ janvier**, cl
 | [`05-modele-economique-finances.md`](05-modele-economique-finances.md) | Modèle éco, unit economics, projections |
 | [`06-pitch.md`](06-pitch.md) | Pitch 90 s + trame de pitch deck |
 | [`07-plan-action.md`](07-plan-action.md) | Plan d'action juin 2026 → janvier 2027 |
+| [`08-etude-marche-gabon.md`](08-etude-marche-gabon.md) | Étude de marché Gabon chiffrée (TAM/SAM/SOM) |
+| [`09-business-plan.md`](09-business-plan.md) | Business plan complet (format TEF) |
+| [`10-fiche-projet.md`](10-fiche-projet.md) | Fiche projet 1 page (résumé exécutif) |
+| [`11-modeles-partenariats.md`](11-modeles-partenariats.md) | Modèles de lettres d'intention (pharmacie / médecin) |
 
 ## Sources
 
