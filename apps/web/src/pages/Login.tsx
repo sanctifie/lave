@@ -114,7 +114,7 @@ export function Login({ onLogin }: LoginProps) {
 
 const styles: Record<string, React.CSSProperties> = {
   root: {
-    minHeight: '100vh', display: 'flex',
+    flex: 1, minHeight: '100vh', display: 'flex',
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#F1F5F9', padding: 16,
   },

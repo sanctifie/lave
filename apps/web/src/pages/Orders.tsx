@@ -43,7 +43,7 @@ const COLUMNS: Column<Order>[] = [
   { key: 'id',       header: 'ID',        render: (o) => <code style={{ fontSize: 12, color: '#006D77' }}>…{o.id.slice(-8)}</code>, width: '100px' },
   { key: 'patient',  header: 'Patient',   render: (o) => <div><div style={{ fontWeight: 600 }}>{o.patient.name}</div><div style={{ fontSize: 12, color: '#64748B' }}>{o.patient.phone}</div></div> },
   { key: 'partner',  header: 'Pharmacie', render: (o) => o.partner.legalName },
-  { key: 'items',    header: 'Articles',  render: (o) => <span>{o.items.length} article{o.items.length > 1 ? 's' : ''}</span> },
+  { key: 'items',    header: 'Articles',  render: (o) => { const n = o.items?.length ?? 0; return <span>{n} article{n > 1 ? 's' : ''}</span>; } },
   { key: 'total',    header: 'Total',     render: (o) => <strong>{formatFcfa(o.totalFcfa)}</strong> },
   { key: 'status',   header: 'Statut',    render: (o) => { const s = STATUS_COLOR[o.status] ?? { color: '#64748B', bg: '#F3F4F6' }; return <Badge label={STATUS_FR[o.status] ?? o.status} color={s.color} bg={s.bg} />; } },
   { key: 'date',     header: 'Date',      render: (o) => formatDate(o.createdAt), width: '150px' },
