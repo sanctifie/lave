@@ -26,6 +26,7 @@ const service = new DeliveryService(
   new PaymentRepository(),
   notificationService,
   paymentProvider,
+  new PricingRepository(),
   paymentService,
   pushService,
 );

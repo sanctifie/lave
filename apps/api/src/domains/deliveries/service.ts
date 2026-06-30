@@ -2,10 +2,12 @@ import { HTTP } from '../../lib/errors';
 import { DeliveryRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
 import { PaymentRepository } from '../payments/repository';
+import { PricingRepository } from '../pricing/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
 import { PaymentProvider } from '../../infrastructure/providers/payment';
-import { DeliveryStatus, OrderStatus, TransactionStatus } from '@mbolo/shared';
+import { DeliveryStatus, OrderStatus, TransactionStatus, PricingKind } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
+import { payoutAfterCommission } from '../../lib/money';
 import { randomUUID } from 'crypto';
 import type { PaymentService } from '../payments/service';
 import type { PushService } from '../../infrastructure/push/service';
@@ -17,6 +19,7 @@ export class DeliveryService {
     private readonly paymentRepo: PaymentRepository,
     private readonly notif: NotificationService,
     private readonly paymentProvider: PaymentProvider,
+    private readonly pricingRepo: PricingRepository,
     private readonly paymentService?: PaymentService,
     private readonly push?: PushService,
   ) {}
@@ -129,10 +132,12 @@ export class DeliveryService {
         await this.paymentProvider.releaseEscrow(txn.providerTransactionId);
         await this.paymentRepo.release(txn.id, txn.providerTransactionId);
 
-        // Payout vers la pharmacie (stub pour l'instant)
+        // Payout vers la pharmacie (commission plateforme configurable)
         const order = await this.orderRepo.findById(delivery.orderId);
         if (order) {
-          const pharmacyAmount = Math.round(order.totalFcfa * 0.85); // 85% après commission
+          const commissionEntry = await this.pricingRepo.getByKind(PricingKind.PLATFORM_COMMISSION_PCT);
+          const commissionPct   = Number(commissionEntry?.valueNum ?? 15);
+          const pharmacyAmount  = payoutAfterCommission(order.totalFcfa, commissionPct);
           await this.paymentProvider.payout({
             amountFcfa: pharmacyAmount,
             phoneNumber: order.partner.phone,
