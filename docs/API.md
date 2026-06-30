@@ -198,18 +198,20 @@ Valider une ordonnance et définir les items.
 
 ## Commandes — `/orders`
 
-### `GET /orders` 🔒
-- Patient → ses commandes
-- Partner staff → commandes de sa pharmacie
+### `GET /orders` 🔒 `[patient]`
+Les commandes du patient connecté.
 
-### `GET /orders/:id` 🔒
+### `GET /orders/partner/list` 🔒 `[partner_staff]`
+Les commandes de l'officine du staff connecté.
 
-### `POST /orders/:id/action` 🔒 `[partner_staff]`
+### `GET /orders/:id` 🔒 `[patient]`
+
+### `PATCH /orders/:id/pharmacy-action` 🔒 `[partner_staff]`
 Faire avancer le statut d'une commande.
 ```json
-{ "action": "accept" }   // pending_pharmacy → pharmacy_accepted
-{ "action": "prepare" }  // pharmacy_accepted → preparing
-{ "action": "ready" }    // preparing → ready_for_pickup
+{ "action": "prepare" }                          // pending_pharmacy | pharmacy_accepted → preparing
+{ "action": "ready" }                            // preparing → ready_for_pickup
+{ "action": "reject", "reason": "Rupture de stock" } // → pharmacy_rejected
 ```
 
 ---
@@ -227,9 +229,9 @@ Mettre à jour la position GPS.
 { "lat": 0.3924, "lng": 9.4536 }
 ```
 
-### `POST /deliveries/:id/handover` 🔒 `[courier]`
-Confirmer la remise au patient avec le code OTP. Déclenche la libération de
-l'escrow et le versement (pharmacie / cuisine selon le type de livraison).
+### `POST /deliveries/:id/handover` 🔒
+Le patient confirme la réception avec le code de remise. Déclenche la libération
+de l'escrow et le versement (pharmacie / cuisine selon le type de livraison).
 ```json
 { "code": "A3F9K2" }
 ```
