@@ -410,7 +410,10 @@ Initie le paiement (escrow) d'une commande repas.
 Polling du statut (`pending` | `captured` | `failed`).
 
 ### `POST /payments/webhook`
-Webhook MyPVIT (pas d'auth JWT). Doit répondre immédiatement :
+Webhook MyPVIT (pas d'auth JWT). Protégé par secret partagé si
+`MYPVIT_WEBHOOK_SECRET` est défini — à fournir en query `?secret=...` (inclus
+dans l'URL de callback enregistrée) ou en en-tête `x-webhook-secret`, sinon `401`.
+Doit répondre immédiatement :
 ```json
 { "transactionId": "PAY...", "responseCode": 200 }
 ```

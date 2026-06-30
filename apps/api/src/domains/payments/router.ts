@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
+import { verifyWebhookSecret } from '../../middleware/webhookAuth';
 import { asyncHandler } from '../../lib/asyncHandler';
 import { InitEscrowSchema, InitConsultationPaymentSchema, InitRidePaymentSchema, InitMealPaymentSchema, MyPVITWebhookSchema } from './schema';
 import { PaymentService } from './service';
@@ -95,11 +96,13 @@ router.get(
 );
 
 // ─── Webhook MyPVIT ───────────────────────────────────────────────────────────
-// Pas d'auth JWT — MyPVIT appelle cette route directement.
+// Pas d'auth JWT — MyPVIT appelle cette route directement. Protégé par secret
+// partagé (MYPVIT_WEBHOOK_SECRET) à inclure dans l'URL de callback enregistrée.
 // Réponse obligatoire : { transactionId, responseCode } — cf. docs MyPVIT section 3.
 
 router.post(
   '/webhook',
+  verifyWebhookSecret(process.env.MYPVIT_WEBHOOK_SECRET),
   asyncHandler(async (req, res) => {
     const parsed = MyPVITWebhookSchema.safeParse(req.body);
     if (!parsed.success) {
