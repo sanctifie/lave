@@ -9,6 +9,8 @@ const DELIVERY_INCLUDE = {
       items:   true,
     },
   },
+  ride: { include: { request: true } },
+  mealOrder: { include: { mealPlan: { select: { name: true, partnerId: true } } } },
   tracking: true,
 } as const;
 
@@ -100,6 +102,14 @@ export class DeliveryRepository {
       update: { isAvailable },
       create: { userId, isAvailable },
     });
+  }
+
+  async getCourierAvailability(userId: string): Promise<boolean> {
+    const courier = await prisma.courier.findUnique({
+      where:  { userId },
+      select: { isAvailable: true },
+    });
+    return courier?.isAvailable ?? false;
   }
 }
 

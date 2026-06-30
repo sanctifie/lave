@@ -59,4 +59,9 @@ export const deliveriesService = {
   async toggleAvailability(isAvailable: boolean): Promise<void> {
     await apiClient.patch('/deliveries/me/availability', { isAvailable });
   },
+
+  async getAvailability(): Promise<boolean> {
+    const { data } = await apiClient.get<{ data: { isAvailable: boolean } }>('/deliveries/me/availability');
+    return (data.data ?? data).isAvailable ?? false;
+  },
 };

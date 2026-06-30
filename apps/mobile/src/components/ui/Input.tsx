@@ -8,7 +8,7 @@ interface InputProps extends TextInputProps {
   hint?: string;
 }
 
-export const Input = ({ label, error, hint, ...props }: InputProps) => {
+export const Input = ({ label, error, hint, style, ...props }: InputProps) => {
   const [focused, setFocused] = useState(false);
 
   return (
@@ -21,6 +21,7 @@ export const Input = ({ label, error, hint, ...props }: InputProps) => {
           styles.input,
           focused && styles.inputFocused,
           !!error && styles.inputError,
+          style,
         ]}
         placeholderTextColor={colors.textDisabled}
         onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}

@@ -2,11 +2,15 @@ import { HTTP } from '../../lib/errors';
 import { DeliveryRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
 import { PaymentRepository } from '../payments/repository';
+import { PricingRepository } from '../pricing/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
 import { PaymentProvider } from '../../infrastructure/providers/payment';
-import { DeliveryStatus, OrderStatus } from '@mbolo/shared';
+import { DeliveryStatus, OrderStatus, TransactionStatus, PricingKind } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
+import { payoutAfterCommission } from '../../lib/money';
 import { randomUUID } from 'crypto';
+import type { PaymentService } from '../payments/service';
+import type { PushService } from '../../infrastructure/push/service';
 
 export class DeliveryService {
   constructor(
@@ -15,6 +19,9 @@ export class DeliveryService {
     private readonly paymentRepo: PaymentRepository,
     private readonly notif: NotificationService,
     private readonly paymentProvider: PaymentProvider,
+    private readonly pricingRepo: PricingRepository,
+    private readonly paymentService?: PaymentService,
+    private readonly push?: PushService,
   ) {}
 
   async listAll(courierUserId: string) {
@@ -54,6 +61,10 @@ export class DeliveryService {
 
   async setCourierAvailability(userId: string, isAvailable: boolean) {
     return this.repo.setCourierAvailability(userId, isAvailable);
+  }
+
+  async getCourierAvailability(userId: string) {
+    return { isAvailable: await this.repo.getCourierAvailability(userId) };
   }
 
   async getById(id: string) {
@@ -115,16 +126,18 @@ export class DeliveryService {
     if (delivery.orderId) {
       await this.orderRepo.updateStatus(delivery.orderId, OrderStatus.DELIVERED);
 
-      // ── Libération de l'escrow ────────────────────────────────────────
+      // ── Libération de l'escrow (idempotent : skip si déjà libéré) ──────
       const txn = await this.paymentRepo.findByOrderId(delivery.orderId);
-      if (txn?.providerTransactionId) {
+      if (txn?.providerTransactionId && txn.status !== TransactionStatus.RELEASED) {
         await this.paymentProvider.releaseEscrow(txn.providerTransactionId);
         await this.paymentRepo.release(txn.id, txn.providerTransactionId);
 
-        // Payout vers la pharmacie (stub pour l'instant)
+        // Payout vers la pharmacie (commission plateforme configurable)
         const order = await this.orderRepo.findById(delivery.orderId);
         if (order) {
-          const pharmacyAmount = Math.round(order.totalFcfa * 0.85); // 85% après commission
+          const commissionEntry = await this.pricingRepo.getByKind(PricingKind.PLATFORM_COMMISSION_PCT);
+          const commissionPct   = Number(commissionEntry?.valueNum ?? 15);
+          const pharmacyAmount  = payoutAfterCommission(order.totalFcfa, commissionPct);
           await this.paymentProvider.payout({
             amountFcfa: pharmacyAmount,
             phoneNumber: order.partner.phone,
@@ -142,6 +155,28 @@ export class DeliveryService {
               message: `Paiement de ${pharmacyAmount} FCFA en cours de virement pour la commande #${delivery.orderId.slice(-6).toUpperCase()}.`,
             }),
           ]);
+        }
+      }
+    }
+
+    // ── Repas : libération escrow + notification patient ──────────────────
+    if (delivery.mealOrderId) {
+      if (this.paymentService) {
+        this.paymentService.releaseMealOrderEscrow(delivery.mealOrderId).catch((e) =>
+          console.error('[DeliveryService] meal escrow release failed', e),
+        );
+      }
+      if (this.push) {
+        const mealOrder = await prisma.mealOrder.findUnique({
+          where:  { id: delivery.mealOrderId },
+          select: { patientId: true, mealPlan: { select: { name: true } } },
+        });
+        if (mealOrder) {
+          this.push.sendToUser(mealOrder.patientId, {
+            title: '🥗 Repas livré',
+            body:  `${mealOrder.mealPlan.name} a été livré. Bon appétit !`,
+            data:  { type: 'meal_delivered', mealOrderId: delivery.mealOrderId },
+          });
         }
       }
     }

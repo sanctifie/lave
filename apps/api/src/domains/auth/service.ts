@@ -43,10 +43,13 @@ export class AuthService {
     const user = await this.repo.findOrCreateUser(phone);
     if (!user.isActive) throw HTTP.forbidden('Compte désactivé');
 
+    const signOptions: jwt.SignOptions = {
+      expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as jwt.SignOptions['expiresIn'],
+    };
     const token = jwt.sign(
       { userId: user.id, phone: user.phone, role: user.role },
       process.env.JWT_SECRET!,
-      { expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as string },
+      signOptions,
     );
 
     return { token, user: { id: user.id, phone: user.phone, role: user.role, name: user.name } };

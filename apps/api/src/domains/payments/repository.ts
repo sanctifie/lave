@@ -51,12 +51,77 @@ export class PaymentRepository {
     });
   }
 
+  async createRideTransaction(data: {
+    rideId: string;
+    amountFcfa: number;
+    idempotencyKey: string;
+    providerTransactionId?: string;
+  }) {
+    return prisma.transaction.create({
+      data: {
+        rideId:                data.rideId,
+        amountFcfa:            data.amountFcfa,
+        idempotencyKey:        data.idempotencyKey,
+        providerTransactionId: data.providerTransactionId,
+        kind:                  TransactionKind.ESCROW,
+        status:                TransactionStatus.PENDING,
+      },
+    });
+  }
+
+  async createMealTransaction(data: {
+    mealOrderId: string;
+    amountFcfa: number;
+    idempotencyKey: string;
+    providerTransactionId?: string;
+  }) {
+    return prisma.transaction.create({
+      data: {
+        mealOrderId:           data.mealOrderId,
+        amountFcfa:            data.amountFcfa,
+        idempotencyKey:        data.idempotencyKey,
+        providerTransactionId: data.providerTransactionId,
+        kind:                  TransactionKind.ESCROW,
+        status:                TransactionStatus.PENDING,
+      },
+    });
+  }
+
   async findByOrderId(orderId: string) {
     return prisma.transaction.findUnique({ where: { orderId } });
   }
 
+  async findByRideId(rideId: string) {
+    return prisma.transaction.findUnique({ where: { rideId } });
+  }
+
+  async findByMealOrderId(mealOrderId: string) {
+    return prisma.transaction.findUnique({ where: { mealOrderId } });
+  }
+
   async findByConsultationId(consultationId: string) {
     return prisma.transaction.findUnique({ where: { consultationId } });
+  }
+
+  async findRideForPayment(rideId: string) {
+    return prisma.ride.findUnique({
+      where: { id: rideId },
+      include: {
+        request: { select: { patientId: true } },
+        delivery: {
+          include: {
+            courier: { include: { user: { select: { id: true, phone: true } } } },
+          },
+        },
+      },
+    });
+  }
+
+  async findMealOrderForPayment(mealOrderId: string) {
+    return prisma.mealOrder.findUnique({
+      where: { id: mealOrderId },
+      include: { mealPlan: { select: { partnerId: true, name: true } } },
+    });
   }
 
   async findByIdempotencyKey(key: string) {

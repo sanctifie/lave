@@ -68,8 +68,9 @@ export class DoctorService {
     const doctor = await this.repo.findById(doctorId);
     if (!doctor) throw HTTP.notFound('Médecin introuvable');
 
-    // 0 = dimanche, 1 = lundi … en JS (dayOfWeek dans DB aussi)
-    const dayOfWeek = date.getDay();
+    // 0 = dimanche, 1 = lundi … Calculé en UTC pour rester cohérent avec les
+    // disponibilités (startTimeUtc/endTimeUtc) et les créneaux (setUTCHours).
+    const dayOfWeek = date.getUTCDay();
     const availabilities = await this.repo.getAvailabilitiesForDoctor(doctorId);
     const todayAvail = (availabilities as any[]).filter((a: any) => a.dayOfWeek === dayOfWeek);
 

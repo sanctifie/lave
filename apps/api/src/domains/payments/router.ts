@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
+import { verifyWebhookSecret } from '../../middleware/webhookAuth';
 import { asyncHandler } from '../../lib/asyncHandler';
-import { InitEscrowSchema, InitConsultationPaymentSchema, MyPVITWebhookSchema } from './schema';
+import { InitEscrowSchema, InitConsultationPaymentSchema, InitRidePaymentSchema, InitMealPaymentSchema, MyPVITWebhookSchema } from './schema';
 import { PaymentService } from './service';
 import { PaymentRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
@@ -52,12 +53,56 @@ router.get(
   }),
 );
 
+// ─── Course (transport) ───────────────────────────────────────────────────────
+
+router.post(
+  '/ride',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  validate(InitRidePaymentSchema),
+  asyncHandler(async (req, res) => {
+    res.status(201).json({ data: await service.initRidePayment(req.user!.userId, req.body) });
+  }),
+);
+
+// ─── Repas ────────────────────────────────────────────────────────────────────
+
+router.post(
+  '/meal',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  validate(InitMealPaymentSchema),
+  asyncHandler(async (req, res) => {
+    res.status(201).json({ data: await service.initMealPayment(req.user!.userId, req.body) });
+  }),
+);
+
+router.get(
+  '/ride/:rideId/status',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.getRidePaymentStatus(req.user!.userId, req.params.rideId) });
+  }),
+);
+
+router.get(
+  '/meal/:mealOrderId/status',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.getMealPaymentStatus(req.user!.userId, req.params.mealOrderId) });
+  }),
+);
+
 // ─── Webhook MyPVIT ───────────────────────────────────────────────────────────
-// Pas d'auth JWT — MyPVIT appelle cette route directement.
+// Pas d'auth JWT — MyPVIT appelle cette route directement. Protégé par secret
+// partagé (MYPVIT_WEBHOOK_SECRET) à inclure dans l'URL de callback enregistrée.
 // Réponse obligatoire : { transactionId, responseCode } — cf. docs MyPVIT section 3.
 
 router.post(
   '/webhook',
+  verifyWebhookSecret(process.env.MYPVIT_WEBHOOK_SECRET),
   asyncHandler(async (req, res) => {
     const parsed = MyPVITWebhookSchema.safeParse(req.body);
     if (!parsed.success) {

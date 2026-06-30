@@ -11,7 +11,8 @@ Ce document explique **à quoi sert chaque service externe**, comment créer un 
 | [Expo](#expo) | Framework mobile + push notifications | Oui |
 | [MyPVIT](#mypvit) | Paiement mobile money (Airtel / Moov) | Oui |
 | [Daily.co](#dailyco) | Sessions vidéo téléconsultation | Oui |
-| [Africa's Talking](#africas-talking) | SMS (OTP, alertes) | Recommandé |
+| [WhatsApp Cloud API](#whatsapp-cloud-api) | Notifications WhatsApp (canal prioritaire) | Recommandé |
+| [Africa's Talking](#africas-talking) | SMS (OTP, alertes — repli) | Recommandé |
 | [Firebase](#firebase-google-services) | Push Android (requis par Expo) | Oui (Android) |
 
 ---
@@ -256,86 +257,20 @@ En développement, le `StubVideoProvider` simule la création de salles vidéo (
 2. Créer un espace (ex: `mbolo`)
 3. Menu → **Developers** → récupérer la **clé API**
 
-### Implémenter le provider
+### Provider implémenté ✅
 
-Créer `apps/api/src/infrastructure/providers/video/daily.ts` :
+Le provider est déjà codé dans `apps/api/src/infrastructure/providers/video/daily.ts`
+(via `fetch`, sans SDK). Il crée une salle **privée** qui expire, génère un token
+**hôte** (médecin) et un token **invité** (patient), réutilise la salle si elle
+existe déjà (409), et la supprime sur `closeRoom`.
 
-```typescript
-import { VideoProvider, VideoRoomParams, VideoRoomResult } from './index';
-
-export class DailyVideoProvider implements VideoProvider {
-  constructor(private readonly apiKey: string) {}
-
-  async createRoom(params: VideoRoomParams): Promise<VideoRoomResult> {
-    const resp = await fetch('https://api.daily.co/v1/rooms', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        name:       `mbolo-${params.consultationId}`,
-        properties: {
-          exp:           Math.floor(params.expiresAt.getTime() / 1000),
-          enable_chat:   false,
-          max_participants: 2,
-        },
-      }),
-    });
-    const room: any = await resp.json();
-
-    // Générer les tokens d'accès hôte et invité
-    const [hostToken, guestToken] = await Promise.all([
-      this.createToken(room.name, true),
-      this.createToken(room.name, false),
-    ]);
-
-    return {
-      roomName:   room.name,
-      roomUrl:    room.url,
-      hostToken,
-      guestToken,
-    };
-  }
-
-  async closeRoom(roomName: string): Promise<void> {
-    await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
-      method:  'DELETE',
-      headers: { 'Authorization': `Bearer ${this.apiKey}` },
-    });
-  }
-
-  private async createToken(roomName: string, isOwner: boolean): Promise<string> {
-    const resp = await fetch('https://api.daily.co/v1/meeting-tokens', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        properties: { room_name: roomName, is_owner: isOwner },
-      }),
-    });
-    const data: any = await resp.json();
-    return data.token;
-  }
-}
-```
-
-### Activer le provider
-
-Dans `apps/api/src/infrastructure/container.ts` :
-```typescript
-import { DailyVideoProvider } from './providers/video/daily';
-
-export const videoProvider = process.env.DAILY_API_KEY
-  ? new DailyVideoProvider(process.env.DAILY_API_KEY)
-  : new StubVideoProvider();
-```
+Il s'active **automatiquement** dans `container.ts` dès que `DAILY_API_KEY` est
+défini ; sinon le `StubVideoProvider` (URLs fictives) est utilisé.
 
 **`apps/api/.env`** :
 ```env
 DAILY_API_KEY="votre_cle_api_daily"
+DAILY_DOMAIN="mbolo.daily.co"   # votre domaine Daily.co
 ```
 
 ---
@@ -370,57 +305,70 @@ En développement, les SMS sont simulés (`StubNotificationProvider`) — les me
 3. Menu → **SMS** → récupérer la **clé API** et le **nom d'expéditeur** (Sender ID)
 4. Alimenter le compte avec du crédit SMS
 
-### Implémenter le provider
+### Provider implémenté ✅
 
-Créer `apps/api/src/infrastructure/providers/notification/africastalking.ts` :
+Le provider est déjà codé dans
+`apps/api/src/infrastructure/providers/notification/africastalking.ts` (via
+`fetch`, **sans SDK** — aucune dépendance à installer). Il détecte
+automatiquement l'environnement *sandbox* (quand `AT_USERNAME=sandbox`) et
+remonte une erreur si un destinataire est rejeté.
 
-```typescript
-import { NotificationProvider, NotificationParams } from './index';
-import AfricasTalking from 'africastalking';
-
-export class AfricasTalkingProvider implements NotificationProvider {
-  private readonly sms;
-
-  constructor(apiKey: string, username: string) {
-    const client = AfricasTalking({ apiKey, username });
-    this.sms = client.SMS;
-  }
-
-  async send(params: NotificationParams): Promise<void> {
-    await this.sms.send({
-      to:   [params.to],
-      message: params.message,
-      from: process.env.AT_SENDER_ID,
-    });
-  }
-}
-```
-
-Installer le SDK :
-```bash
-pnpm --filter api add africastalking
-pnpm --filter api add -D @types/africastalking
-```
-
-### Activer le provider
-
-Dans `apps/api/src/infrastructure/container.ts` :
-```typescript
-import { AfricasTalkingProvider } from './providers/notification/africastalking';
-
-const smsProvider = process.env.AT_API_KEY
-  ? new AfricasTalkingProvider(process.env.AT_API_KEY, process.env.AT_USERNAME!)
-  : new StubNotificationProvider();
-
-export const notificationService = new NotificationService(smsProvider, smsProvider);
-```
+Il s'active **automatiquement** dans `container.ts` comme **canal SMS de repli**
+dès que `AT_API_KEY` est défini ; sinon le `StubNotificationProvider` (logs
+console) est utilisé. Le canal WhatsApp prioritaire reste sur stub tant qu'aucun
+provider WhatsApp n'est branché — le repli SMS prend alors le relais.
 
 **`apps/api/.env`** :
 ```env
 AT_API_KEY="votre_cle_api"
-AT_USERNAME="votre_username"
+AT_USERNAME="votre_username"   # "sandbox" pour l'environnement de test
 AT_SENDER_ID="MBOLO"
 ```
+
+---
+
+## WhatsApp Cloud API
+
+### Qu'est-ce que c'est ?
+
+L'**API WhatsApp Cloud** de Meta permet d'envoyer des messages WhatsApp depuis le
+serveur. Au Gabon, WhatsApp est le canal de communication dominant — c'est donc
+le **canal de notification prioritaire** de MBOLO Santé (OTP, alertes, rappels),
+avec le SMS (Africa's Talking) en **repli automatique** si l'envoi WhatsApp
+échoue.
+
+`NotificationService` essaie d'abord WhatsApp ; en cas d'erreur, il bascule sur
+le SMS — sans intervention.
+
+### Sans configuration
+
+Le `StubNotificationProvider` (logs console) est utilisé tant que
+`WHATSAPP_ACCESS_TOKEN` n'est pas défini. L'application fonctionne normalement.
+
+### Provider implémenté ✅
+
+Déjà codé dans `apps/api/src/infrastructure/providers/notification/whatsapp.ts`
+(via `fetch`, sans SDK). Envoie un message **texte** ; il s'active automatiquement
+dans `container.ts` comme canal prioritaire dès que `WHATSAPP_ACCESS_TOKEN` est
+défini.
+
+### Créer l'accès
+
+1. [developers.facebook.com](https://developers.facebook.com) → créer une app **Business**
+2. Ajouter le produit **WhatsApp** → récupérer le **Phone Number ID** et un **token d'accès**
+3. En production : générer un **System User token** (longue durée) et vérifier le numéro
+
+**`apps/api/.env`** :
+```env
+WHATSAPP_PHONE_NUMBER_ID="votre_phone_number_id"
+WHATSAPP_ACCESS_TOKEN="votre_token"
+WHATSAPP_API_VERSION="v21.0"
+```
+
+> ⚠️ **Production** : Meta exige des **modèles (templates) pré-approuvés** pour les
+> messages initiés par l'entreprise hors fenêtre de 24h. Le provider envoie
+> actuellement du texte simple (valable en session/test) ; pour un envoi
+> transactionnel à grande échelle, passer à l'envoi de templates.
 
 ---
 
@@ -510,6 +458,10 @@ OTP_TTL_SECONDS=300
 PORT=3000
 NODE_ENV=development
 
+# ── CORS ──────────────────────────────────────────────────────
+# Vide → toutes origines (dev). En prod : liste blanche séparée par des virgules.
+CORS_ORIGINS="http://localhost:5173,https://admin.mbolo-sante.com"
+
 # ── MyPVIT (paiement) ─────────────────────────────────────────
 # Laisser vide → StubPaymentProvider (simulation)
 MYPVIT_BASE_URL="https://api.mypvit.pro/v2"
@@ -525,11 +477,18 @@ EXPO_ACCESS_TOKEN=""
 # ── Daily.co (vidéo) ──────────────────────────────────────────
 # Laisser vide → StubVideoProvider (URLs fictives)
 DAILY_API_KEY=""
+DAILY_DOMAIN="mbolo.daily.co"
 
-# ── Africa's Talking (SMS) ────────────────────────────────────
+# ── WhatsApp Cloud API (notification prioritaire) ─────────────
+# Laisser vide → StubNotificationProvider (logs console)
+WHATSAPP_PHONE_NUMBER_ID=""
+WHATSAPP_ACCESS_TOKEN=""
+WHATSAPP_API_VERSION="v21.0"
+
+# ── Africa's Talking (SMS — repli) ────────────────────────────
 # Laisser vide → StubNotificationProvider (logs console)
 AT_API_KEY=""
-AT_USERNAME=""
+AT_USERNAME=""          # "sandbox" pour l'environnement de test
 AT_SENDER_ID="MBOLO"
 ```
 
@@ -551,4 +510,5 @@ EXPO_PUBLIC_PROJECT_ID=""
 1. **MyPVIT** — bloquant : sans paiement, le modèle économique ne fonctionne pas
 2. **Expo + Firebase** — important : les notifications temps réel sont critiques pour la téléconsultation
 3. **Daily.co** — important : requis pour les consultations vidéo
-4. **Africa's Talking** — recommandé : les OTP en prod (les logs ne suffisent pas)
+4. **WhatsApp Cloud API** — recommandé : canal de notification prioritaire (OTP, alertes)
+5. **Africa's Talking** — recommandé : repli SMS si WhatsApp échoue / non configuré

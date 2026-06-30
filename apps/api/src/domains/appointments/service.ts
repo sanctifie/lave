@@ -252,8 +252,13 @@ export class AppointmentService {
     const appt = await this.repo.findById(id);
     if (!appt) throw HTTP.notFound('RDV introuvable');
     if (appt.patientId !== userId) throw HTTP.forbidden();
-    if (appt.status === AppointmentStatus.IN_PROGRESS) {
-      throw HTTP.unprocessable('Impossible d\'annuler une consultation en cours');
+    const cancellable: string[] = [
+      AppointmentStatus.PENDING,
+      AppointmentStatus.CONFIRMED,
+      AppointmentStatus.WAITING_ROOM,
+    ];
+    if (!cancellable.includes(appt.status)) {
+      throw HTTP.unprocessable(`Impossible d'annuler un rendez-vous au statut « ${appt.status} »`);
     }
     return this.repo.cancel(id);
   }

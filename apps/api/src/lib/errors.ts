@@ -5,6 +5,7 @@ export type ErrorCode =
   | 'VALIDATION_ERROR'
   | 'CONFLICT'
   | 'UNPROCESSABLE'
+  | 'TOO_MANY_REQUESTS'
   | 'INTERNAL';
 
 export class AppError extends Error {
@@ -24,4 +25,5 @@ export const HTTP = {
   notFound: (msg = 'Ressource introuvable') => new AppError('NOT_FOUND', msg, 404),
   conflict: (msg = 'Conflit') => new AppError('CONFLICT', msg, 409),
   unprocessable: (msg: string) => new AppError('UNPROCESSABLE', msg, 422),
+  tooManyRequests: (msg = 'Trop de requêtes') => new AppError('TOO_MANY_REQUESTS', msg, 429),
 } as const;

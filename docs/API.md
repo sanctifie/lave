@@ -10,22 +10,26 @@ Toutes les réponses suivent le format `{ data: ... }` sauf erreurs.
 
 ## Auth — `/auth`
 
-### `POST /auth/request-otp`
+> **Rate-limiting** (Redis) : `POST /auth/otp/request` est limité à 10 req/15 min
+> par IP et 3 req/15 min par numéro ; `POST /auth/otp/verify` à 20 req/15 min par
+> IP. Dépassement → `429` avec en-tête `Retry-After`.
+
+### `POST /auth/otp/request`
 Envoie un code OTP par SMS au numéro fourni.
 ```json
 { "phone": "241060000000" }
 ```
 ```json
-{ "data": { "message": "OTP envoyé" } }
+{ "expiresIn": 300 }
 ```
 
-### `POST /auth/verify-otp`
+### `POST /auth/otp/verify`
 Vérifie le code OTP et retourne un JWT.
 ```json
-{ "phone": "241060000000", "code": "123456", "name": "Jean Dupont", "role": "patient" }
+{ "phone": "241060000000", "code": "123456" }
 ```
 ```json
-{ "data": { "token": "eyJ...", "user": { "id": "...", "phone": "...", "role": "patient" } } }
+{ "token": "eyJ...", "user": { "id": "...", "phone": "...", "role": "patient", "name": "Jean Dupont" } }
 ```
 
 ---
@@ -194,18 +198,20 @@ Valider une ordonnance et définir les items.
 
 ## Commandes — `/orders`
 
-### `GET /orders` 🔒
-- Patient → ses commandes
-- Partner staff → commandes de sa pharmacie
+### `GET /orders` 🔒 `[patient]`
+Les commandes du patient connecté.
 
-### `GET /orders/:id` 🔒
+### `GET /orders/partner/list` 🔒 `[partner_staff]`
+Les commandes de l'officine du staff connecté.
 
-### `POST /orders/:id/action` 🔒 `[partner_staff]`
+### `GET /orders/:id` 🔒 `[patient]`
+
+### `PATCH /orders/:id/pharmacy-action` 🔒 `[partner_staff]`
 Faire avancer le statut d'une commande.
 ```json
-{ "action": "accept" }   // pending_pharmacy → pharmacy_accepted
-{ "action": "prepare" }  // pharmacy_accepted → preparing
-{ "action": "ready" }    // preparing → ready_for_pickup
+{ "action": "prepare" }                          // pending_pharmacy | pharmacy_accepted → preparing
+{ "action": "ready" }                            // preparing → ready_for_pickup
+{ "action": "reject", "reason": "Rupture de stock" } // → pharmacy_rejected
 ```
 
 ---
@@ -223,10 +229,127 @@ Mettre à jour la position GPS.
 { "lat": 0.3924, "lng": 9.4536 }
 ```
 
-### `POST /deliveries/:id/handover` 🔒 `[courier]`
-Confirmer la remise au patient avec le code OTP.
+### `POST /deliveries/:id/handover` 🔒
+Le patient confirme la réception avec le code de remise. Déclenche la libération
+de l'escrow et le versement (pharmacie / cuisine selon le type de livraison).
 ```json
 { "code": "A3F9K2" }
+```
+
+### `GET /deliveries/me/availability` 🔒 `[courier]`
+Disponibilité actuelle du livreur.
+```json
+{ "data": { "isAvailable": true } }
+```
+
+### `PATCH /deliveries/me/availability` 🔒 `[courier]`
+```json
+{ "isAvailable": true }
+```
+
+---
+
+## Transport médical — `/rides`
+
+### `POST /rides/estimate` 🔒 `[patient]`
+Estime distance et tarif avant la demande (utilisé pour l'aperçu en direct).
+```json
+{ "originLat": 0.3924, "originLng": 9.4536, "destLat": 0.4014, "destLng": 9.4536 }
+```
+```json
+{ "data": { "distanceKm": 1.0, "fareEstFcfa": 1700, "baseFee": 1500, "perKm": 200 } }
+```
+
+### `POST /rides` 🔒 `[patient]`
+Crée une demande de transport (génère la course + la livraison associée).
+```json
+{
+  "type": "hospital",
+  "originLat": 0.3924, "originLng": 9.4536, "originLandmark": "Hôpital Owendo",
+  "destLat": 0.4014,  "destLng": 9.4536,  "destLandmark": "Quartier Louis",
+  "notes": "Patient à mobilité réduite"
+}
+```
+`type` : `home` | `hospital` | `exam`
+
+### `GET /rides/mine` 🔒 `[patient]`
+Mes demandes de transport (avec la course liée).
+
+### `GET /rides/available` 🔒 `[courier]`
+Courses en attente de chauffeur.
+
+### `GET /rides/courier/mine` 🔒 `[courier]`
+Mes courses acceptées.
+
+### `GET /rides/:id` 🔒
+Détail d'une course.
+
+### `PATCH /rides/:id/accept` 🔒 `[courier]`
+Accepte une course (assigne le chauffeur + la livraison).
+
+### `PATCH /rides/:id/status` 🔒 `[courier]`
+Fait avancer la course. À `completed`, libère l'escrow et verse le chauffeur.
+```json
+{ "status": "en_route" }
+```
+`status` : `en_route` | `arrived` | `completed` | `cancelled`
+
+---
+
+## Repas & nutrition — `/meals`
+
+### `GET /meals/plans` 🔒
+Menus actifs. Paramètre optionnel : `partnerId`.
+
+### `GET /meals/plans/:id` 🔒
+Détail d'un menu (avec ses articles).
+
+### `POST /meals/plans` 🔒 `[partner_staff]`
+Crée un menu.
+```json
+{
+  "name": "Menu diabétique",
+  "description": "Faible en sucre",
+  "items": [{ "name": "Poisson grillé + légumes", "unitPriceFcfa": 3500 }]
+}
+```
+
+### `PATCH /meals/plans/items/:itemId/availability` 🔒 `[partner_staff]`
+```json
+{ "isAvailable": false }
+```
+
+### `POST /meals/orders` 🔒 `[patient]`
+Passe une commande repas (crée la livraison associée).
+```json
+{ "mealPlanId": "cuid_plan", "notes": "Sans piment" }
+```
+
+### `GET /meals/orders/mine` 🔒 `[patient]`
+### `GET /meals/orders/kitchen` 🔒 `[partner_staff]`
+### `GET /meals/orders/:id` 🔒
+
+---
+
+## Messagerie — `/chat`
+
+> **Autorisation** : seuls les participants de l'entité référencée (et les
+> admins) peuvent accéder à une conversation. `appointment` → patient + médecin,
+> `order` → patient + staff pharmacie, `delivery` → patient + coursier.
+
+### `POST /chat/conversations` 🔒
+Récupère ou crée une conversation pour une entité.
+```json
+{ "refTable": "appointment", "refId": "cuid_appointment" }
+```
+
+### `GET /chat/conversations/:id/messages` 🔒
+Liste les messages. Paramètre optionnel `after` (ISO date) pour le polling
+incrémental.
+
+### `POST /chat/conversations/:id/messages` 🔒
+```json
+{ "body": "Bonjour docteur" }
 ```
 
 ---
@@ -270,10 +393,65 @@ Polling du statut du paiement.
 ```
 `status` : `pending` | `captured` | `failed`
 
+### `POST /payments/ride` 🔒 `[patient]`
+Initie le paiement (escrow) d'une course.
+```json
+{ "rideId": "cuid_ride", "phoneNumber": "241070000000", "operator": "airtel" }
+```
+
+### `GET /payments/ride/:rideId/status` 🔒 `[patient]`
+Polling du statut (`pending` | `captured` | `failed`).
+
+### `POST /payments/meal` 🔒 `[patient]`
+Initie le paiement (escrow) d'une commande repas.
+```json
+{ "mealOrderId": "cuid_meal_order", "phoneNumber": "241070000000", "operator": "airtel" }
+```
+
+### `GET /payments/meal/:mealOrderId/status` 🔒 `[patient]`
+Polling du statut (`pending` | `captured` | `failed`).
+
 ### `POST /payments/webhook`
-Webhook MyPVIT (pas d'auth JWT). Doit répondre immédiatement :
+Webhook MyPVIT (pas d'auth JWT). Protégé par secret partagé si
+`MYPVIT_WEBHOOK_SECRET` est défini — à fournir en query `?secret=...` (inclus
+dans l'URL de callback enregistrée) ou en en-tête `x-webhook-secret`, sinon `401`.
+Doit répondre immédiatement :
 ```json
 { "transactionId": "PAY...", "responseCode": 200 }
+```
+
+---
+
+## Administration — `/admin` 🔒 `[admin]`
+
+Toutes les routes exigent le rôle `admin`.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /admin/stats` | Compteurs globaux (commandes, livraisons, courses, repas, RDV, users, médecins) |
+| `GET /admin/orders` | Commandes (filtre `status`) |
+| `GET /admin/deliveries` | Livraisons (commande / course / repas) |
+| `GET /admin/rides` | Courses |
+| `GET /admin/meals` | Commandes repas |
+| `GET /admin/doctors` | Médecins + statut de vérification |
+| `GET /admin/users` | Utilisateurs (filtre `role`) |
+| `GET /admin/partners` | Partenaires |
+| `PATCH /admin/...` | Activer/désactiver une entité |
+
+---
+
+## Santé — `/health`
+
+### `GET /health`
+Liveness — toujours `200` si le process répond.
+```json
+{ "status": "ok", "timestamp": "..." }
+```
+
+### `GET /health/ready`
+Readiness — vérifie PostgreSQL et Redis. `503` si une dépendance est indisponible.
+```json
+{ "status": "ready", "checks": { "database": true, "redis": true }, "timestamp": "..." }
 ```
 
 ---
@@ -300,9 +478,11 @@ Créer un partenaire.
 | 404 | Ressource introuvable |
 | 409 | Conflit (doublon, déjà existant) |
 | 422 | Opération impossible dans l'état actuel |
+| 429 | Trop de requêtes (rate-limiting) — voir en-tête `Retry-After` |
 | 500 | Erreur serveur interne |
 
 Format des erreurs :
 ```json
-{ "error": "Message d'erreur lisible" }
+{ "code": "NOT_FOUND", "message": "Message d'erreur lisible" }
 ```
+Les erreurs de validation Zod renvoient `{ "code": "VALIDATION_ERROR", "errors": { ... } }`.

@@ -7,21 +7,38 @@ import { DeliveryService } from './service';
 import { DeliveryRepository } from './repository';
 import { OrderRepository } from '../orders/repository';
 import { PaymentRepository } from '../payments/repository';
-import { notificationService, paymentProvider } from '../../infrastructure/container';
+import { PricingRepository } from '../pricing/repository';
+import { PaymentService } from '../payments/service';
+import { notificationService, paymentProvider, pushService } from '../../infrastructure/container';
 import { UserRole, DeliveryStatus } from '@mbolo/shared';
 
 const router = Router();
+const paymentService = new PaymentService(
+  new PaymentRepository(),
+  new OrderRepository(),
+  new PricingRepository(),
+  paymentProvider,
+  pushService,
+);
 const service = new DeliveryService(
   new DeliveryRepository(),
   new OrderRepository(),
   new PaymentRepository(),
   notificationService,
   paymentProvider,
+  new PricingRepository(),
+  paymentService,
+  pushService,
 );
 
 // Courier : liste combinée (mes livraisons + disponibles)
 router.get('/', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
   res.json({ data: await service.listAll(req.user!.userId) });
+}));
+
+// Courier : disponibilité actuelle
+router.get('/me/availability', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
+  res.json({ data: await service.getCourierAvailability(req.user!.userId) });
 }));
 
 // Courier : toggle disponibilité
