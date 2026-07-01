@@ -54,6 +54,7 @@ Le programme suit un **rythme annuel** : ouverture chaque **1ᵉʳ janvier**, cl
 | [`09-business-plan.md`](09-business-plan.md) | Business plan complet (format TEF) |
 | [`10-fiche-projet.md`](10-fiche-projet.md) | Fiche projet 1 page (résumé exécutif) |
 | [`11-modeles-partenariats.md`](11-modeles-partenariats.md) | Modèles de lettres d'intention (pharmacie / médecin) |
+| [`12-modele-financier.csv`](12-modele-financier.csv) | Modèle financier chiffré (mensuel An 1 + résumé 3 ans) |
 
 ## Sources
 
