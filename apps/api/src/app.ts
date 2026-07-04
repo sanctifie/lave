@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import path from 'path';
 
 import { errorHandler } from './middleware/error';
+import { requireMediaAuth } from './middleware/mediaAuth';
 import { prisma } from './infrastructure/prisma/client';
 import { redis } from './infrastructure/redis/client';
 import { authRouter } from './domains/auth/router';
@@ -37,8 +38,9 @@ app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins, credentials: true }
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Fichiers uploadés (scans d'ordonnances) — en prod, remplacer par S3
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Fichiers uploadés (scans d'ordonnances = données de santé) — protégés par JWT
+// (header Bearer ou ?token=). En prod, remplacer par S3 + URLs signées.
+app.use('/uploads', requireMediaAuth, express.static(path.join(process.cwd(), 'uploads')));
 
 // Liveness — process en vie (probe légère, toujours 200 si l'event loop répond)
 app.get('/health', (_req, res) => {

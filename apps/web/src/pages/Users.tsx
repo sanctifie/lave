@@ -28,19 +28,13 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-const COLUMNS: Column<UserRow>[] = [
-  { key: 'name',   header: 'Nom',       render: (u) => <div><div style={{ fontWeight: 600 }}>{u.name}</div><div style={{ fontSize: 12, color: '#64748B' }}>{u.phone}</div></div> },
-  { key: 'role',   header: 'Rôle',      render: (u) => { const c = ROLE_COLORS[u.role] ?? { color: '#64748B', bg: '#F3F4F6' }; return <Badge label={ROLE_FR[u.role] ?? u.role} color={c.color} bg={c.bg} />; } },
-  { key: 'active', header: 'Statut',    render: (u) => <Badge label={u.isActive ? 'Actif' : 'Inactif'} color={u.isActive ? '#16A34A' : '#DC2626'} bg={u.isActive ? '#DCFCE7' : '#FEE2E2'} /> },
-  { key: 'date',   header: 'Inscrit le',render: (u) => formatDate(u.createdAt), width: '120px' },
-];
-
 const ROLES = ['', 'patient', 'doctor', 'courier', 'partner_staff', 'admin'];
 
 export function Users() {
   const [users, setUsers]   = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [role, setRole]     = useState('');
+  const [toggling, setToggling] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -50,6 +44,38 @@ export function Users() {
   };
 
   useEffect(() => { load(); }, [role]);
+
+  const toggle = async (u: UserRow) => {
+    const verb = u.isActive ? 'désactiver' : 'réactiver';
+    if (!window.confirm(`Voulez-vous ${verb} le compte de ${u.name} ?`)) return;
+    setToggling(u.id);
+    try {
+      const res = await api.patch<{ id: string; isActive: boolean }>(`/admin/users/${u.id}/toggle`);
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, isActive: res.isActive } : x)));
+    } catch { /* silencieux */ }
+    finally { setToggling(null); }
+  };
+
+  const COLUMNS: Column<UserRow>[] = [
+    { key: 'name',   header: 'Nom',       render: (u) => <div><div style={{ fontWeight: 600 }}>{u.name}</div><div style={{ fontSize: 12, color: '#64748B' }}>{u.phone}</div></div> },
+    { key: 'role',   header: 'Rôle',      render: (u) => { const c = ROLE_COLORS[u.role] ?? { color: '#64748B', bg: '#F3F4F6' }; return <Badge label={ROLE_FR[u.role] ?? u.role} color={c.color} bg={c.bg} />; } },
+    { key: 'active', header: 'Statut',    render: (u) => <Badge label={u.isActive ? 'Actif' : 'Inactif'} color={u.isActive ? '#16A34A' : '#DC2626'} bg={u.isActive ? '#DCFCE7' : '#FEE2E2'} /> },
+    { key: 'date',   header: 'Inscrit le',render: (u) => formatDate(u.createdAt), width: '120px' },
+    { key: 'action', header: '',          width: '130px', render: (u) => (
+      <button
+        style={{
+          height: 32, paddingInline: 12, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          border: `1.5px solid ${u.isActive ? '#FCA5A5' : '#86EFAC'}`,
+          background: '#fff', color: u.isActive ? '#DC2626' : '#16A34A',
+          opacity: toggling === u.id ? 0.5 : 1,
+        }}
+        disabled={toggling === u.id}
+        onClick={() => toggle(u)}
+      >
+        {toggling === u.id ? '…' : u.isActive ? 'Désactiver' : 'Réactiver'}
+      </button>
+    ) },
+  ];
 
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
