@@ -7,6 +7,7 @@ import path from 'path';
 
 import { errorHandler } from './middleware/error';
 import { requireMediaAuth } from './middleware/mediaAuth';
+import { metricsMiddleware, metricsHandler } from './middleware/metrics';
 import { prisma } from './infrastructure/prisma/client';
 import { redis } from './infrastructure/redis/client';
 import { authRouter } from './domains/auth/router';
@@ -37,6 +38,11 @@ app.use(helmet());
 app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins, credentials: true } : undefined));
 app.use(morgan('dev'));
 app.use(express.json());
+app.use(metricsMiddleware);
+
+// Métriques Prometheus (histogramme latence/erreurs + métriques process).
+// En prod, restreindre l'accès au réseau interne (NetworkPolicy / ALB rule).
+app.get('/metrics', metricsHandler);
 
 // Fichiers uploadés (scans d'ordonnances = données de santé) — protégés par JWT
 // (header Bearer ou ?token=). En prod, remplacer par S3 + URLs signées.

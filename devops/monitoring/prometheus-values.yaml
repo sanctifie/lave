@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# OBSERVABILITÉ — kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
+#
+# POURQUOI PROMETHEUS (vs CloudWatch, Datadog) ?
+# - CloudWatch : bien pour les métriques AWS, mais cher à la requête, peu
+#   flexible (PromQL >>> CloudWatch Insights) et verrouillé AWS.
+# - Datadog : excellent mais ~15-31 $/hôte/mois — déraisonnable au lancement.
+# - Prometheus : standard CNCF, gratuit, PULL model (il vient scraper /metrics),
+#   parfaitement intégré à K8s. Grafana visualise, Alertmanager route les alertes.
+#
+# Installation (Helm sert ici à installer un logiciel TIERS — c'est son rôle) :
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm install monitoring prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace -f devops/monitoring/prometheus-values.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    # Scraper les pods annotés prometheus.io/scrape=true (nos pods API)
+    additionalScrapeConfigs:
+      - job_name: mbolo-api
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            target_label: __metrics_path__
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+
+grafana:
+  adminPassword: changeme-au-premier-login
+  # Dashboards de départ : importer les ID publics 1860 (Node Exporter Full)
+  # et 15757 (K8s views) + notre dashboard API (voir la bible, chap. 10).
+
+alertmanager:
+  config:
+    route:
+      receiver: "equipe"
+      group_by: [alertname]
+    receivers:
+      - name: "equipe"
+        # Brancher Slack/Telegram/email ici. Exemple webhook générique :
+        webhook_configs:
+          - url: https://example.com/alerts   # remplacer (bot Telegram, etc.)

@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ARGOCD — le "CD" de la chaîne, façon GitOps.
+#
+# POURQUOI GITOPS (pull) plutôt qu'un `kubectl apply` depuis la CI (push) ?
+# 1. Sécurité   : AUCUN credential du cluster ne sort du cluster. ArgoCD, qui
+#    tourne DEDANS, tire depuis Git. La CI n'a que des droits Git.
+# 2. Auditable  : l'état voulu du cluster = le contenu du repo. Qui a déployé
+#    quoi quand ? → git log. Rollback ? → git revert.
+# 3. Anti-dérive: si quelqu'un modifie à la main (kubectl edit), ArgoCD le voit
+#    (OutOfSync) et remet Git (selfHeal).
+#
+# POURQUOI ARGOCD (vs Flux) ? Les deux sont excellents et CNCF. ArgoCD a une
+# interface web qui rend le GitOps VISIBLE (l'arbre des ressources, les diffs,
+# le drift) — imbattable pour apprendre. Flux est plus minimaliste/composable.
+#
+# Installation d'ArgoCD (une fois) :
+#   kubectl create namespace argocd
+#   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# Puis : kubectl apply -f devops/argocd/applications.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mbolo-api-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.com/mbolo/gitops.git   # le repo que la CI met à jour
+    targetRevision: main
+    path: k8s/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc          # le cluster local (où ArgoCD tourne)
+    namespace: mbolo-staging
+  syncPolicy:
+    automated:
+      prune: true      # supprime ce qui a disparu de Git (sinon les orphelins s'accumulent)
+      selfHeal: true   # écrase toute modification manuelle du cluster
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mbolo-api-production
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.com/mbolo/gitops.git
+    targetRevision: main
+    path: k8s/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mbolo-production
+  # Prod : PAS de sync automatique — on regarde le diff dans l'UI et on clique
+  # "Sync". Deux garde-fous humains au total (CI manual + ArgoCD manual).
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,68 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ANSIBLE — provisionnement d'un GitLab Runner auto-hébergé sur EC2.
+#
+# OÙ SE PLACE ANSIBLE quand on a déjà Terraform et Kubernetes ?
+# - Terraform CRÉE les machines/services (infrastructure).
+# - Kubernetes ORCHESTRE les conteneurs (applications).
+# - Ansible CONFIGURE ce qui reste : les VM "pets" hors cluster — ici le
+#   runner CI (aussi : bastions, VM legacy, boîtiers on-prem).
+# POURQUOI ANSIBLE (vs Chef/Puppet/SaltStack) ? Sans agent (SSH suffit),
+# YAML lisible, idempotent, et de très loin le plus répandu aujourd'hui.
+#
+# Usage :
+#   ansible-playbook -i inventory.ini playbooks/gitlab-runner.yml
+# ─────────────────────────────────────────────────────────────────────────────
+- name: Provisionner un GitLab Runner (Docker executor)
+  hosts: runners
+  become: true
+
+  vars:
+    runner_token: "{{ lookup('env', 'GITLAB_RUNNER_TOKEN') }}"   # jamais en dur !
+    gitlab_url: "https://gitlab.com/"
+
+  tasks:
+    # L'idempotence est LE contrat Ansible : rejouer le playbook ne change
+    # rien si l'état est déjà conforme. Chaque module ci-dessous le respecte.
+    - name: Mettre à jour le cache APT
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Installer Docker
+      ansible.builtin.apt:
+        name: [docker.io]
+        state: present
+
+    - name: Démarrer et activer Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Ajouter le dépôt GitLab Runner
+      ansible.builtin.shell: |
+        curl -fsSL https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh | bash
+      args:
+        creates: /etc/apt/sources.list.d/runner_gitlab-runner.list   # ← idempotence
+
+    - name: Installer gitlab-runner
+      ansible.builtin.apt:
+        name: gitlab-runner
+        state: present
+
+    - name: Enregistrer le runner auprès de GitLab
+      ansible.builtin.command: >
+        gitlab-runner register --non-interactive
+        --url {{ gitlab_url }}
+        --token {{ runner_token }}
+        --executor docker
+        --docker-image alpine:latest
+        --description "runner-mbolo-{{ inventory_hostname }}"
+      args:
+        creates: /etc/gitlab-runner/config.toml   # ← ne ré-enregistre pas si déjà fait
+
+    - name: S'assurer que le service runner tourne
+      ansible.builtin.systemd:
+        name: gitlab-runner
+        state: started
+        enabled: true

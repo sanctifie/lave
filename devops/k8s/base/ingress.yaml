@@ -1,0 +1,24 @@
+# Ingress = exposition HTTP(S) vers l'extérieur. Sur EKS, l'AWS Load Balancer
+# Controller lit cet objet et crée un ALB (TLS via ACM, HTTP→HTTPS).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # alb.ingress.kubernetes.io/certificate-arn: <ARN du certificat ACM>
+spec:
+  ingressClassName: alb
+  rules:
+    - host: api.mbolo-sante.com     # surchargé par overlay (api-staging.…)
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port: { number: 80 }

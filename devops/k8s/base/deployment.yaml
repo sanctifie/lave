@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Deployment de l'API — l'objet K8s central : il garantit que N répliques du
+# pod tournent, remplace celles qui meurent, et orchestre les rolling updates.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels: { app: api }
+spec:
+  replicas: 2                      # 2 minimum : survivre à la perte d'un pod/nœud
+  selector:
+    matchLabels: { app: api }
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0            # zéro interruption pendant un déploiement
+      maxSurge: 1
+  template:
+    metadata:
+      labels: { app: api }
+      annotations:
+        # Prometheus découvre automatiquement ce pod et scrape /metrics
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: api
+          image: mbolo/api          # tag fixé par kustomize (overlays)
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef: { name: api-config }
+            - secretRef:    { name: api-secrets }
+          resources:
+            # requests = réservation (sert au scheduler et à l'HPA)
+            # limits   = plafond (un fuite mémoire ne tue pas le nœud)
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+          # liveness  : "le process est-il vivant ?" → sinon K8s REDÉMARRE le pod
+          livenessProbe:
+            httpGet: { path: /health, port: 3000 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          # readiness : "peut-il recevoir du trafic ?" (DB+Redis OK) → sinon K8s
+          # le RETIRE du load-balancer sans le tuer. Les deux sont différents !
+          readinessProbe:
+            httpGet: { path: /health/ready, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10

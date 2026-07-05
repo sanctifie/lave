@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ALERTES — la règle d'or : n'alerter QUE sur ce qui exige une action humaine.
+# Une alerte ignorée entraîne toutes les autres avec elle (alert fatigue).
+# On suit les 4 GOLDEN SIGNALS (latence, trafic, erreurs, saturation).
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mbolo-api
+  namespace: monitoring
+  labels: { release: monitoring }
+spec:
+  groups:
+    - name: mbolo-api
+      rules:
+        # ERREURS : > 5 % de réponses 5xx pendant 5 min
+        - alert: ApiHighErrorRate
+          expr: |
+            sum(rate(http_request_duration_seconds_count{status_code=~"5.."}[5m]))
+              / sum(rate(http_request_duration_seconds_count[5m])) > 0.05
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "Taux d'erreurs 5xx > 5 % sur l'API"
+
+        # LATENCE : p95 > 1 s pendant 10 min
+        - alert: ApiHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Latence p95 > 1 s sur l'API"
+
+        # DISPONIBILITÉ : plus aucun pod prêt
+        - alert: ApiDown
+          expr: kube_deployment_status_replicas_available{deployment="api"} == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "Aucun pod API disponible — service DOWN"
+
+        # SATURATION : pods proches de leur limite mémoire
+        - alert: ApiMemoryPressure
+          expr: |
+            container_memory_working_set_bytes{container="api"}
+              / container_spec_memory_limit_bytes{container="api"} > 0.9
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Un pod API utilise > 90 % de sa limite mémoire"
