@@ -1,0 +1,13 @@
+# ConfigMap = configuration NON sensible, injectée en variables d'environnement.
+# Les secrets (DATABASE_URL, JWT_SECRET…) vont dans un Secret — jamais ici.
+# En prod réelle : External Secrets Operator synchronise AWS Secrets Manager
+# → Secret K8s, pour que rien de sensible ne transite par Git.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  JWT_EXPIRES_IN: "7d"
+  OTP_TTL_SECONDS: "300"

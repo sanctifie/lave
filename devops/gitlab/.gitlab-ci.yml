@@ -1,0 +1,115 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PIPELINE GitLab CI/CD — MBOLO Santé
+#
+# POURQUOI GITLAB CI (vs GitHub Actions, Jenkins) ?
+# - Jenkins : puissant mais TOUT est à notre charge (serveur, plugins,
+#   sécurité) ; c'est l'outil "legacy" qu'on trouve en entreprise, pas celui
+#   qu'on choisit en 2026 pour démarrer.
+# - GitHub Actions : équivalent moderne ; on choisit GitLab ici car l'objectif
+#   pédagogique de ce projet est la stack GitLab, et son CI intégré (registry,
+#   environments, review apps) est le plus complet "out of the box".
+#
+# PHILOSOPHIE CI vs CD :
+#   CI (ici)   = valider + CONSTRUIRE + publier l'image → pousser le nouveau tag
+#                dans le repo GitOps.
+#   CD (ArgoCD)= le cluster TIRE ce que Git décrit. La CI ne touche JAMAIS
+#                kubectl : pas de credentials cluster dans la CI (sécurité),
+#                et l'état voulu reste 100 % dans Git (auditabilité).
+#
+# Variables à définir dans GitLab → Settings → CI/CD → Variables :
+#   AWS_ACCOUNT_ID, AWS_DEFAULT_REGION, AWS_ROLE_ARN (OIDC — pas de clés statiques !)
+#   GITOPS_DEPLOY_KEY (clé SSH en écriture vers le repo gitops)
+# ─────────────────────────────────────────────────────────────────────────────
+
+stages: [lint, test, build, scan, release]
+
+default:
+  image: node:20-alpine
+  interruptible: true          # un nouveau push annule les pipelines obsolètes
+
+# Cache pnpm : ne pas retélécharger 1 Go de node_modules à chaque job
+.pnpm:
+  before_script:
+    - corepack enable
+    - pnpm config set store-dir .pnpm-store
+    - pnpm install --frozen-lockfile
+  cache:
+    key: { files: [pnpm-lock.yaml] }
+    paths: [.pnpm-store]
+
+lint:
+  extends: .pnpm
+  stage: lint
+  script:
+    - pnpm --filter @mbolo/shared build
+    - pnpm --filter api exec prisma generate
+    - pnpm --filter api typecheck
+    - pnpm --filter web build
+
+test:
+  extends: .pnpm
+  stage: test
+  script:
+    - pnpm --filter @mbolo/shared build
+    - pnpm --filter api exec prisma generate
+    - pnpm --filter api test
+  # Rapport JUnit → GitLab affiche les tests en échec directement dans la MR
+  artifacts:
+    when: always
+    reports:
+      junit: apps/api/junit.xml
+
+build:
+  stage: build
+  image:
+    # kaniko construit des images SANS démon Docker → pas de docker-in-docker
+    # privilégié (faille de sécurité classique des runners).
+    name: gcr.io/kaniko-project/executor:v1.23.0-debug
+    entrypoint: [""]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH   # on ne publie que depuis main
+  script:
+    - /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/devops/docker/Dockerfile.api"
+      --destination "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/mbolo/api:$CI_COMMIT_SHORT_SHA"
+      --cache=true
+
+# Scanner l'image AVANT de la déployer : une CVE critique bloque le pipeline.
+scan:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - trivy image
+      --exit-code 1 --severity CRITICAL
+      "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/mbolo/api:$CI_COMMIT_SHORT_SHA"
+
+# "Déployer" = COMMITER le nouveau tag dans le repo GitOps. ArgoCD fait le reste.
+release:staging:
+  stage: release
+  image: alpine/git
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - git clone "git@gitlab.com:mbolo/gitops.git" && cd gitops
+    - cd k8s/overlays/staging
+    - sed -i "s|newTag:.*|newTag: $CI_COMMIT_SHORT_SHA|" kustomization.yaml
+    - git commit -am "deploy(staging): api $CI_COMMIT_SHORT_SHA" && git push
+  environment: { name: staging }
+
+# La prod exige un CLIC HUMAIN (when: manual) — le garde-fou le plus simple.
+release:production:
+  extends: release:staging
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  script:
+    - git clone "git@gitlab.com:mbolo/gitops.git" && cd gitops
+    - cd k8s/overlays/production
+    - sed -i "s|newTag:.*|newTag: $CI_COMMIT_SHORT_SHA|" kustomization.yaml
+    - git commit -am "deploy(production): api $CI_COMMIT_SHORT_SHA" && git push
+  environment: { name: production }

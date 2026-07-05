@@ -18,6 +18,7 @@ import {
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
 import { API_URL } from '../../../src/services/client';
+import { useAuthStore } from '../../../src/store/auth.store';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', {
@@ -130,7 +131,12 @@ export default function PrescriptionDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Scan de l'ordonnance</Text>
           {rx.mediaUrls.map((url, i) => {
-            const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+            // Les scans sont des données de santé servies derrière auth :
+            // on passe le JWT en query (l'Image RN et le navigateur externe
+            // ne peuvent pas envoyer d'en-tête Authorization).
+            const base    = url.startsWith('http') ? url : `${API_URL}${url}`;
+            const token   = useAuthStore.getState().token;
+            const fullUrl = token ? `${base}${base.includes('?') ? '&' : '?'}token=${token}` : base;
             const isPdf   = url.toLowerCase().endsWith('.pdf');
             return isPdf ? (
               <Pressable

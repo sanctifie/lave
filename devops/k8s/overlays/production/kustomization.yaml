@@ -1,0 +1,11 @@
+# Overlay PRODUCTION.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mbolo-production
+resources: [../../base]
+
+images:
+  - name: mbolo/api
+    newName: 123456789012.dkr.ecr.eu-west-3.amazonaws.com/mbolo/api
+    newTag: latest

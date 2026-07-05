@@ -1,0 +1,11 @@
+# Service = IP interne stable + load-balancing entre les pods du Deployment.
+# Les pods naissent et meurent ; le Service, lui, ne change pas.
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+spec:
+  selector: { app: api }
+  ports:
+    - port: 80
+      targetPort: 3000

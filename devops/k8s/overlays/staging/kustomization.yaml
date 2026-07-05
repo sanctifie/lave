@@ -1,0 +1,25 @@
+# Overlay STAGING : hérite de base/ et ne décrit QUE les différences.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mbolo-staging
+resources: [../../base]
+
+# La CI met à jour newTag à chaque déploiement (voir .gitlab-ci.yml → release).
+# C'est CE fichier que ArgoCD surveille : Git est la source de vérité du déploiement.
+images:
+  - name: mbolo/api
+    newName: 123456789012.dkr.ecr.eu-west-3.amazonaws.com/mbolo/api
+    newTag: latest
+
+patches:
+  - target: { kind: Ingress, name: api }
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: api-staging.mbolo-sante.com
+  - target: { kind: Deployment, name: api }
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1

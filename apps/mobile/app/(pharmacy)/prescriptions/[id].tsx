@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -16,6 +18,8 @@ import { pharmacyService, InboxPrescription, ValidationItem } from '../../../src
 import { Button } from '../../../src/components/ui/Button';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
 import { PrescriptionStatus } from '@mbolo/shared';
+import { API_URL } from '../../../src/services/client';
+import { useAuthStore } from '../../../src/store/auth.store';
 
 interface ItemForm extends ValidationItem {
   _key: string;
@@ -132,6 +136,30 @@ export default function PrescriptionValidateScreen() {
             </View>
           )}
         </View>
+
+        {/* Scan de l'ordonnance — indispensable pour valider en connaissance */}
+        {rx?.mediaUrls && rx.mediaUrls.length > 0 && (
+          <View style={styles.scanSection}>
+            <Text style={styles.sectionTitle}>Scan de l'ordonnance</Text>
+            {rx.mediaUrls.map((url, i) => {
+              const base    = url.startsWith('http') ? url : `${API_URL}${url}`;
+              const token   = useAuthStore.getState().token;
+              const fullUrl = token ? `${base}${base.includes('?') ? '&' : '?'}token=${token}` : base;
+              const isPdf   = url.toLowerCase().endsWith('.pdf');
+              return isPdf ? (
+                <Pressable key={i} style={styles.pdfBtn} onPress={() => Linking.openURL(fullUrl)}>
+                  <Text style={{ fontSize: 20 }}>📄</Text>
+                  <Text style={styles.pdfText}>Ouvrir le PDF de l'ordonnance</Text>
+                </Pressable>
+              ) : (
+                <Pressable key={i} onPress={() => Linking.openURL(fullUrl)}>
+                  <Image source={{ uri: fullUrl }} style={styles.scanImage} resizeMode="cover" />
+                  <Text style={styles.scanHint}>Appuyer pour agrandir</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
         {isAlreadyHandled ? (
           <View style={styles.handledBox}>
@@ -288,6 +316,26 @@ const styles = StyleSheet.create({
 
   section:      { gap: spacing.md },
   sectionTitle: { ...typography.bodyMedium, color: colors.text },
+
+  scanSection: { gap: spacing.sm },
+  scanImage: {
+    width: '100%',
+    height: 220,
+    borderRadius: radii.lg,
+    backgroundColor: colors.border,
+  },
+  scanHint: { ...typography.small, color: colors.textDisabled, textAlign: 'center', marginTop: spacing.xs },
+  pdfBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  pdfText: { ...typography.bodyMedium, color: colors.primary },
 
   itemRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   itemFields:{ flex: 1, gap: spacing.xs },

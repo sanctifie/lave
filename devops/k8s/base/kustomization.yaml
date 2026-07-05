@@ -1,0 +1,16 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# KUSTOMIZE — pourquoi (vs Helm) ?
+# Helm = templating + packaging : idéal pour DISTRIBUER une app à des tiers
+# (on l'utilise d'ailleurs pour installer Prometheus). Kustomize = patchs
+# déclaratifs sans templates : idéal pour NOS propres manifestes avec de
+# petites variations par environnement. Moins de pouvoir, moins de complexité.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - configmap.yaml

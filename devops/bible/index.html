@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>La Bible DevOps — MBOLO Santé</title>
+<style>
+  :root{ --teal:#006D77; --ink:#1a1a2e; --muted:#5b6b7b; --line:#d8e0e6; --bg:#f4f7f8; --code:#0f172a; }
+  *{ box-sizing:border-box; }
+  html{ font-size:10.5pt; }
+  body{ margin:0; color:var(--ink); font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; line-height:1.55; }
+  @page{ size:A4; margin:18mm 16mm 20mm 16mm; }
+  h1,h2,h3{ line-height:1.25; }
+  h1{ font-size:20pt; color:var(--teal); border-bottom:3px solid var(--teal); padding-bottom:6px; margin:0 0 14px; page-break-before:always; }
+  h1 .num{ color:var(--muted); font-weight:400; margin-right:8px; }
+  h2{ font-size:13.5pt; color:var(--ink); margin:22px 0 8px; }
+  h3{ font-size:11.5pt; color:var(--teal); margin:16px 0 6px; }
+  p{ margin:6px 0; text-align:justify; }
+  ul,ol{ margin:6px 0 6px 2px; padding-left:20px; }
+  li{ margin:3px 0; }
+  code{ font-family:'SF Mono',Consolas,'Courier New',monospace; font-size:9pt; background:#eef2f5; padding:1px 5px; border-radius:4px; }
+  pre{ background:var(--code); color:#e2e8f0; border-radius:8px; padding:12px 14px; font-size:8.5pt; line-height:1.45; overflow-x:hidden; white-space:pre-wrap; word-break:break-word; page-break-inside:avoid; }
+  pre code{ background:none; color:inherit; padding:0; font-size:inherit; }
+  table{ border-collapse:collapse; width:100%; margin:10px 0; font-size:9.2pt; page-break-inside:avoid; }
+  th{ background:var(--teal); color:#fff; text-align:left; padding:6px 9px; }
+  td{ border:1px solid var(--line); padding:5px 9px; vertical-align:top; }
+  tr:nth-child(even) td{ background:#f6fafb; }
+  .why{ background:#edf6f9; border-left:4px solid var(--teal); border-radius:0 8px 8px 0; padding:10px 14px; margin:12px 0; page-break-inside:avoid; }
+  .why .t{ font-weight:700; color:var(--teal); display:block; margin-bottom:4px; }
+  .warn{ background:#fef3c7; border-left:4px solid #d97706; border-radius:0 8px 8px 0; padding:10px 14px; margin:12px 0; page-break-inside:avoid; }
+  .warn .t{ font-weight:700; color:#92400e; display:block; margin-bottom:4px; }
+  .tip{ background:#dcfce7; border-left:4px solid #059669; border-radius:0 8px 8px 0; padding:10px 14px; margin:12px 0; page-break-inside:avoid; }
+  .tip .t{ font-weight:700; color:#065f46; display:block; margin-bottom:4px; }
+  .kv{ color:var(--muted); font-size:9pt; }
+  /* Couverture */
+  .cover{ page-break-after:always; display:flex; flex-direction:column; justify-content:center; min-height:250mm; text-align:center; }
+  .cover .logo{ font-size:52pt; }
+  .cover h1{ page-break-before:auto; border:none; font-size:30pt; margin:10px 0 4px; }
+  .cover .sub{ font-size:13pt; color:var(--muted); margin-bottom:26px; }
+  .cover .stack{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:18px 0; }
+  .cover .chip{ border:1.5px solid var(--teal); color:var(--teal); border-radius:999px; padding:5px 14px; font-size:10pt; font-weight:600; }
+  .cover .meta{ margin-top:36px; color:var(--muted); font-size:10pt; }
+  /* Sommaire */
+  .toc{ page-break-after:always; }
+  .toc h1{ page-break-before:auto; }
+  .toc ol{ list-style:none; padding:0; column-count:1; }
+  .toc li{ padding:5px 0; border-bottom:1px dotted var(--line); font-size:11pt; display:flex; }
+  .toc .n{ color:var(--teal); font-weight:700; width:30px; }
+  .schema{ background:#fff; border:1.5px solid var(--line); border-radius:8px; padding:10px; font-family:Consolas,monospace; font-size:8pt; line-height:1.35; white-space:pre; overflow:hidden; page-break-inside:avoid; color:var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ COUVERTURE ═══════════════ -->
+<div class="cover">
+  <div class="logo">🏥⚙️</div>
+  <h1>La Bible DevOps</h1>
+  <div class="sub">De zéro à la production — automatisation, déploiement continu et supervision<br>d'une vraie application : <b>MBOLO Santé</b></div>
+  <div class="stack">
+    <span class="chip">Docker</span><span class="chip">Terraform</span><span class="chip">AWS</span>
+    <span class="chip">Kubernetes / EKS</span><span class="chip">GitLab CI/CD</span><span class="chip">ArgoCD</span>
+    <span class="chip">Ansible</span><span class="chip">Prometheus</span><span class="chip">Grafana</span>
+  </div>
+  <div class="meta">
+    Chaque chapitre explique <b>quoi</b> faire, <b>comment</b>, et surtout <b>pourquoi cet outil plutôt qu'un autre</b>.<br>
+    Tous les fichiers cités existent dans le dépôt, dossier <code>devops/</code>.<br><br>
+    Édition 2026 · Projet fil rouge : plateforme de santé MBOLO (Gabon)
+  </div>
+</div>
+
+<!-- ═══════════════ SOMMAIRE ═══════════════ -->
+<div class="toc">
+  <h1>Sommaire</h1>
+  <ol>
+    <li><span class="n">1</span> DevOps : la culture avant les outils</li>
+    <li><span class="n">2</span> La cible : l'architecture qu'on va construire</li>
+    <li><span class="n">3</span> Docker — empaqueter l'application</li>
+    <li><span class="n">4</span> AWS — choisir ses briques cloud</li>
+    <li><span class="n">5</span> Terraform — l'infrastructure comme du code</li>
+    <li><span class="n">6</span> Ansible — configurer les machines</li>
+    <li><span class="n">7</span> GitLab CI — l'intégration continue</li>
+    <li><span class="n">8</span> ArgoCD — le déploiement continu façon GitOps</li>
+    <li><span class="n">9</span> Kubernetes — les objets qu'il faut vraiment connaître</li>
+    <li><span class="n">10</span> Prometheus &amp; Grafana — la supervision</li>
+    <li><span class="n">11</span> Sécuriser la chaîne (secrets, scans, IAM)</li>
+    <li><span class="n">12</span> Runbook : tout déployer, pas à pas</li>
+    <li><span class="n">13</span> Plan d'apprentissage 30 jours &amp; pièges classiques</li>
+    <li><span class="n">14</span> Glossaire</li>
+  </ol>
+</div>
+
+<!-- ═══════════════ CH 1 ═══════════════ -->
+<h1><span class="num">1.</span>DevOps : la culture avant les outils</h1>
+<p>DevOps n'est pas un poste ni une liste d'outils : c'est la fusion de deux mondes qui, historiquement, se détestaient. Les <b>développeurs</b> veulent livrer vite ; les <b>opérationnels</b> veulent que rien ne casse. Quand ces objectifs s'opposent, on obtient des livraisons trimestrielles, des mises en production nocturnes et des post-mortems accusatoires. DevOps aligne les deux sur un objectif unique : <b>livrer souvent, petit, et de façon réversible</b>.</p>
+<h2>La boucle infinie, appliquée à MBOLO</h2>
+<p>Le cycle classique — <i>plan → code → build → test → release → deploy → operate → monitor</i> — n'est pas un poster de salle de réunion. Concrètement, pour notre application santé :</p>
+<table>
+  <tr><th>Étape</th><th>Chez MBOLO</th><th>Outil</th></tr>
+  <tr><td>Build</td><td>Image Docker de l'API Express/Prisma</td><td>Docker + kaniko</td></tr>
+  <tr><td>Test</td><td>68 tests Vitest (paiements, sécurité, tarifs)</td><td>GitLab CI</td></tr>
+  <tr><td>Release</td><td>Image taguée par commit, poussée dans ECR</td><td>GitLab CI → ECR</td></tr>
+  <tr><td>Deploy</td><td>Le cluster tire l'état décrit dans Git</td><td>ArgoCD + Kustomize</td></tr>
+  <tr><td>Operate</td><td>Pods auto-réparés, autoscaling 2→6</td><td>Kubernetes (EKS)</td></tr>
+  <tr><td>Monitor</td><td>Latence p95, taux d'erreurs, alertes</td><td>Prometheus + Grafana</td></tr>
+</table>
+<div class="why"><span class="t">Les 4 métriques qui définissent une bonne équipe (DORA)</span>
+Fréquence de déploiement · Délai entre commit et prod · Taux d'échec des changements · Temps de rétablissement. Toute la chaîne de ce document vise à améliorer ces quatre nombres — c'est le seul juge de paix.</div>
+<h2>Les trois principes qui reviennent partout</h2>
+<ul>
+  <li><b>Tout est code</b> (infrastructure, pipeline, alertes) : versionné, revu, reproductible.</li>
+  <li><b>Immutabilité</b> : on ne répare pas un serveur, on le remplace. On ne modifie pas une image, on en construit une nouvelle.</li>
+  <li><b>Déclaratif &gt; impératif</b> : on décrit l'état voulu (Terraform, K8s, ArgoCD) et un moteur converge vers cet état — au lieu de scripts qui énumèrent des commandes.</li>
+</ul>
+
+<!-- ═══════════════ CH 2 ═══════════════ -->
+<h1><span class="num">2.</span>La cible : l'architecture qu'on va construire</h1>
+<div class="schema">   développeur                      GitLab CI                              AWS (eu-west-3)
+┌──────────────┐   push   ┌────────────────────────────┐   ┌──────────────────────────────────┐
+│  git commit  ├─────────►│ lint → test → build (kaniko)│   │ VPC 10.0.0.0/16                  │
+└──────────────┘          │ → scan trivy → push ECR     │   │ ┌──────────── EKS ────────────┐  │
+                          │ → commit tag → repo GitOps ─┼──►│ │ ArgoCD (tire le repo GitOps)│  │
+                          └────────────────────────────┘   │ │        │ sync                │  │
+                                                            │ │        ▼                    │  │
+   Terraform ──── crée ──► VPC · EKS · RDS · Redis · ECR    │ │  api ×2..6 (HPA)  /metrics ──┼─┐│
+   Ansible ── configure ─► GitLab Runner (EC2)              │ │        ▲                    │ ││
+                                                            │ │   ALB (Ingress)             │ ││
+                                                            │ └───────┼────────────────────┘ ││
+        patients (app mobile) ── https ─────────────────────┼─────────┘                      ││
+                                                            │  RDS PostgreSQL   ElastiCache  ││
+                                                            │  (subnets data, privés)        ││
+                                                            │  Prometheus ◄──────────────────┘│
+                                                            │  └─► Grafana + Alertmanager     │
+                                                            └──────────────────────────────────┘</div>
+<h2>Pourquoi cette architecture et pas une plus simple ?</h2>
+<p>Pour lancer MBOLO commercialement demain, une seule VM avec docker-compose suffirait (~30 €/mois). Mais l'objectif de ce projet est double : faire tourner l'app <b>et apprendre la stack standard de l'industrie</b>. Chaque brique ci-dessus est celle qu'on retrouve dans 80 % des offres d'emploi DevOps. La règle d'or pour arbitrer :</p>
+<table>
+  <tr><th>Décision</th><th>Règle</th></tr>
+  <tr><td>Qui gère l'état (DB, cache) ?</td><td>Le cloud provider (RDS, ElastiCache). L'état est ce qui fait mal.</td></tr>
+  <tr><td>Qui gère le stateless (API) ?</td><td>Nous, dans Kubernetes : c'est là qu'on a besoin de flexibilité.</td></tr>
+  <tr><td>Qui détient les credentials du cluster ?</td><td>Personne à l'extérieur : ArgoCD tire depuis l'intérieur (GitOps).</td></tr>
+  <tr><td>Où est la vérité ?</td><td>Git. Toujours Git. L'infra (Terraform), l'app (manifestes), le pipeline (.gitlab-ci.yml).</td></tr>
+</table>
+<div class="tip"><span class="t">Variante fauchée (mêmes compétences, -80 % de coût)</span>
+Remplacez EKS par <b>k3s</b> (Kubernetes léger) sur une seule EC2 t3.large : ArgoCD, Prometheus, Kustomize, kubectl — tout fonctionne à l'identique. Vous perdez : le control plane managé et le multi-nœuds. Parfait pour apprendre, à ~30 €/mois.</div>
+
+<!-- ═══════════════ CH 3 ═══════════════ -->
+<h1><span class="num">3.</span>Docker — empaqueter l'application</h1>
+<p>Le problème que Docker résout : « ça marche sur ma machine ». Une image contient l'app <b>et</b> son environnement exact (Node 20, dépendances, locale). La même image tourne sur le laptop, en CI et en prod — c'est la brique de base de toute la chaîne.</p>
+<div class="why"><span class="t">Pourquoi des conteneurs et pas des VM ?</span>
+Une VM embarque un OS complet (Go de RAM, minutes de démarrage). Un conteneur partage le noyau de l'hôte : mégaoctets, millisecondes. On peut en empiler des dizaines par machine — c'est ce qui rend Kubernetes économiquement possible.</div>
+<h2>Le Dockerfile de l'API, décodé</h2>
+<p>Fichier : <code>devops/docker/Dockerfile.api</code>. Trois étages :</p>
+<ol>
+  <li><b>deps</b> — copie <i>uniquement</i> les manifestes (<code>package.json</code>, lockfile) puis <code>pnpm install</code>. Tant que les dépendances ne changent pas, Docker réutilise ce layer en cache : les builds passent de 5 min à 30 s.</li>
+  <li><b>build</b> — copie le code, compile TypeScript, génère le client Prisma, puis <code>pnpm deploy --prod</code> isole les seules dépendances de production.</li>
+  <li><b>runner</b> — image finale minimale (alpine), <b>utilisateur non-root</b>, healthcheck. ~150 Mo au lieu de ~1,2 Go.</li>
+</ol>
+<pre><code># l'essence du multi-stage :
+FROM node:20-alpine AS build
+# ... 1 Go d'outils de build ...
+FROM node:20-alpine AS runner
+COPY --from=build /prod/api ./     # ← on ne garde QUE le résultat
+USER mbolo                          # ← jamais root en production</code></pre>
+<div class="warn"><span class="t">Les 3 pièges du débutant</span>
+1) Copier tout le repo avant <code>npm install</code> → cache invalidé à chaque commit. 2) Tourner en root → une faille applicative devient une faille machine. 3) Tag <code>latest</code> partout → impossible de savoir ce qui tourne. Ici : tags immuables par SHA de commit (<code>IMMUTABLE</code> côté ECR).</div>
+<h2>Commandes à connaître</h2>
+<pre><code>> docker build -f devops/docker/Dockerfile.api -t mbolo/api:dev .
+> docker run --rm -p 3000:3000 --env-file apps/api/.env mbolo/api:dev
+> docker images | head        # tailles — vérifier l'effet du multi-stage
+> docker exec -it &lt;id&gt; sh     # entrer dans un conteneur qui tourne</code></pre>
+<!-- ═══════════════ CH 4 ═══════════════ -->
+<h1><span class="num">4.</span>AWS — choisir ses briques cloud</h1>
+<p>AWS propose 200+ services ; le métier consiste à en choisir <b>six</b>. Voici les nôtres et, surtout, les raisonnements :</p>
+<table>
+  <tr><th>Besoin</th><th>Choix</th><th>Alternatives écartées &amp; pourquoi</th></tr>
+  <tr><td>Réseau isolé</td><td><b>VPC</b> (3 couches : public/privé/data)</td><td>Réseau par défaut : tout exposé, aucune segmentation.</td></tr>
+  <tr><td>Faire tourner l'API</td><td><b>EKS</b> (Kubernetes managé)</td><td><b>ECS/Fargate</b> : très bien et moins cher, mais verrouillé AWS et hors-sujet pédagogique. <b>EC2+compose</b> : pas d'auto-réparation. <b>Lambda</b> : inadapté à une API long-running + Prisma.</td></tr>
+  <tr><td>PostgreSQL</td><td><b>RDS</b> (chiffré, backups auto, multi-AZ en prod)</td><td>Postgres auto-géré : backups/failover/patchs à notre charge — inacceptable pour des données de santé.</td></tr>
+  <tr><td>Redis (OTP, rate-limit)</td><td><b>ElastiCache</b></td><td>Redis dans K8s : possible, mais l'état chez le provider (règle du ch. 2).</td></tr>
+  <tr><td>Stocker les images Docker</td><td><b>ECR</b> (scan on push, tags immuables)</td><td>Docker Hub : limites de pull, hors du réseau AWS.</td></tr>
+  <tr><td>Identités &amp; droits</td><td><b>IAM</b> (+ OIDC pour la CI)</td><td>Clés d'accès statiques dans GitLab : LA cause n°1 de compromission cloud.</td></tr>
+</table>
+<div class="why"><span class="t">Pourquoi la région eu-west-3 (Paris) ?</span>
+Depuis Libreville, les câbles sous-marins (ACE, SAT-3) remontent vers l'Europe : Paris offre en pratique 80-120 ms, souvent mieux que Le Cap (af-south-1). Toujours <b>mesurer</b> (ping/mtr depuis une machine locale) plutôt que supposer par la géographie.</div>
+<div class="warn"><span class="t">Le coût qui surprend toujours</span>
+La <b>NAT gateway</b> : ~32 €/mois + trafic, par AZ. C'est le prix de « mes serveurs privés peuvent sortir sur Internet sans y être exposés ». En staging on n'en met qu'une (single_nat_gateway) ; en prod, une par AZ.</div>
+
+<!-- ═══════════════ CH 5 ═══════════════ -->
+<h1><span class="num">5.</span>Terraform — l'infrastructure comme du code</h1>
+<p>Créer l'infra à la console, c'est créer un système que personne ne sait reconstruire. Terraform décrit l'état voulu en HCL ; <code>terraform plan</code> calcule le diff avec la réalité ; <code>apply</code> converge. L'infra devient <b>revuable en merge request</b>, reproductible (staging = prod aux variables près) et auditable.</p>
+<div class="why"><span class="t">Pourquoi Terraform (vs CloudFormation, Pulumi, consoles) ?</span>
+<b>CloudFormation</b> : AWS-only, verbeux, lent. <b>Pulumi</b> : excellent si l'équipe veut du « vrai code » (TS/Python), mais le HCL déclaratif est plus simple à auditer et reste le standard de fait du marché (≈ requis dans toute offre DevOps). <b>CDK</b> : compile… vers CloudFormation.</div>
+<h2>Le concept central : le state</h2>
+<p>Terraform mémorise ce qu'il a créé dans un fichier d'état. S'il est perdu → Terraform veut tout recréer ; s'il est modifié par deux personnes → corruption. D'où notre backend : <b>S3 (partagé, versionné, chiffré) + verrou DynamoDB</b> (fichier <code>terraform/main.tf</code>).</p>
+<pre><code>> cd devops/terraform
+> terraform init          # télécharge providers + branche le backend S3
+> terraform plan          # DIFF : + à créer, ~ à modifier, - à détruire. LIRE.
+> terraform apply         # applique après confirmation
+> terraform destroy       # détruit tout (fin de session de lab → économies)</code></pre>
+<h2>Lecture guidée de nos fichiers</h2>
+<table>
+  <tr><th>Fichier</th><th>Ce qu'il crée</th><th>Le point à retenir</th></tr>
+  <tr><td><code>vpc.tf</code></td><td>VPC 3 couches, 2 AZ</td><td>Module officiel = 40 ressources pièges (routes, NAT, IGW) en 25 lignes.</td></tr>
+  <tr><td><code>eks.tf</code></td><td>Cluster K8s + node group</td><td>Nœuds en subnets privés ; Spot en staging (-70 %), On-Demand en prod.</td></tr>
+  <tr><td><code>rds.tf</code></td><td>PostgreSQL 16</td><td><code>manage_master_user_password</code> : mot de passe généré → Secrets Manager. Jamais dans le code.</td></tr>
+  <tr><td><code>elasticache.tf</code></td><td>Redis 7</td><td>2 nœuds + failover auto en prod seulement.</td></tr>
+  <tr><td><code>ecr.tf</code></td><td>Registry d'images</td><td>Tags IMMUABLES + rétention 20 images.</td></tr>
+</table>
+<div class="warn"><span class="t">Pièges Terraform classiques</span>
+1) State local partagé par mail/Slack (!) → backend S3 dès le jour 1. 2) <code>terraform apply</code> sans lire le plan → destructions accidentelles ; en prod, l'apply passe par la CI avec approbation. 3) Secrets en clair dans les <code>.tfvars</code> commités → variables d'env ou Secrets Manager. 4) Tout dans un seul état géant → séparer par domaine/environnement quand ça grossit.</div>
+
+<!-- ═══════════════ CH 6 ═══════════════ -->
+<h1><span class="num">6.</span>Ansible — configurer les machines</h1>
+<p>Question fréquente : « si j'ai Terraform et Kubernetes, à quoi sert Ansible ? ». Réponse : aux machines qui restent des <b>machines</b>. Terraform <i>crée</i> l'EC2 du GitLab Runner ; mais qui installe Docker dessus, l'enregistre auprès de GitLab, garantit que le service tourne ? C'est le rôle d'Ansible : la <b>configuration</b> d'hôtes (runners CI, bastions, VM legacy, serveurs on-prem).</p>
+<div class="why"><span class="t">Pourquoi Ansible (vs Chef, Puppet, SaltStack) ?</span>
+<b>Sans agent</b> : une connexion SSH suffit — rien à installer sur les cibles. <b>YAML lisible</b> par toute l'équipe (Chef = Ruby, Puppet = DSL propriétaire). <b>Idempotent par conception</b> : rejouer un playbook ne change rien si l'état est conforme. Et c'est, de loin, l'outil de config management le plus demandé aujourd'hui.</div>
+<h2>Le playbook <code>gitlab-runner.yml</code>, décodé</h2>
+<pre><code>- name: Enregistrer le runner auprès de GitLab
+  ansible.builtin.command: gitlab-runner register --non-interactive ...
+  args:
+    creates: /etc/gitlab-runner/config.toml   # ← LE détail qui compte</code></pre>
+<p><code>creates:</code> rend idempotente une commande qui ne l'est pas : si le fichier existe, la tâche est sautée. C'est le réflexe à acquérir — chaque tâche doit pouvoir être rejouée sans effet de bord. Le token, lui, vient d'une variable d'environnement, jamais du fichier.</p>
+<pre><code>> ansible-playbook -i devops/ansible/inventory.ini \
+    devops/ansible/playbooks/gitlab-runner.yml
+# 2e exécution → "changed=0" : c'est ça, l'idempotence.</code></pre>
+<div class="tip"><span class="t">Pour aller plus loin</span>
+Inventaire <b>dynamique</b> <code>aws_ec2</code> (les hôtes sont découverts par tags AWS, plus d'IP en dur) ; <b>Ansible Vault</b> pour chiffrer des variables sensibles dans Git ; rôles Galaxy pour réutiliser des installations éprouvées.</div>
+
+<!-- ═══════════════ CH 7 ═══════════════ -->
+<h1><span class="num">7.</span>GitLab CI — l'intégration continue</h1>
+<p>La CI est le portier : <b>aucun code ne va vers la production sans être passé par elle</b>. Notre pipeline (<code>devops/gitlab/.gitlab-ci.yml</code>) a 5 étapes :</p>
+<div class="schema">  lint ──► test ──► build (kaniko → ECR) ──► scan (trivy) ──► release
+  typecheck   68 tests    image immuable      CVE critiques =    commit du nouveau tag
+  api + web   Vitest      taguée :SHA         pipeline BLOQUÉ    dans le repo GitOps
+  └────────── à chaque push ──────────┘      └───── uniquement branche main ─────┘</div>
+<div class="why"><span class="t">Pourquoi GitLab CI (vs GitHub Actions, Jenkins) ?</span>
+<b>Jenkins</b> : l'outil historique — serveur à maintenir, jungle de plugins, sécurité à notre charge. On le subit en entreprise, on ne le choisit plus. <b>GitHub Actions</b> : équivalent moderne de GitLab CI ; le choix se fait selon la plateforme Git de l'équipe. GitLab offre le tout-en-un le plus complet (CI + registry + environments + review apps) et c'est la stack visée par ce projet.</div>
+<h2>Les décisions techniques du pipeline</h2>
+<ul>
+  <li><b>kaniko</b> plutôt que docker-in-docker : construit l'image <i>sans démon Docker privilégié</i>. Le mode <code>privileged</code> des runners est une faille classique (évasion de conteneur).</li>
+  <li><b>trivy bloque sur CVE critique</b> : la sécurité est une étape du pipeline, pas un audit annuel.</li>
+  <li><b>OIDC vers AWS</b> plutôt que des clés statiques : GitLab prouve son identité à AWS par jeton éphémère (<code>AWS_ROLE_ARN</code>). Une clé volée n'existe pas si la clé n'existe pas.</li>
+  <li><b>La CI ne fait jamais <code>kubectl apply</code></b> : elle commit le nouveau tag d'image dans le repo GitOps. Le déploiement appartient à ArgoCD (ch. 8). Prod = bouton manuel (<code>when: manual</code>).</li>
+  <li><b><code>interruptible: true</code></b> : un nouveau push annule les pipelines devenus obsolètes — économie de minutes CI.</li>
+</ul>
+<div class="warn"><span class="t">Anti-patterns CI à bannir</span>
+Secrets écrits en dur dans le YAML · pipeline qui ne tourne que sur main (tester TOUTES les branches/MR) · étapes de 40 min que tout le monde contourne · <code>latest</code> déployé en prod (impossible à tracer/rollback).</div>
+
+<!-- ═══════════════ CH 8 ═══════════════ -->
+<h1><span class="num">8.</span>ArgoCD — le déploiement continu façon GitOps</h1>
+<p>Modèle classique (« push ») : la CI possède un kubeconfig et pousse vers le cluster. Modèle GitOps (« pull ») : un agent <b>dans</b> le cluster (ArgoCD) surveille un repo Git et fait converger le cluster vers ce que Git décrit. La différence n'est pas cosmétique :</p>
+<table>
+  <tr><th></th><th>CI pousse (kubectl en CI)</th><th>GitOps tire (ArgoCD)</th></tr>
+  <tr><td>Credentials cluster</td><td>Stockés dans la CI (exfiltrables)</td><td>Ne quittent jamais le cluster</td></tr>
+  <tr><td>Audit « qui a déployé quoi »</td><td>Logs CI éparpillés</td><td><code>git log</code> du repo GitOps</td></tr>
+  <tr><td>Rollback</td><td>Rejouer un vieux pipeline</td><td><code>git revert</code> (ou bouton UI)</td></tr>
+  <tr><td>Modif manuelle sur le cluster</td><td>Invisible → dérive silencieuse</td><td>Détectée (OutOfSync) et corrigée (selfHeal)</td></tr>
+</table>
+<div class="why"><span class="t">Pourquoi ArgoCD (vs Flux) ?</span>
+Les deux sont CNCF « graduated » et excellents. ArgoCD a une <b>interface web</b> qui matérialise le GitOps : l'arbre des ressources, l'état de sync, les diffs — un accélérateur d'apprentissage inégalé. Flux est plus minimaliste et composable ; on y migre sans douleur, les concepts sont identiques.</div>
+<h2>Nos deux Applications (<code>devops/argocd/applications.yaml</code>)</h2>
+<ul>
+  <li><b>staging</b> : <code>automated + prune + selfHeal</code> — chaque commit sur le repo GitOps est déployé seul, les orphelins sont supprimés, la dérive manuelle est écrasée.</li>
+  <li><b>production</b> : <b>pas</b> de sync auto. On regarde le diff dans l'UI, on clique Sync. Combiné au <code>when: manual</code> de la CI, ça fait deux verrous humains.</li>
+</ul>
+<pre><code># installation (une fois)
+> kubectl create namespace argocd
+> kubectl apply -n argocd -f \
+    https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+> kubectl apply -f devops/argocd/applications.yaml
+# UI locale :
+> kubectl port-forward svc/argocd-server -n argocd 8080:443</code></pre>
+<p>Le flux complet de bout en bout : <b>commit sur main → CI teste/construit/scanne → CI met à jour <code>newTag</code> dans l'overlay Kustomize du repo GitOps → ArgoCD voit le commit → rolling update sans coupure (maxUnavailable: 0)</b>. Personne n'a touché kubectl.</p>
+<!-- ═══════════════ CH 9 ═══════════════ -->
+<h1><span class="num">9.</span>Kubernetes — les objets qu'il faut vraiment connaître</h1>
+<p>Kubernetes intimide par son vocabulaire, mais notre application n'utilise que <b>six objets</b> — et ce sont les six que vous retrouverez partout (<code>devops/k8s/base/</code>) :</p>
+<table>
+  <tr><th>Objet</th><th>Rôle</th><th>Notre réglage clé</th></tr>
+  <tr><td><b>Deployment</b></td><td>« Je veux N répliques de ce pod, remplace celles qui meurent »</td><td><code>maxUnavailable: 0</code> → déploiement sans coupure</td></tr>
+  <tr><td><b>Service</b></td><td>IP stable + load-balancing devant des pods éphémères</td><td>port 80 → containerPort 3000</td></tr>
+  <tr><td><b>Ingress</b></td><td>Exposition HTTP(S) vers l'extérieur</td><td>Annotations ALB : TLS via ACM, redirection HTTPS</td></tr>
+  <tr><td><b>HPA</b></td><td>Autoscaling des pods</td><td>2 → 6 répliques à 70 % CPU</td></tr>
+  <tr><td><b>ConfigMap</b></td><td>Config non sensible en variables d'env</td><td>NODE_ENV, TTL OTP…</td></tr>
+  <tr><td><b>Secret</b></td><td>Config sensible</td><td>Synchronisé depuis AWS Secrets Manager (ch. 11)</td></tr>
+</table>
+<h2>Liveness vs readiness : la distinction qui sauve des nuits</h2>
+<ul>
+  <li><b>liveness</b> (<code>/health</code>) : « le process est-il vivant ? » Échec → K8s <b>redémarre</b> le pod.</li>
+  <li><b>readiness</b> (<code>/health/ready</code> : vérifie PostgreSQL + Redis) : « peut-il servir du trafic ? » Échec → K8s le <b>retire du load-balancer</b> sans le tuer.</li>
+</ul>
+<div class="warn"><span class="t">L'erreur classique</span> Mettre la vérification DB dans la liveness : une micro-coupure réseau vers la DB fait alors REDÉMARRER tous les pods en boucle (crash loop), transformant un incident mineur en panne totale. DB/Redis → readiness, uniquement.</div>
+<h2>Kustomize : base + overlays</h2>
+<p><code>base/</code> décrit l'application ; <code>overlays/staging</code> et <code>overlays/production</code> ne contiennent que les <b>différences</b> (namespace, host, répliques, tag d'image). C'est le fichier d'overlay que la CI modifie (<code>newTag</code>) et qu'ArgoCD surveille.</p>
+<div class="why"><span class="t">Kustomize vs Helm ?</span> Helm = templating + packaging : parfait pour <b>installer des logiciels tiers</b> (on l'utilise pour Prometheus). Kustomize = patchs déclaratifs sans templates : parfait pour <b>nos propres manifestes</b>. Utiliser les deux, chacun à sa place, est le pattern standard.</div>
+
+<!-- ═══════════════ CH 10 ═══════════════ -->
+<h1><span class="num">10.</span>Prometheus &amp; Grafana — la supervision</h1>
+<p>Sans métriques, on découvre les pannes par les plaintes des utilisateurs. La stack : <b>Prometheus</b> collecte (modèle <i>pull</i> : il vient scraper <code>/metrics</code> toutes les 15-30 s), <b>Grafana</b> visualise, <b>Alertmanager</b> route les alertes (Slack/Telegram/mail).</p>
+<div class="why"><span class="t">Pourquoi Prometheus (vs CloudWatch, Datadog) ?</span>
+<b>CloudWatch</b> : indispensable pour les métriques AWS elles-mêmes, mais requêtes chères, rétention coûteuse, langage pauvre. <b>Datadog</b> : superbe, mais 15-31 $/hôte/mois. <b>Prometheus</b> : gratuit, standard CNCF, PromQL ultra-puissant, intégration K8s native (service discovery). Le combo réel en entreprise : Prometheus pour l'applicatif, CloudWatch pour le socle AWS.</div>
+<h2>L'API MBOLO est déjà instrumentée</h2>
+<p><code>apps/api/src/middleware/metrics.ts</code> expose sur <code>/metrics</code> : les métriques process (CPU, RAM, event-loop lag) et un <b>histogramme</b> <code>http_request_duration_seconds</code> étiqueté par méthode/route/statut. Pourquoi un histogramme ? Parce qu'il permet de calculer <i>côté serveur de métriques</i> le taux d'erreurs ET les percentiles :</p>
+<pre><code># Taux d'erreurs 5xx (5 min glissantes)
+sum(rate(http_request_duration_seconds_count{status_code=~"5.."}[5m]))
+  / sum(rate(http_request_duration_seconds_count[5m]))
+
+# Latence p95
+histogram_quantile(0.95,
+  sum(rate(http_request_duration_seconds_bucket[5m])) by (le))</code></pre>
+<div class="warn"><span class="t">Le piège n°1 : la cardinalité</span>
+Ne JAMAIS étiqueter par URL brute (<code>/rides/ckx93…</code>) : chaque id crée une série temporelle → mémoire de Prometheus explosée. Notre middleware étiquette par <i>pattern</i> de route (<code>/rides/:id</code>). Même règle pour les user-ids, emails, etc.</div>
+<h2>Les 4 golden signals → nos alertes</h2>
+<p><code>devops/monitoring/alerts.yaml</code> implémente les quatre signaux de la SRE de Google : <b>erreurs</b> (&gt;5 % de 5xx), <b>latence</b> (p95 &gt; 1 s), <b>trafic/disponibilité</b> (0 pod prêt) et <b>saturation</b> (&gt;90 % de la limite mémoire). Règle d'or : n'alerter que sur ce qui exige une <b>action humaine</b> — une alerte ignorée tue toutes les autres (alert fatigue).</p>
+<pre><code># Installation de la stack complète (Helm)
+> helm repo add prometheus-community \
+    https://prometheus-community.github.io/helm-charts
+> helm install monitoring prometheus-community/kube-prometheus-stack \
+    -n monitoring --create-namespace \
+    -f devops/monitoring/prometheus-values.yaml
+> kubectl apply -f devops/monitoring/alerts.yaml
+# Grafana en local :
+> kubectl port-forward svc/monitoring-grafana -n monitoring 3001:80</code></pre>
+<div class="tip"><span class="t">Dashboard API : les 6 panneaux qui suffisent</span>
+Requêtes/s par route · taux d'erreurs · p50/p95/p99 · pods actifs vs HPA max · RAM par pod · event-loop lag. Dashboards communautaires à importer : 1860 (nœuds), 15757 (vue K8s).</div>
+
+<!-- ═══════════════ CH 11 ═══════════════ -->
+<h1><span class="num">11.</span>Sécuriser la chaîne</h1>
+<h2>Les secrets : la hiérarchie du bien au pire</h2>
+<table>
+  <tr><th>Niveau</th><th>Pratique</th><th>Verdict</th></tr>
+  <tr><td>🥇</td><td>AWS Secrets Manager + <b>External Secrets Operator</b> (synchronise → Secret K8s)</td><td>Cible : rotation possible, rien dans Git, audit IAM</td></tr>
+  <tr><td>🥈</td><td>SOPS + age : secrets <i>chiffrés</i> commités dans Git</td><td>Très bon, GitOps-friendly</td></tr>
+  <tr><td>🥉</td><td>Variables CI protégées/masquées</td><td>OK pour les secrets de la CI elle-même</td></tr>
+  <tr><td>❌</td><td>.env commité, YAML en clair, mot de passe dans le state</td><td>Cause n°1 des compromissions</td></tr>
+</table>
+<p>Notre chaîne applique déjà : mot de passe RDS <b>généré par AWS</b> et stocké dans Secrets Manager (jamais dans le code/state) ; CI → AWS par <b>OIDC</b> (zéro clé statique) ; webhook de paiement protégé par secret ; uploads médicaux derrière JWT.</p>
+<h2>Scanner tôt, bloquer tôt (« shift-left »)</h2>
+<ul>
+  <li><b>trivy</b> en CI : CVE critique = image jamais poussée en prod (déjà dans le pipeline).</li>
+  <li>Conteneur <b>non-root</b> + tags <b>immuables</b> (déjà fait, ch. 3).</li>
+  <li>Réseau : DB/Redis en subnets <i>data</i> sans Internet, security groups « EKS uniquement » — le moindre privilège appliqué au réseau (ch. 5).</li>
+  <li>À ajouter ensuite : NetworkPolicies K8s (qui parle à qui <i>dans</i> le cluster), <code>tfsec</code>/<code>checkov</code> pour scanner le Terraform lui-même.</li>
+</ul>
+
+<!-- ═══════════════ CH 12 ═══════════════ -->
+<h1><span class="num">12.</span>Runbook : tout déployer, pas à pas</h1>
+<p>L'ordre exact, depuis un compte AWS vide. Durée réaliste : une demi-journée la première fois.</p>
+<pre><code># 0. Prérequis locaux
+aws configure                     # identifiants du compte (humain)
+brew/apt install terraform kubectl helm ansible
+
+# 1. Bootstrap du state Terraform (une seule fois, à la main)
+aws s3 mb s3://mbolo-terraform-state --region eu-west-3
+aws dynamodb create-table --table-name mbolo-terraform-lock \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST --region eu-west-3
+
+# 2. Infrastructure
+cd devops/terraform
+terraform init && terraform plan       # LIRE le plan
+terraform apply                        # ~20 min (EKS est long)
+
+# 3. Accès au cluster
+aws eks update-kubeconfig --name mbolo-staging --region eu-west-3
+kubectl get nodes                      # 2 nœuds Ready → ✓
+
+# 4. Contrôleur d'Ingress ALB (une fois par cluster)
+helm repo add eks https://aws.github.io/eks-charts
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system --set clusterName=mbolo-staging
+
+# 5. Secrets applicatifs (v1 simple ; cible = External Secrets, ch. 11)
+kubectl create ns mbolo-staging
+kubectl -n mbolo-staging create secret generic api-secrets \
+  --from-literal=DATABASE_URL="postgresql://mbolo:<mdp Secrets Manager>@<rds_endpoint>:5432/mbolo_sante" \
+  --from-literal=REDIS_URL="rediss://<redis_endpoint>:6379" \
+  --from-literal=JWT_SECRET="$(openssl rand -hex 32)"
+
+# 6. Premier déploiement MANUEL (pour comprendre avant d'automatiser)
+kubectl apply -k devops/k8s/overlays/staging
+kubectl -n mbolo-staging get pods -w   # Running 2/2 → ✓
+kubectl -n mbolo-staging exec deploy/api -- npx prisma migrate deploy
+kubectl -n mbolo-staging exec deploy/api -- npx tsx prisma/seed.ts
+
+# 7. GitOps : à partir d'ici, plus jamais kubectl apply
+#    (installer ArgoCD → ch. 8 ; pipeline GitLab → ch. 7 ; runner Ansible → ch. 6)
+
+# 8. Supervision (ch. 10) puis test de la chaîne complète :
+#    commit trivial sur main → pipeline vert → ArgoCD sync → pods remplacés
+#    sans coupure → courbe visible dans Grafana. 🎉
+
+# 9. Fin de session de lab :
+terraform destroy                      # ~145 €/mois économisés</code></pre>
+<div class="warn"><span class="t">Migrations de base de données</span>
+<code>prisma migrate deploy</code> doit tourner AVANT que les nouveaux pods servent du trafic. Le pattern propre : un <b>initContainer</b> (ou un Job ArgoCD PreSync hook) qui exécute la migration — à ajouter quand le schéma commencera à bouger souvent en prod.</div>
+
+<!-- ═══════════════ CH 13 ═══════════════ -->
+<h1><span class="num">13.</span>Plan d'apprentissage 30 jours &amp; pièges classiques</h1>
+<table>
+  <tr><th>Jours</th><th>Objectif</th><th>Livrable vérifiable</th></tr>
+  <tr><td>1-3</td><td>Docker à fond (layers, multi-stage, registries)</td><td>Image API &lt; 200 Mo qui tourne en local</td></tr>
+  <tr><td>4-8</td><td>Terraform (state, plan/apply, modules)</td><td>VPC + RDS créés puis DÉTRUITS proprement, state dans S3</td></tr>
+  <tr><td>9-14</td><td>Kubernetes (les 6 objets, probes, kustomize)</td><td>API déployée à la main sur EKS (ou k3s), rolling update sans coupure démontré</td></tr>
+  <tr><td>15-18</td><td>GitLab CI (stages, cache, kaniko, OIDC)</td><td>Pipeline vert qui pousse une image dans ECR</td></tr>
+  <tr><td>19-22</td><td>ArgoCD (GitOps, sync policies, drift)</td><td>Modif manuelle du cluster → corrigée seule par selfHeal (à provoquer !)</td></tr>
+  <tr><td>23-27</td><td>Prometheus/Grafana (PromQL, histogrammes, alertes)</td><td>Dashboard 6 panneaux + une alerte reçue sur Telegram (provoquée par un pod tué)</td></tr>
+  <tr><td>28-30</td><td>Ansible + révision générale</td><td>Runner provisionné par playbook ; runbook ch. 12 rejoué de zéro en &lt; 2 h</td></tr>
+</table>
+<div class="tip"><span class="t">La méthode qui fait la différence</span>
+À chaque brique : 1) la déployer, 2) <b>la casser volontairement</b> (tuer un pod, corrompre un tag, saturer la RAM), 3) observer comment le système réagit, 4) réparer. C'est en cassant qu'on apprend à opérer — et c'est exactement ce qu'on vous demandera en entretien : « racontez-moi un incident ».</div>
+<h2>Les 10 pièges qui coûtent cher (résumé du terrain)</h2>
+<ol>
+  <li>State Terraform local/partagé à la main → backend S3 + lock, jour 1.</li>
+  <li>Vérification DB dans la liveness probe → crash loop généralisé (ch. 9).</li>
+  <li>Étiquettes Prometheus à forte cardinalité → OOM du serveur de métriques (ch. 10).</li>
+  <li>docker-in-docker privilégié en CI → évasion de conteneur possible (→ kaniko).</li>
+  <li>Clés AWS statiques dans la CI → OIDC, toujours.</li>
+  <li>Tag <code>latest</code> en prod → aucun rollback possible (→ tags par SHA, immuables).</li>
+  <li>Secrets en clair dans Git « temporairement » → il n'y a pas de temporaire (git n'oublie rien).</li>
+  <li>NAT gateway oubliée à la fin du lab → facture surprise (→ terraform destroy).</li>
+  <li>Alerter sur tout → plus personne ne lit rien (→ golden signals seulement).</li>
+  <li>Automatiser avant d'avoir fait une fois à la main → on automatise ce qu'on ne comprend pas.</li>
+</ol>
+
+<!-- ═══════════════ CH 14 ═══════════════ -->
+<h1><span class="num">14.</span>Glossaire</h1>
+<table>
+  <tr><td><b>AZ</b></td><td>Zone de disponibilité : datacenter isolé dans une région AWS. Deux AZ = survivre à la panne d'un datacenter.</td></tr>
+  <tr><td><b>CD</b></td><td>Continuous Delivery/Deployment : livraison automatisée jusqu'à la prod (chez nous : ArgoCD).</td></tr>
+  <tr><td><b>CI</b></td><td>Continuous Integration : valider chaque commit automatiquement (tests, lint, build).</td></tr>
+  <tr><td><b>CVE</b></td><td>Vulnérabilité référencée publiquement. Trivy les cherche dans nos images.</td></tr>
+  <tr><td><b>Drift / dérive</b></td><td>Écart entre l'état déclaré (Git/Terraform) et l'état réel. ArgoCD le détecte, selfHeal le corrige.</td></tr>
+  <tr><td><b>GitOps</b></td><td>Git = source de vérité de l'état du cluster ; un agent interne converge (pull, pas push).</td></tr>
+  <tr><td><b>HPA</b></td><td>Horizontal Pod Autoscaler : ajuste le nombre de pods à la charge.</td></tr>
+  <tr><td><b>IaC</b></td><td>Infrastructure as Code : l'infra décrite en fichiers versionnés (Terraform).</td></tr>
+  <tr><td><b>Idempotence</b></td><td>Rejouer l'opération ne change rien si l'état est déjà conforme (contrat Ansible/Terraform/K8s).</td></tr>
+  <tr><td><b>Ingress</b></td><td>Objet K8s d'exposition HTTP(S) ; matérialisé chez nous par un ALB AWS.</td></tr>
+  <tr><td><b>OIDC</b></td><td>Fédération d'identité : la CI prouve qui elle est à AWS sans clé stockée.</td></tr>
+  <tr><td><b>p95</b></td><td>95ᵉ percentile : 95 % des requêtes sont plus rapides que cette valeur. Bien plus honnête que la moyenne.</td></tr>
+  <tr><td><b>Pod</b></td><td>Plus petite unité K8s : un (ou plusieurs) conteneurs co-localisés.</td></tr>
+  <tr><td><b>Pull model</b></td><td>Prometheus vient chercher /metrics ; ArgoCD vient chercher Git. L'inverse du push.</td></tr>
+  <tr><td><b>Rolling update</b></td><td>Remplacement progressif des pods sans interruption de service.</td></tr>
+  <tr><td><b>Runbook</b></td><td>Procédure opérationnelle pas-à-pas (ch. 12).</td></tr>
+  <tr><td><b>State (Terraform)</b></td><td>Fichier mémorisant ce que Terraform gère. Sacré. S3 + lock.</td></tr>
+  <tr><td><b>Golden signals</b></td><td>Latence, trafic, erreurs, saturation — les 4 mesures qui décrivent la santé d'un service.</td></tr>
+</table>
+<p class="kv" style="margin-top:24px;text-align:center">— Fin · Bible DevOps MBOLO Santé · les fichiers cités vivent dans <code>devops/</code> du dépôt —</p>
+</body>
+</html>

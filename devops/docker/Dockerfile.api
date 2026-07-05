@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1
+# ─────────────────────────────────────────────────────────────────────────────
+# Image de l'API MBOLO — build MULTI-STAGE.
+# Pourquoi multi-stage ? Le stage "build" contient pnpm, tsc, les devDeps
+# (~1 Go) ; le stage final ne garde que le JS compilé et les deps de prod
+# (~150 Mo). Image plus petite = déploiements plus rapides + surface d'attaque
+# réduite.
+# Contexte de build attendu : la RACINE du monorepo (docker build -f devops/docker/Dockerfile.api .)
+# ─────────────────────────────────────────────────────────────────────────────
+
+FROM node:20-alpine AS base
+# corepack fournit pnpm sans installation globale supplémentaire
+RUN corepack enable
+WORKDIR /app
+
+# ── Stage 1 : dépendances (mise en cache maximale) ──────────────────────────
+# On copie d'abord UNIQUEMENT les manifestes : tant qu'ils ne changent pas,
+# Docker réutilise le cache de `pnpm install` même si le code change.
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/api/package.json apps/api/
+COPY packages/shared/package.json packages/shared/
+COPY packages/config/package.json packages/config/
+RUN pnpm install --frozen-lockfile --filter api --filter @mbolo/shared --filter @mbolo/config
+
+# ── Stage 2 : build ──────────────────────────────────────────────────────────
+FROM deps AS build
+COPY packages ./packages
+COPY apps/api ./apps/api
+# Le client Prisma est généré au build (le binaire moteur est embarqué)
+RUN pnpm --filter @mbolo/shared build \
+ && pnpm --filter api exec prisma generate \
+ && pnpm --filter api build
+# Ne garder que les deps de production pour le stage final
+RUN pnpm --filter api --prod deploy /prod/api
+
+# ── Stage 3 : image finale minimale ──────────────────────────────────────────
+FROM node:20-alpine AS runner
+ENV NODE_ENV=production
+# Utilisateur non-root : si l'app est compromise, l'attaquant n'est pas root
+RUN addgroup -S mbolo && adduser -S mbolo -G mbolo
+WORKDIR /app
+COPY --from=build --chown=mbolo:mbolo /prod/api ./
+COPY --from=build --chown=mbolo:mbolo /app/apps/api/dist ./dist
+COPY --from=build --chown=mbolo:mbolo /app/apps/api/prisma ./prisma
+USER mbolo
+EXPOSE 3000
+# Healthcheck natif Docker — utile hors K8s (K8s a ses propres probes)
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/health || exit 1
+CMD ["node", "dist/server.js"]
