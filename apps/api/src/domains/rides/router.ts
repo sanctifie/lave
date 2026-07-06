@@ -12,7 +12,7 @@ import { OrderRepository } from '../orders/repository';
 import { notificationService, paymentProvider, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 
-const router = Router();
+const router: Router = Router();
 const paymentService = new PaymentService(
   new PaymentRepository(),
   new OrderRepository(),

@@ -6,7 +6,7 @@ import { UpdateMeSchema, SavePushTokenSchema, UpdatePatientProfileSchema } from 
 import { UserService } from './service';
 import { UserRepository } from './repository';
 
-const router = Router();
+const router: Router = Router();
 const service = new UserService(new UserRepository());
 
 router.get('/me', requireAuth, asyncHandler(async (req, res) => {

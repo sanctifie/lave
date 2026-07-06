@@ -1,6 +1,9 @@
-import { createClient } from 'redis';
+import { createClient, type RedisClientType } from 'redis';
 
-export const redis = createClient({
+// Annotation explicite : sans elle, TypeScript tente de « nommer » le type
+// inféré du client (qui référence les modules @redis/search, @redis/time-series…
+// via des chemins pnpm profonds) et échoue avec TS2742 « not portable ».
+export const redis: RedisClientType = createClient({
   url: process.env.REDIS_URL ?? 'redis://localhost:6379',
 });
 

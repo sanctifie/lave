@@ -7,7 +7,7 @@ import { PartnerService } from './service';
 import { PartnerRepository } from './repository';
 import { UserRole, PartnerType } from '@mbolo/shared';
 
-const router = Router();
+const router: Router = Router();
 const service = new PartnerService(new PartnerRepository());
 
 router.get('/', requireAuth, asyncHandler(async (req, res) => {

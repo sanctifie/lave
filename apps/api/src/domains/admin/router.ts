@@ -4,7 +4,7 @@ import { asyncHandler } from '../../lib/asyncHandler';
 import { prisma } from '../../infrastructure/prisma/client';
 import { UserRole } from '@mbolo/shared';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(requireAuth, requireRole(UserRole.ADMIN));
 

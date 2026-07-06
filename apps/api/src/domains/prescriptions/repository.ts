@@ -9,7 +9,7 @@ export class PrescriptionRepository {
         type: data.type as Parameters<typeof prisma.prescription.create>[0]['data']['type'],
         targetPartnerId: data.targetPartnerId,
       },
-      include: { targetPartner: true },
+      include: { targetPartner: true, patient: { select: { name: true } } },
     });
   }
 

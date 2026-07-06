@@ -14,7 +14,7 @@ import { UserRole } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 import { HTTP } from '../../lib/errors';
 
-const router = Router();
+const router: Router = Router();
 const repo    = new PrescriptionRepository();
 const service = new PrescriptionService(
   repo,

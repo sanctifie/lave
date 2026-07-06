@@ -9,7 +9,7 @@ import { PricingRepository } from '../pricing/repository';
 import { notificationService, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 
-const router = Router();
+const router: Router = Router();
 const service = new MealService(
   new MealRepository(),
   new PricingRepository(),
