@@ -7,7 +7,7 @@ import { DoctorService } from './service';
 import { DoctorRepository } from './repository';
 import { UserRole } from '@mbolo/shared';
 
-const router  = Router();
+const router: Router = Router();
 const service = new DoctorService(new DoctorRepository());
 
 /** Spécialités médicales disponibles */

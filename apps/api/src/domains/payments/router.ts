@@ -11,7 +11,7 @@ import { PricingRepository } from '../pricing/repository';
 import { paymentProvider, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 
-const router = Router();
+const router: Router = Router();
 const service = new PaymentService(
   new PaymentRepository(),
   new OrderRepository(),

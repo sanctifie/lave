@@ -7,7 +7,7 @@ import { PricingService } from './service';
 import { PricingRepository } from './repository';
 import { UserRole } from '@mbolo/shared';
 
-const router = Router();
+const router: Router = Router();
 const service = new PricingService(new PricingRepository());
 
 router.get('/', requireAuth, requireRole(UserRole.ADMIN), asyncHandler(async (_req, res) => {

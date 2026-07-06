@@ -25,7 +25,7 @@ import { mealsRouter } from './domains/meals/router';
 import { chatRouter } from './domains/chat/router';
 import { adminRouter } from './domains/admin/router';
 
-export const app = express();
+export const app: express.Express = express();
 
 // CORS — en prod, restreindre aux origines déclarées dans CORS_ORIGINS (séparées par des virgules).
 // Vide ou non défini → autorise toutes les origines (pratique en dev).

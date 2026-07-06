@@ -10,7 +10,7 @@ import { PricingRepository } from '../pricing/repository';
 import { videoProvider, notificationService, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 
-const router  = Router();
+const router: Router = Router();
 const service = new AppointmentService(
   new AppointmentRepository(),
   new DoctorRepository(),

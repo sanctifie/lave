@@ -10,7 +10,7 @@ import { UserRole } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 import { HTTP } from '../../lib/errors';
 
-const router = Router();
+const router: Router = Router();
 const service = new OrderService(new OrderRepository(), notificationService);
 
 // Patient : liste ses commandes

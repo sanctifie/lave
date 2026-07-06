@@ -6,7 +6,7 @@ import { RequestOtpSchema, VerifyOtpSchema } from './schema';
 import { AuthService } from './service';
 import { AuthRepository } from './repository';
 
-const router = Router();
+const router: Router = Router();
 const service = new AuthService(new AuthRepository());
 
 const phoneKey = (req: { body?: { phone?: string } }) => req.body?.phone ?? 'unknown';
