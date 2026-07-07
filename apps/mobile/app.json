@@ -8,7 +8,6 @@
     "platforms": ["ios", "android"],
     "android": {
       "package": "com.mbolo.sante",
-      "googleServicesFile": "./google-services.json",
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "ios": {

@@ -18,6 +18,8 @@ Vue d'ensemble patient + pro :
 | Accueil patient | [`mobile/patient-accueil.png`](mobile/patient-accueil.png) |
 | Demande de transport (estimation live) | [`mobile/patient-transport.png`](mobile/patient-transport.png) |
 | Envoyer une ordonnance | [`mobile/patient-ordonnance.png`](mobile/patient-ordonnance.png) |
+| Validation d'ordonnance (pharmacien) | [`mobile/pharmacie-validation.png`](mobile/pharmacie-validation.png) |
+| Suivi de livraison (temps réel) | [`mobile/patient-suivi-livraison.png`](mobile/patient-suivi-livraison.png) |
 | Choisir un médecin | [`mobile/patient-medecins.png`](mobile/patient-medecins.png) |
 | Salle d'attente vidéo | [`mobile/patient-salle-attente.png`](mobile/patient-salle-attente.png) |
 | Paiement Mobile Money | [`mobile/patient-paiement.png`](mobile/patient-paiement.png) |
