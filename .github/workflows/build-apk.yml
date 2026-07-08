@@ -88,10 +88,15 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # ── Build APK debug ───────────────────────────────────────────────────
-      - name: Build APK (debug)
+      # ── Build APK release ─────────────────────────────────────────────────
+      # release (et non debug) : le bundle JS est EMBARQUÉ dans l'APK.
+      # Un APK debug va chercher le JS sur un serveur Metro (localhost:8081)
+      # → « Could not connect to development server » sur un vrai téléphone.
+      # Le template Expo signe le release avec la clé debug par défaut : l'APK
+      # est donc installable sans keystore dédié (usage test interne).
+      - name: Build APK (release, JS embarqué)
         working-directory: apps/mobile/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
         env:
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
 
@@ -100,7 +105,7 @@ jobs:
         run: |
           VERSION="${{ github.event.inputs.version_name || github.sha }}"
           SHORT="${VERSION:0:7}"
-          cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk \
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk \
              mbolo-sante-${SHORT}.apk
 
       # ── Upload artefact GitHub (téléchargeable 30 jours) ──────────────────
@@ -121,9 +126,10 @@ jobs:
           draft: false
           prerelease: true
           body: |
-            ## APK Android — Build de test
+            ## APK Android — MBOLO Santé (test interne)
 
-            **⚠️ Version debug — pour tests internes uniquement**
+            APK **release** : le JavaScript est embarqué, l'app se lance **sans
+            serveur de développement** (autonome).
 
             ### Installation
             1. Télécharger `mbolo-sante-*.apk` ci-dessous
@@ -132,7 +138,11 @@ jobs:
 
             ### Prérequis
             - Android 8.0+ (API 26+)
-            - Connexion internet (l'API doit être accessible)
+            - L'app démarre sans réseau, mais la **connexion (OTP)** et les données
+              nécessitent que l'API soit joignable à l'URL `EXPO_PUBLIC_API_URL`
+              (secret `API_URL`, défaut `https://api.mbolo.com`).
+
+            Signé avec la clé de debug (test interne — non destiné au Play Store).
 
             Commit : `${{ github.sha }}`
           files: mbolo-sante-*.apk
