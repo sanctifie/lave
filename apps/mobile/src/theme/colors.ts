@@ -1,31 +1,32 @@
 export const colors = {
-  primary:        '#006D77',
-  primaryLight:   '#83C5BE',
-  primarySurface: '#EDF6F9',
+  primary:        '#0E9384', // teal MBOLO 2.0 (vif)
+  primaryLight:   '#5FD3C4',
+  primarySurface: '#E7F4F2',
+  primaryDeep:    '#0B6B60',
 
-  accent:         '#E29578',
-  accentLight:    '#FFDDD2',
+  accent:         '#EF8A5E', // terracotta chaleureuse
+  accentLight:    '#FFE2D6',
 
-  background:     '#F4F7F8',
+  background:     '#F4F9F8', // teinté teal (choisi, pas hérité)
   surface:        '#FFFFFF',
-  border:         '#E2E8F0',
-  borderFocus:    '#006D77',
+  border:         '#E3EDEB',
+  borderFocus:    '#0E9384',
 
-  text:           '#1A1A2E',
-  textSecondary:  '#64748B',
-  textDisabled:   '#94A3B8',
+  text:           '#0F2C29', // ink teal
+  textSecondary:  '#5B7A76',
+  textDisabled:   '#9DB5B1',
   textOnDark:     '#FFFFFF',
 
-  success:        '#059669',
-  successSurface: '#D1FAE5',
-  warning:        '#D97706',
-  warningSurface: '#FEF3C7',
+  success:        '#12A150',
+  successSurface: '#DBF6E5',
+  warning:        '#C77A0A',
+  warningSurface: '#FBEFD3',
   error:          '#DC2626',
-  errorSurface:   '#FEE2E2',
-  info:           '#0284C7',
-  infoSurface:    '#E0F2FE',
+  errorSurface:   '#FCE4E4',
+  info:           '#0E82C7',
+  infoSurface:    '#DDEEFB',
 
-  overlay:        'rgba(26, 26, 46, 0.5)',
+  overlay:        'rgba(6, 32, 31, 0.55)',
 } as const;
 
 export type ColorKey = keyof typeof colors;

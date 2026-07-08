@@ -159,6 +159,14 @@ const styles = StyleSheet.create({
   bubbleMe: {
     backgroundColor: colors.primary,
     alignSelf: 'flex-end',
+    borderBottomRightRadius: radii.sm,
+  },
+  bubbleThem: {
+    backgroundColor: colors.surface,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderBottomLeftRadius: radii.sm,
   },
   senderName:   { ...typography.small, color: colors.textDisabled, marginBottom: 2 },
   bubbleText:   { ...typography.body, color: colors.text },
