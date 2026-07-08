@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { colors, spacing, radii, typography } from '../../theme';
+import { colors, spacing, radii, typography, shadows } from '../../theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   pressed:  { opacity: 0.85 },
   disabled: { opacity: 0.45 },
 
-  primary:   { backgroundColor: colors.primary },
+  primary:   { backgroundColor: colors.primary, ...shadows.button },
   secondary: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
   ghost:     { backgroundColor: 'transparent' },
   danger:    { backgroundColor: colors.error },
