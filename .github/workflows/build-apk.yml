@@ -61,6 +61,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Le package partagé pointe vers ./dist : il doit être compilé avant que
+      # Metro ne l'empaquette (sinon « Unable to resolve module @mbolo/shared »).
+      - name: Build @mbolo/shared
+        run: pnpm --filter @mbolo/shared build
+
       # ── Variables d'environnement mobile ──────────────────────────────────
       - name: Create mobile .env
         run: |
