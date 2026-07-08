@@ -53,7 +53,12 @@ export function Login({ onLogin }: LoginProps) {
     <div style={styles.root}>
       <div style={styles.card}>
         <div style={styles.logo}>
-          <span style={{ fontSize: 40 }}>🏥</span>
+          <div style={styles.logoMark}>
+            <svg viewBox="0 0 24 24" fill="none" width="28" height="28">
+              <path d="M12 21s-7-4.35-7-9.5A4.5 4.5 0 0 1 12 8a4.5 4.5 0 0 1 7 3.5C19 16.65 12 21 12 21Z" fill="#04211e"/>
+              <path d="M12 10v5M9.5 12.5h5" stroke="#5FD3C4" strokeWidth="1.9" strokeLinecap="round"/>
+            </svg>
+          </div>
           <div>
             <div style={styles.logoTitle}>MBOLO Santé</div>
             <div style={styles.logoSub}>Tableau de bord administrateur</div>
@@ -116,35 +121,48 @@ const styles: Record<string, React.CSSProperties> = {
   root: {
     flex: 1, minHeight: '100vh', display: 'flex',
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#F1F5F9', padding: 16,
+    padding: 16,
+    background:
+      'radial-gradient(900px 600px at 80% -10%, rgba(18,179,162,.28), transparent 55%),' +
+      'radial-gradient(700px 500px at 10% 110%, rgba(246,164,23,.16), transparent 55%),' +
+      'linear-gradient(160deg, #0A3B37, #06201F)',
   },
   card: {
-    backgroundColor: '#fff', borderRadius: 16,
-    padding: '40px 32px', width: '100%', maxWidth: 420,
-    boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-    display: 'flex', flexDirection: 'column', gap: 28,
+    position: 'relative',
+    backgroundColor: '#fff', borderRadius: 24,
+    padding: '38px 34px', width: '100%', maxWidth: 428,
+    boxShadow: '0 30px 70px -24px rgba(0,0,0,.55)',
+    display: 'flex', flexDirection: 'column', gap: 26,
+    overflow: 'hidden',
   },
   logo:      { display: 'flex', alignItems: 'center', gap: 14 },
-  logoTitle: { fontSize: 22, fontWeight: 700, color: '#1E293B' },
-  logoSub:   { fontSize: 13, color: '#64748B', marginTop: 2 },
+  logoMark: {
+    width: 54, height: 54, borderRadius: 16,
+    background: 'linear-gradient(145deg, #12B3A2, #0B6B60)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 12px 26px -8px rgba(18,179,162,.7)', flexShrink: 0,
+  },
+  logoTitle: { fontSize: 22, fontWeight: 750, color: theme.ink, letterSpacing: '-0.01em' },
+  logoSub:   { fontSize: 13, color: theme.muted, marginTop: 2 },
 
   form: { display: 'flex', flexDirection: 'column', gap: 16 },
-  field:{ display: 'flex', flexDirection: 'column', gap: 6 },
-  label:{ fontSize: 13, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5 },
+  field:{ display: 'flex', flexDirection: 'column', gap: 7 },
+  label:{ fontSize: 12, fontWeight: 700, color: theme.body, textTransform: 'uppercase', letterSpacing: 0.6 },
   input: {
-    height: 52, borderRadius: 10, border: '1.5px solid #E2E8F0',
-    paddingInline: 14, fontSize: 16, color: '#1E293B',
-    outline: 'none', width: '100%',
+    height: 54, borderRadius: 13, border: `1.5px solid ${theme.border}`,
+    paddingInline: 16, fontSize: 16, color: theme.ink,
+    outline: 'none', width: '100%', background: '#FbFdfc',
   },
-  hint: { fontSize: 14, color: '#64748B' },
-  error:{ backgroundColor: '#FEF2F2', color: '#DC2626', padding: '10px 14px', borderRadius: 8, fontSize: 14 },
+  hint: { fontSize: 14, color: theme.muted },
+  error:{ backgroundColor: theme.errorSurface, color: theme.error, padding: '11px 14px', borderRadius: 10, fontSize: 14, fontWeight: 500 },
   btn: {
-    height: 52, backgroundColor: theme.brand, color: '#fff',
-    border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 600,
+    height: 54, background: 'linear-gradient(145deg, #12B3A2, #0B6B60)', color: '#fff',
+    border: 'none', borderRadius: 13, fontSize: 16, fontWeight: 700,
     cursor: 'pointer', marginTop: 4,
+    boxShadow: '0 14px 30px -10px rgba(14,147,132,.7)',
   },
   backBtn: {
     background: 'none', border: 'none', color: theme.brand,
-    fontSize: 14, cursor: 'pointer', textAlign: 'center', padding: 0,
+    fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'center', padding: 0,
   },
 };

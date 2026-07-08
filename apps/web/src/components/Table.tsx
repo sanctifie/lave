@@ -38,7 +38,7 @@ export function Table<T>({ columns, data, keyFn, emptyMessage = 'Aucune donnée'
             </tr>
           ) : (
             data.map((row) => (
-              <tr key={keyFn(row)} style={styles.tr}>
+              <tr key={keyFn(row)} style={styles.tr} className="row-hover">
                 {columns.map((col) => (
                   <td key={col.key} style={styles.td}>{col.render(row)}</td>
                 ))}
@@ -60,18 +60,24 @@ export function Badge({ label, color = theme.brand, bg = theme.brandSurface }: {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  wrapper: { overflowX: 'auto', borderRadius: 12, border: `1px solid ${theme.border}` },
+  wrapper: {
+    overflowX: 'auto', borderRadius: theme.radiusLg, border: `1px solid ${theme.border}`,
+    background: theme.surface, boxShadow: theme.shadow,
+  },
   table:   { width: '100%', borderCollapse: 'collapse', fontSize: 14 },
   th: {
-    backgroundColor: theme.canvas,
+    backgroundColor: '#F0F7F5',
     color: theme.muted,
-    fontWeight: 600,
-    padding: '12px 16px',
+    fontWeight: 700,
+    fontSize: 11.5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    padding: '13px 18px',
     textAlign: 'left',
     borderBottom: `1px solid ${theme.border}`,
     whiteSpace: 'nowrap',
   },
-  tr: { borderBottom: '1px solid #F1F5F9', transition: 'background 0.1s' },
-  td:    { padding: '14px 16px', color: theme.body, verticalAlign: 'middle' },
-  empty: { padding: '40px 16px', textAlign: 'center', color: theme.faint, fontStyle: 'italic' },
+  tr: { borderBottom: `1px solid #EEF5F3` },
+  td:    { padding: '15px 18px', color: theme.body, verticalAlign: 'middle' },
+  empty: { padding: '44px 16px', textAlign: 'center', color: theme.faint, fontStyle: 'italic' },
 };

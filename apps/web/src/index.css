@@ -1,0 +1,45 @@
+/* MBOLO 2.0 — feuille de style globale du dashboard (premium). */
+
+:root { color-scheme: light; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #0F2C29;
+  background:
+    radial-gradient(1100px 700px at 100% -5%, rgba(18,179,162,.10), transparent 55%),
+    radial-gradient(900px 600px at -10% 110%, rgba(246,164,23,.07), transparent 55%),
+    linear-gradient(180deg, #F4F9F8, #EAF3F1);
+  background-attachment: fixed;
+}
+
+/* Chiffres alignés partout où ça compte */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Scrollbar discrète, teintée marque */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: rgba(14,147,132,.22); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(14,147,132,.4); background-clip: padding-box; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Cartes : survol qui « lève » légèrement */
+.card-lift { transition: transform .22s cubic-bezier(.4,0,.2,1), box-shadow .22s cubic-bezier(.4,0,.2,1); }
+.card-lift:hover { transform: translateY(-3px); box-shadow: 0 22px 44px -18px rgba(8,49,46,.30); }
+
+/* Lignes de tableau : surbrillance au survol */
+.row-hover { transition: background .15s; }
+.row-hover:hover { background: #F2F9F7; }
+
+/* Focus clavier visible et cohérent */
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid #12B3A2; outline-offset: 2px; border-radius: 6px;
+}
+
+/* Entrée douce du contenu de page */
+@keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.rise { animation: riseIn .5s cubic-bezier(.4,0,.2,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card-lift, .row-hover, .rise { transition: none !important; animation: none !important; }
+}
