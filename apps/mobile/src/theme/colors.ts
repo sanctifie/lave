@@ -17,8 +17,8 @@ export const colors = {
   textDisabled:   '#9DB5B1',
   textOnDark:     '#FFFFFF',
 
-  success:        '#12A150',
-  successSurface: '#DBF6E5',
+  success:        '#16A34A', // vert « herbe » franc, distinct du teal de marque
+  successSurface: '#D6F5DF',
   warning:        '#C77A0A',
   warningSurface: '#FBEFD3',
   error:          '#DC2626',
