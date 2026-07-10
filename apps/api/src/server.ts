@@ -1,5 +1,6 @@
 import type { Server } from 'http';
 import { app } from './app';
+import { assertEnv } from './lib/env';
 import { connectRedis, redis } from './infrastructure/redis/client';
 import { prisma } from './infrastructure/prisma/client';
 import { pushService } from './infrastructure/container';
@@ -70,6 +71,7 @@ function setupGracefulShutdown(server: Server) {
 }
 
 async function main() {
+  assertEnv();
   await connectRedis();
   startAppointmentReminderScheduler();
   const server = app.listen(PORT, () => {

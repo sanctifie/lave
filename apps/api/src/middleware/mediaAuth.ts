@@ -21,7 +21,7 @@ export function requireMediaAuth(req: Request, _res: Response, next: NextFunctio
   if (!token) return next(HTTP.unauthorized('Token manquant'));
 
   try {
-    jwt.verify(token, process.env.JWT_SECRET!);
+    jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] });
     next();
   } catch {
     next(HTTP.unauthorized('Token invalide ou expiré'));

@@ -44,6 +44,7 @@ export class AuthService {
     if (!user.isActive) throw HTTP.forbidden('Compte désactivé');
 
     const signOptions: jwt.SignOptions = {
+      algorithm: 'HS256',
       expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as jwt.SignOptions['expiresIn'],
     };
     const token = jwt.sign(
