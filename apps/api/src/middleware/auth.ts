@@ -22,7 +22,9 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
   if (!token) return next(HTTP.unauthorized('Token manquant'));
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload;
+    const payload = jwt.verify(token, process.env.JWT_SECRET!, {
+      algorithms: ['HS256'],
+    }) as AuthPayload;
     req.user = payload;
     next();
   } catch {

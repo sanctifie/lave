@@ -12,6 +12,18 @@ describe('verifyWebhookSecret', () => {
     expect(next).toHaveBeenCalledWith();
   });
 
+  it('rejette (401) si aucun secret n\'est configuré en production (fail-closed)', () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const next = vi.fn();
+      verifyWebhookSecret(undefined)(makeReq(), {} as any, next);
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
+    } finally {
+      process.env.NODE_ENV = prev;
+    }
+  });
+
   it('accepte un secret correct fourni en query', () => {
     const next = vi.fn();
     verifyWebhookSecret('s3cr3t')(makeReq({ query: { secret: 's3cr3t' } }), {} as any, next);

@@ -1,17 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
+import path from 'path';
 import jwt from 'jsonwebtoken';
 import { HTTP } from '../lib/errors';
+import type { AuthPayload } from './auth';
+import { canAccessMediaFile } from '../infrastructure/upload/access';
 
 /**
- * Authentification pour les fichiers média (/uploads).
+ * Authentification ET autorisation pour les fichiers média (/uploads).
  *
- * Les scans d'ordonnances sont des données de santé : ils ne doivent pas être
- * servis publiquement. Contrairement aux appels API, les images sont chargées
- * par `<Image source={{uri}}>` (React Native) ou ouvertes dans le navigateur
- * (`Linking.openURL`) — deux contextes où l'en-tête Authorization n'est pas
- * toujours envoyable. On accepte donc le JWT :
+ * Les scans d'ordonnances sont des données de santé : il ne suffit pas d'être
+ * connecté, il faut être légitimement impliqué dans la ressource. On vérifie
+ * donc le JWT puis, par fichier, que le demandeur y a droit (patient concerné,
+ * médecin émetteur, pharmacien de l'officine cible, ou admin).
+ *
+ * Le JWT est accepté :
  *   1. via l'en-tête `Authorization: Bearer <jwt>` (classique), ou
- *   2. via le query param `?token=<jwt>` (Image / navigateur externe).
+ *   2. via le query param `?token=<jwt>` — nécessaire car les images sont
+ *      chargées par `<Image source={{uri}}>` (React Native) ou ouvertes dans un
+ *      navigateur externe, contextes où l'en-tête n'est pas toujours envoyable.
  */
 export function requireMediaAuth(req: Request, _res: Response, next: NextFunction): void {
   const headerToken = req.headers.authorization?.replace('Bearer ', '');
@@ -20,10 +26,18 @@ export function requireMediaAuth(req: Request, _res: Response, next: NextFunctio
 
   if (!token) return next(HTTP.unauthorized('Token manquant'));
 
+  let payload: AuthPayload;
   try {
-    jwt.verify(token, process.env.JWT_SECRET!);
-    next();
+    payload = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as AuthPayload;
   } catch {
-    next(HTTP.unauthorized('Token invalide ou expiré'));
+    return next(HTTP.unauthorized('Token invalide ou expiré'));
   }
+
+  const filename = path.basename(req.path);
+  canAccessMediaFile(filename, { userId: payload.userId, role: payload.role })
+    .then((allowed) => {
+      if (!allowed) return next(HTTP.forbidden('Accès à ce fichier non autorisé'));
+      next();
+    })
+    .catch(() => next(HTTP.forbidden('Accès à ce fichier non autorisé')));
 }
