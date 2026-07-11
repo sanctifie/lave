@@ -40,9 +40,9 @@ function formatDate(iso: string) {
 }
 
 const COLUMNS: Column<DeliveryRow>[] = [
-  { key: 'id',     header: 'ID',      render: (d) => <code style={{ fontSize: 12, color: '#006D77' }}>…{d.id.slice(-8)}</code>, width: '100px' },
+  { key: 'id',     header: 'ID',      render: (d) => <code style={{ fontSize: 12, color: 'var(--code)' }}>…{d.id.slice(-8)}</code>, width: '100px' },
   { key: 'type',   header: 'Contenu', render: typeLabel },
-  { key: 'courier',header: 'Coursier',render: (d) => d.courier?.user.name ?? <span style={{ color: '#94A3B8' }}>Non assigné</span> },
+  { key: 'courier',header: 'Coursier',render: (d) => d.courier?.user.name ?? <span style={{ color: 'var(--faint)' }}>Non assigné</span> },
   { key: 'fee',    header: 'Frais',   render: (d) => formatFcfa(d.feeFcfa) },
   { key: 'status', header: 'Statut',  render: (d) => { const s = STATUS_COLOR[d.status] ?? { color: '#64748B', bg: '#F3F4F6' }; return <Badge label={STATUS_FR[d.status] ?? d.status} color={s.color} bg={s.bg} />; } },
   { key: 'date',   header: 'Date',    render: (d) => formatDate(d.createdAt), width: '150px' },
@@ -58,7 +58,7 @@ export function Deliveries() {
 
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1E293B' }}>Livraisons</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)' }}>Livraisons</h1>
       <Table columns={COLUMNS} data={deliveries} keyFn={(d) => d.id} loading={loading} emptyMessage="Aucune livraison" />
     </div>
   );

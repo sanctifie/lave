@@ -1,17 +1,145 @@
-/* MBOLO 2.0 — feuille de style globale du dashboard (premium). */
+/* MBOLO 2.0 — feuille de style globale du dashboard (premium, clair + sombre). */
 
-:root { color-scheme: light; }
+/* ─── Tokens de thème ────────────────────────────────────────────────────────
+   Source unique des couleurs. Le thème sombre surcharge ces variables ; tous
+   les composants (via theme.ts → var(--x)) s'adaptent automatiquement. */
+:root {
+  color-scheme: light;
+
+  --brand:         #0E9384;
+  --brand-deep:    #0B6B60;
+  --brand-dark:    #08312E;
+  --brand-light:   #0E9384;
+  --brand-surface: #E7F4F2;
+  --gold:          #F6A417;
+
+  --grad-sidebar:  linear-gradient(180deg, #0A3B37 0%, #072220 100%);
+
+  --ink:     #0F2C29;
+  --body:    #33514D;
+  --muted:   #6B8B87;
+  --faint:   #9DB5B1;
+  --border:  #E3EDEB;
+  --surface: #FFFFFF;
+  --canvas:  #F4F9F8;
+
+  /* Chrome de tableau / survols (dérivés) */
+  --th-bg:      #F0F7F5;
+  --row-line:   #EEF5F3;
+  --row-hover:  #F2F9F7;
+  --code:       #006D77;
+
+  --shadow-sm: 0 1px 2px rgba(8,49,46,.06), 0 1px 3px rgba(8,49,46,.05);
+  --shadow:    0 4px 14px -4px rgba(8,49,46,.12), 0 2px 6px -2px rgba(8,49,46,.08);
+  --shadow-lg: 0 18px 40px -16px rgba(8,49,46,.26);
+  --shadow-hover: 0 22px 44px -18px rgba(8,49,46,.30);
+
+  --success: #12A150; --success-surface: #DBF6E5;
+  --warning: #C77A0A; --warning-surface: #FBEFD3;
+  --error:   #DC2626; --error-surface:   #FCE4E4;
+  --info:    #2563EB; --info-surface:    #DDE9FE;
+
+  /* Palette catégorielle (5 services) — validée CVD. Ordre fixe, jamais cyclé. */
+  --cat-1: #0E9384; /* Commandes  */
+  --cat-2: #0EA5E9; /* Livraisons */
+  --cat-3: #12A150; /* Courses    */
+  --cat-4: #F6A417; /* Repas      */
+  --cat-5: #EC4899; /* Consultations */
+
+  /* Verre dépoli (glassmorphism) */
+  --glass:        rgba(255,255,255,0.72);
+  --glass-border: rgba(255,255,255,0.6);
+  --grid-line:    rgba(8,49,46,0.08);
+
+  --page-bg:
+    radial-gradient(1100px 700px at 100% -5%, rgba(18,179,162,.10), transparent 55%),
+    radial-gradient(900px 600px at -10% 110%, rgba(246,164,23,.07), transparent 55%),
+    linear-gradient(180deg, #F4F9F8, #EAF3F1);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand:         #2DD4BF;
+  --brand-deep:    #14B8A6;
+  --brand-dark:    #04211E;
+  --brand-light:   #5FD3C4;
+  --brand-surface: rgba(45,212,191,.16);
+  --gold:          #F6B84B;
+
+  --grad-sidebar:  linear-gradient(180deg, #071F1D 0%, #04100F 100%);
+
+  --ink:     #EAF6F4;
+  --body:    #C2D6D2;
+  --muted:   #8BA9A4;
+  --faint:   #6E8C88;
+  --border:  #1E3A36;
+  --surface: #0F2422;
+  --canvas:  #081A18;
+
+  --th-bg:      #12302C;
+  --row-line:   #17332F;
+  --row-hover:  #143430;
+  --code:       #5FD3C4;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px rgba(0,0,0,.24);
+  --shadow:    0 6px 18px -6px rgba(0,0,0,.55), 0 2px 6px -2px rgba(0,0,0,.4);
+  --shadow-lg: 0 22px 46px -18px rgba(0,0,0,.7);
+  --shadow-hover: 0 26px 50px -20px rgba(0,0,0,.75);
+
+  --success: #34D399; --success-surface: rgba(52,211,153,.16);
+  --warning: #FBBF4E; --warning-surface: rgba(251,191,78,.15);
+  --error:   #F87171; --error-surface:   rgba(248,113,113,.15);
+  --info:    #60A5FA; --info-surface:    rgba(96,165,250,.15);
+
+  --cat-1: #2DD4BF; --cat-2: #38BDF8; --cat-3: #34D399; --cat-4: #FBBF4E; --cat-5: #F472B6;
+
+  --glass:        rgba(18,44,41,0.55);
+  --glass-border: rgba(255,255,255,0.08);
+  --grid-line:    rgba(255,255,255,0.07);
+
+  --page-bg:
+    radial-gradient(1100px 700px at 100% -5%, rgba(45,212,191,.10), transparent 55%),
+    radial-gradient(900px 600px at -10% 110%, rgba(246,184,75,.05), transparent 55%),
+    linear-gradient(180deg, #081A18, #05100F);
+}
+
+/* Respecte la préférence système tant que l'utilisateur n'a pas choisi
+   explicitement (aucun attribut data-theme posé). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --brand: #2DD4BF; --brand-deep: #14B8A6; --brand-dark: #04211E;
+    --brand-light: #5FD3C4; --brand-surface: rgba(45,212,191,.16); --gold: #F6B84B;
+    --grad-sidebar: linear-gradient(180deg, #071F1D 0%, #04100F 100%);
+    --ink: #EAF6F4; --body: #C2D6D2; --muted: #8BA9A4; --faint: #6E8C88;
+    --border: #1E3A36; --surface: #0F2422; --canvas: #081A18;
+    --th-bg: #12302C; --row-line: #17332F; --row-hover: #143430; --code: #5FD3C4;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px rgba(0,0,0,.24);
+    --shadow: 0 6px 18px -6px rgba(0,0,0,.55), 0 2px 6px -2px rgba(0,0,0,.4);
+    --shadow-lg: 0 22px 46px -18px rgba(0,0,0,.7);
+    --shadow-hover: 0 26px 50px -20px rgba(0,0,0,.75);
+    --success: #34D399; --success-surface: rgba(52,211,153,.16);
+    --warning: #FBBF4E; --warning-surface: rgba(251,191,78,.15);
+    --error: #F87171; --error-surface: rgba(248,113,113,.15);
+    --info: #60A5FA; --info-surface: rgba(96,165,250,.15);
+    --cat-1: #2DD4BF; --cat-2: #38BDF8; --cat-3: #34D399; --cat-4: #FBBF4E; --cat-5: #F472B6;
+    --glass: rgba(18,44,41,0.55); --glass-border: rgba(255,255,255,0.08); --grid-line: rgba(255,255,255,0.07);
+    --page-bg:
+      radial-gradient(1100px 700px at 100% -5%, rgba(45,212,191,.10), transparent 55%),
+      radial-gradient(900px 600px at -10% 110%, rgba(246,184,75,.05), transparent 55%),
+      linear-gradient(180deg, #081A18, #05100F);
+  }
+}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #0F2C29;
-  background:
-    radial-gradient(1100px 700px at 100% -5%, rgba(18,179,162,.10), transparent 55%),
-    radial-gradient(900px 600px at -10% 110%, rgba(246,164,23,.07), transparent 55%),
-    linear-gradient(180deg, #F4F9F8, #EAF3F1);
+  color: var(--ink);
+  background: var(--page-bg);
   background-attachment: fixed;
+  transition: background .35s ease, color .35s ease;
 }
 
 /* Chiffres alignés partout où ça compte */
@@ -19,27 +147,39 @@ body {
 
 /* Scrollbar discrète, teintée marque */
 *::-webkit-scrollbar { width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb { background: rgba(14,147,132,.22); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(14,147,132,.4); background-clip: padding-box; }
+*::-webkit-scrollbar-thumb { background: rgba(14,147,132,.28); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(14,147,132,.5); background-clip: padding-box; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 /* Cartes : survol qui « lève » légèrement */
 .card-lift { transition: transform .22s cubic-bezier(.4,0,.2,1), box-shadow .22s cubic-bezier(.4,0,.2,1); }
-.card-lift:hover { transform: translateY(-3px); box-shadow: 0 22px 44px -18px rgba(8,49,46,.30); }
+.card-lift:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
 
 /* Lignes de tableau : surbrillance au survol */
 .row-hover { transition: background .15s; }
-.row-hover:hover { background: #F2F9F7; }
+.row-hover:hover { background: var(--row-hover); }
 
 /* Focus clavier visible et cohérent */
-a:focus-visible, button:focus-visible, input:focus-visible {
-  outline: 2px solid #12B3A2; outline-offset: 2px; border-radius: 6px;
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px;
 }
 
 /* Entrée douce du contenu de page */
 @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .rise { animation: riseIn .5s cubic-bezier(.4,0,.2,1) both; }
 
+/* Squelettes de chargement */
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.skeleton {
+  border-radius: 7px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--muted) 12%, transparent) 25%,
+    color-mix(in srgb, var(--muted) 22%, transparent) 37%,
+    color-mix(in srgb, var(--muted) 12%, transparent) 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .card-lift, .row-hover, .rise { transition: none !important; animation: none !important; }
+  .card-lift, .row-hover, .rise, .skeleton, body { transition: none !important; animation: none !important; }
 }

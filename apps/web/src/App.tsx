@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, AdminUser } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 import { Sidebar } from './components/Sidebar';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -14,6 +15,7 @@ import { Pricing } from './pages/Pricing';
 
 export default function App() {
   const { user, login, logout, isAuthenticated } = useAuth();
+  const { mode, toggle } = useTheme();
 
   if (!isAuthenticated) {
     return <Login onLogin={login} />;
@@ -21,8 +23,8 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar onLogout={logout} userName={user!.name} />
-      <main style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC' }}>
+      <Sidebar onLogout={logout} userName={user!.name} themeMode={mode} onToggleTheme={toggle} />
+      <main style={{ flex: 1, overflowY: 'auto', background: 'var(--canvas)' }}>
         <Routes>
           <Route path="/"           element={<Dashboard />} />
           <Route path="/orders"     element={<Orders />} />
