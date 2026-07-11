@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { StatCard } from '../components/StatCard';
+import { ActivityDonut, Segment } from '../components/charts/ActivityDonut';
+import { ServiceBars } from '../components/charts/ServiceBars';
 
 interface Stats {
   orders: number;
@@ -11,6 +13,15 @@ interface Stats {
   users: number;
   doctors: number;
 }
+
+// Les 5 flux d'activité qui composent le volume de la plateforme (ordre fixe).
+const ACTIVITY: { key: keyof Stats; label: string; short: string; icon: string; color: string; bg: string; colorVar: string; trend?: string }[] = [
+  { key: 'orders',       label: 'Commandes',     short: 'Cmd.',    icon: '📦', color: '#0E9384', bg: '#E7F4F2', colorVar: 'var(--cat-1)', trend: '12%' },
+  { key: 'deliveries',   label: 'Livraisons',    short: 'Livr.',   icon: '🚚', color: '#0EA5E9', bg: '#E0F2FE', colorVar: 'var(--cat-2)', trend: '8%' },
+  { key: 'rides',        label: 'Courses',       short: 'Cours.',  icon: '🚗', color: '#12A150', bg: '#DBF6E5', colorVar: 'var(--cat-3)' },
+  { key: 'mealOrders',   label: 'Repas',         short: 'Repas',   icon: '🥗', color: '#C77A0A', bg: '#FBEFD3', colorVar: 'var(--cat-4)' },
+  { key: 'appointments', label: 'Consultations', short: 'Consul.', icon: '🩺', color: '#DB2777', bg: '#FCE7F3', colorVar: 'var(--cat-5)', trend: '21%' },
+];
 
 export function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -24,12 +35,22 @@ export function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={styles.center}>Chargement des statistiques…</div>;
-  if (error)   return <div style={{ ...styles.center, color: '#DC2626' }}>{error}</div>;
+  if (loading) return <DashboardSkeleton />;
+  if (error)   return <div style={{ ...styles.center, color: 'var(--error)' }}>{error}</div>;
   if (!stats)  return null;
+
+  const segments: Segment[] = ACTIVITY.map((a) => ({
+    key: a.key, label: a.label, value: stats[a.key], colorVar: a.colorVar,
+  }));
+  const barSegments: Segment[] = ACTIVITY.map((a) => ({
+    key: a.key, label: a.short, value: stats[a.key], colorVar: a.colorVar,
+  }));
+  const activityTotal = segments.reduce((s, x) => s + x.value, 0);
+  const share = (v: number) => (activityTotal > 0 ? (v / activityTotal) * 100 : 0);
 
   return (
     <div style={styles.page} className="rise">
+      {/* Hero */}
       <div style={styles.hero}>
         <div style={styles.heroGlow} />
         <div style={{ position: 'relative' }}>
@@ -40,16 +61,51 @@ export function Dashboard() {
         <div style={styles.heroBadge}>🟢 Tous les services opérationnels</div>
       </div>
 
-      <div style={styles.grid}>
-        <StatCard icon="📦" label="Commandes"     value={stats.orders}       color="#0E9384" bg="#E7F4F2" trend="12%" />
-        <StatCard icon="🚚" label="Livraisons"    value={stats.deliveries}   color="#0EA5E9" bg="#E0F2FE" trend="8%" />
-        <StatCard icon="🚗" label="Courses"       value={stats.rides}        color="#12A150" bg="#DBF6E5" />
-        <StatCard icon="🥗" label="Repas"         value={stats.mealOrders}   color="#F6A417" bg="#FBEFD3" />
-        <StatCard icon="🩺" label="Consultations" value={stats.appointments} color="#EC4899" bg="#FCE7F3" trend="21%" />
-        <StatCard icon="👥" label="Utilisateurs"  value={stats.users}        color="#8B5CF6" bg="#EDE9FE" />
-        <StatCard icon="👨‍⚕️" label="Médecins"     value={stats.doctors}      color="#0E9384" bg="#CCFBF1" />
+      {/* Rangée vedette : composition d'activité + volume par service */}
+      <div style={styles.featureGrid}>
+        <section className="card-lift" style={styles.panel}>
+          <div style={styles.panelHead}>
+            <div>
+              <h2 style={styles.panelTitle}>Composition de l'activité</h2>
+              <p style={styles.panelSub}>Répartition des opérations sur la plateforme</p>
+            </div>
+          </div>
+          <ActivityDonut segments={segments} centerLabel="opérations" />
+        </section>
+
+        <section className="card-lift" style={styles.panel}>
+          <div style={styles.panelHead}>
+            <div>
+              <h2 style={styles.panelTitle}>Volume par service</h2>
+              <p style={styles.panelSub}>Nombre total d'opérations enregistrées</p>
+            </div>
+            <span style={styles.totalChip}>
+              <span className="tnum" style={{ fontWeight: 800 }}>{activityTotal.toLocaleString('fr-FR')}</span> total
+            </span>
+          </div>
+          <ServiceBars segments={barSegments} />
+        </section>
       </div>
 
+      {/* Indicateurs clés */}
+      <div style={styles.grid}>
+        {ACTIVITY.map((a) => (
+          <StatCard
+            key={a.key}
+            icon={a.icon}
+            label={a.label}
+            value={stats[a.key].toLocaleString('fr-FR')}
+            color={a.color}
+            bg={a.bg}
+            ring={share(stats[a.key])}
+            trend={a.trend}
+          />
+        ))}
+        <StatCard icon="👥" label="Utilisateurs" value={stats.users.toLocaleString('fr-FR')} color="#8B5CF6" bg="#EDE9FE" trend="5%" />
+        <StatCard icon="👨‍⚕️" label="Médecins" value={stats.doctors.toLocaleString('fr-FR')} color="#0E9384" bg="#CCFBF1" />
+      </div>
+
+      {/* Actions rapides */}
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Actions rapides</h2>
         <div style={styles.actionGrid}>
@@ -70,9 +126,27 @@ export function Dashboard() {
   );
 }
 
+/** Squelette de chargement cohérent avec la mise en page réelle. */
+function DashboardSkeleton() {
+  return (
+    <div style={styles.page}>
+      <div className="skeleton" style={{ height: 132, borderRadius: 24 }} />
+      <div style={styles.featureGrid}>
+        <div className="skeleton" style={{ height: 360, borderRadius: 20 }} />
+        <div className="skeleton" style={{ height: 360, borderRadius: 20 }} />
+      </div>
+      <div style={styles.grid}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="skeleton" style={{ height: 132, borderRadius: 20 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const styles: Record<string, React.CSSProperties> = {
-  page:    { padding: '30px 34px', display: 'flex', flexDirection: 'column', gap: 28, maxWidth: 1240 },
-  center:  { padding: 40, textAlign: 'center', color: '#6B8B87' },
+  page:    { padding: '30px 34px', display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1280 },
+  center:  { padding: 40, textAlign: 'center', color: 'var(--muted)' },
 
   hero: {
     position: 'relative', overflow: 'hidden',
@@ -91,17 +165,31 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid rgba(255,255,255,.2)', whiteSpace: 'nowrap',
   },
 
+  featureGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 },
+  panel: {
+    background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--border)',
+    boxShadow: 'var(--shadow)', padding: '20px 22px 24px',
+    display: 'flex', flexDirection: 'column', gap: 18,
+  },
+  panelHead: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  panelTitle: { fontSize: 16, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' },
+  panelSub: { fontSize: 12.5, color: 'var(--muted)', marginTop: 3 },
+  totalChip: {
+    fontSize: 12, color: 'var(--muted)', background: 'var(--brand-surface)',
+    padding: '5px 11px', borderRadius: 20, whiteSpace: 'nowrap',
+  },
+
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 16 },
 
   section: { display: 'flex', flexDirection: 'column', gap: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: 700, color: '#0F2C29', letterSpacing: '-0.01em' },
+  sectionTitle: { fontSize: 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' },
   actionGrid: { display: 'flex', gap: 14, flexWrap: 'wrap' },
   actionCard: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-    backgroundColor: '#fff', borderRadius: 18, padding: '22px 26px',
-    boxShadow: '0 4px 14px -4px rgba(8,49,46,.12)', minWidth: 150,
-    textDecoration: 'none', color: '#0F2C29',
-    border: '1px solid #E3EDEB', cursor: 'pointer',
+    backgroundColor: 'var(--surface)', borderRadius: 18, padding: '22px 26px',
+    boxShadow: 'var(--shadow)', minWidth: 150,
+    textDecoration: 'none', color: 'var(--ink)',
+    border: '1px solid var(--border)', cursor: 'pointer',
   },
   actionLabel: { fontSize: 13, fontWeight: 600, textAlign: 'center' },
 };

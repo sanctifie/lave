@@ -38,9 +38,9 @@ function formatDate(iso: string) {
 }
 
 const COLUMNS: Column<RideRow>[] = [
-  { key: 'id',      header: 'ID',     render: (r) => <code style={{ fontSize: 12, color: '#006D77' }}>…{r.id.slice(-8)}</code>, width: '100px' },
+  { key: 'id',      header: 'ID',     render: (r) => <code style={{ fontSize: 12, color: 'var(--code)' }}>…{r.id.slice(-8)}</code>, width: '100px' },
   { key: 'type',    header: 'Type',   render: (r) => TYPE_FR[r.request.type] ?? r.request.type },
-  { key: 'trajet',  header: 'Trajet', render: (r) => <div><div style={{ fontWeight: 600 }}>{r.request.originLandmark}</div><div style={{ fontSize: 12, color: '#64748B' }}>→ {r.request.destLandmark}</div></div> },
+  { key: 'trajet',  header: 'Trajet', render: (r) => <div><div style={{ fontWeight: 600 }}>{r.request.originLandmark}</div><div style={{ fontSize: 12, color: 'var(--muted)' }}>→ {r.request.destLandmark}</div></div> },
   { key: 'fare',    header: 'Tarif',  render: (r) => <strong>{formatFcfa(r.fareFinalFcfa ?? r.fareEstFcfa)}</strong> },
   { key: 'status',  header: 'Statut', render: (r) => { const s = STATUS_COLOR[r.status] ?? { color: '#64748B', bg: '#F3F4F6' }; return <Badge label={STATUS_FR[r.status] ?? r.status} color={s.color} bg={s.bg} />; } },
   { key: 'date',    header: 'Date',   render: (r) => formatDate(r.createdAt), width: '150px' },
@@ -56,7 +56,7 @@ export function Rides() {
 
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1E293B' }}>Transport médical</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)' }}>Transport médical</h1>
       <Table columns={COLUMNS} data={rides} keyFn={(r) => r.id} loading={loading} emptyMessage="Aucune course" />
     </div>
   );

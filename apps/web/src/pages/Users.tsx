@@ -57,7 +57,7 @@ export function Users() {
   };
 
   const COLUMNS: Column<UserRow>[] = [
-    { key: 'name',   header: 'Nom',       render: (u) => <div><div style={{ fontWeight: 600 }}>{u.name}</div><div style={{ fontSize: 12, color: '#64748B' }}>{u.phone}</div></div> },
+    { key: 'name',   header: 'Nom',       render: (u) => <div><div style={{ fontWeight: 600 }}>{u.name}</div><div style={{ fontSize: 12, color: 'var(--muted)' }}>{u.phone}</div></div> },
     { key: 'role',   header: 'Rôle',      render: (u) => { const c = ROLE_COLORS[u.role] ?? { color: '#64748B', bg: '#F3F4F6' }; return <Badge label={ROLE_FR[u.role] ?? u.role} color={c.color} bg={c.bg} />; } },
     { key: 'active', header: 'Statut',    render: (u) => <Badge label={u.isActive ? 'Actif' : 'Inactif'} color={u.isActive ? '#16A34A' : '#DC2626'} bg={u.isActive ? '#DCFCE7' : '#FEE2E2'} /> },
     { key: 'date',   header: 'Inscrit le',render: (u) => formatDate(u.createdAt), width: '120px' },
@@ -66,7 +66,7 @@ export function Users() {
         style={{
           height: 32, paddingInline: 12, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
           border: `1.5px solid ${u.isActive ? '#FCA5A5' : '#86EFAC'}`,
-          background: '#fff', color: u.isActive ? '#DC2626' : '#16A34A',
+          background: 'var(--surface)', color: u.isActive ? '#DC2626' : '#16A34A',
           opacity: toggling === u.id ? 0.5 : 1,
         }}
         disabled={toggling === u.id}
@@ -80,9 +80,9 @@ export function Users() {
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1E293B' }}>Utilisateurs</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)' }}>Utilisateurs</h1>
         <select
-          style={{ height: 40, borderRadius: 8, border: '1.5px solid #E2E8F0', paddingInline: 12, fontSize: 14, color: '#374151', outline: 'none' }}
+          style={{ height: 40, borderRadius: 8, border: '1.5px solid var(--border)', paddingInline: 12, fontSize: 14, color: 'var(--body)', background: 'var(--surface)', outline: 'none' }}
           value={role}
           onChange={(e) => setRole(e.target.value)}
         >

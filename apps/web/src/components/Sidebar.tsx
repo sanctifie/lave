@@ -1,6 +1,8 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { theme } from '../theme';
+import { ThemeToggle } from './ThemeToggle';
+import { ThemeMode } from '../hooks/useTheme';
 
 const LINKS = [
   { to: '/',          label: 'Tableau de bord',  icon: '📊' },
@@ -16,9 +18,11 @@ const LINKS = [
 interface SidebarProps {
   onLogout: () => void;
   userName: string;
+  themeMode: ThemeMode;
+  onToggleTheme: () => void;
 }
 
-export function Sidebar({ onLogout, userName }: SidebarProps) {
+export function Sidebar({ onLogout, userName, themeMode, onToggleTheme }: SidebarProps) {
   return (
     <aside style={styles.sidebar}>
       <div style={styles.logo}>
@@ -58,6 +62,7 @@ export function Sidebar({ onLogout, userName }: SidebarProps) {
       </nav>
 
       <div style={styles.footer}>
+        <ThemeToggle mode={themeMode} onToggle={onToggleTheme} />
         <div style={styles.footerUser}>
           <div style={styles.avatar}>{userName.charAt(0).toUpperCase()}</div>
           <div style={{ flex: 1, overflow: 'hidden' }}>

@@ -26,7 +26,7 @@ const VERIF_FR: Record<string, string> = {
 };
 
 const COLUMNS: Column<DoctorRow>[] = [
-  { key: 'name',     header: 'Médecin',    render: (d) => <div><div style={{ fontWeight: 600 }}>{d.user.name}</div><div style={{ fontSize: 12, color: '#64748B' }}>{d.user.phone}</div></div> },
+  { key: 'name',     header: 'Médecin',    render: (d) => <div><div style={{ fontWeight: 600 }}>{d.user.name}</div><div style={{ fontSize: 12, color: 'var(--muted)' }}>{d.user.phone}</div></div> },
   { key: 'specialty',header: 'Spécialité', render: (d) => d.specialty.name },
   { key: 'cnom',     header: 'N° CNOM',    render: (d) => <code style={{ fontSize: 12 }}>{d.cnomNumber}</code> },
   { key: 'fee',      header: 'Tarif',      render: (d) => formatFcfa(d.consultationFeeFcfa) },
@@ -44,7 +44,7 @@ export function Doctors() {
 
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1E293B' }}>Médecins</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)' }}>Médecins</h1>
       <Table columns={COLUMNS} data={doctors} keyFn={(d) => d.id} loading={loading} emptyMessage="Aucun médecin enregistré" />
     </div>
   );

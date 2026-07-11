@@ -29,12 +29,26 @@ export function Table<T>({ columns, data, keyFn, emptyMessage = 'Aucune donnée'
         </thead>
         <tbody>
           {loading ? (
-            <tr>
-              <td colSpan={columns.length} style={styles.empty}>Chargement…</td>
-            </tr>
+            Array.from({ length: 6 }).map((_, i) => (
+              <tr key={`sk-${i}`} style={styles.tr}>
+                {columns.map((col) => (
+                  <td key={col.key} style={styles.td}>
+                    <span
+                      className="skeleton"
+                      style={{ display: 'block', height: 13, width: `${55 + ((i * 7 + col.key.length * 11) % 40)}%` }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} style={styles.empty}>{emptyMessage}</td>
+              <td colSpan={columns.length} style={styles.empty}>
+                <div style={styles.emptyInner}>
+                  <span style={styles.emptyIcon} aria-hidden>🗂️</span>
+                  <span>{emptyMessage}</span>
+                </div>
+              </td>
             </tr>
           ) : (
             data.map((row) => (
@@ -66,7 +80,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   table:   { width: '100%', borderCollapse: 'collapse', fontSize: 14 },
   th: {
-    backgroundColor: '#F0F7F5',
+    backgroundColor: 'var(--th-bg)',
     color: theme.muted,
     fontWeight: 700,
     fontSize: 11.5,
@@ -77,7 +91,9 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: `1px solid ${theme.border}`,
     whiteSpace: 'nowrap',
   },
-  tr: { borderBottom: `1px solid #EEF5F3` },
+  tr: { borderBottom: `1px solid var(--row-line)` },
   td:    { padding: '15px 18px', color: theme.body, verticalAlign: 'middle' },
-  empty: { padding: '44px 16px', textAlign: 'center', color: theme.faint, fontStyle: 'italic' },
+  empty: { padding: '52px 16px', textAlign: 'center', color: theme.faint },
+  emptyInner: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 500 },
+  emptyIcon: { fontSize: 34, opacity: 0.6 },
 };

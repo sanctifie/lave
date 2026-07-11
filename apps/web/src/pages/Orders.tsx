@@ -40,8 +40,8 @@ function formatDate(iso: string) {
 }
 
 const COLUMNS: Column<Order>[] = [
-  { key: 'id',       header: 'ID',        render: (o) => <code style={{ fontSize: 12, color: '#006D77' }}>…{o.id.slice(-8)}</code>, width: '100px' },
-  { key: 'patient',  header: 'Patient',   render: (o) => <div><div style={{ fontWeight: 600 }}>{o.patient.name}</div><div style={{ fontSize: 12, color: '#64748B' }}>{o.patient.phone}</div></div> },
+  { key: 'id',       header: 'ID',        render: (o) => <code style={{ fontSize: 12, color: 'var(--code)' }}>…{o.id.slice(-8)}</code>, width: '100px' },
+  { key: 'patient',  header: 'Patient',   render: (o) => <div><div style={{ fontWeight: 600 }}>{o.patient.name}</div><div style={{ fontSize: 12, color: 'var(--muted)' }}>{o.patient.phone}</div></div> },
   { key: 'partner',  header: 'Pharmacie', render: (o) => o.partner.legalName },
   { key: 'items',    header: 'Articles',  render: (o) => { const n = o.items?.length ?? 0; return <span>{n} article{n > 1 ? 's' : ''}</span>; } },
   { key: 'total',    header: 'Total',     render: (o) => <strong>{formatFcfa(o.totalFcfa)}</strong> },
@@ -83,6 +83,6 @@ export function Orders() {
 const styles: Record<string, React.CSSProperties> = {
   page:       { padding: 32, display: 'flex', flexDirection: 'column', gap: 24 },
   pageHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' },
-  title:      { fontSize: 24, fontWeight: 700, color: '#1E293B' },
-  select:     { height: 40, borderRadius: 8, border: '1.5px solid #E2E8F0', paddingInline: 12, fontSize: 14, color: '#374151', outline: 'none' },
+  title:      { fontSize: 24, fontWeight: 700, color: 'var(--ink)' },
+  select:     { height: 40, borderRadius: 8, border: '1.5px solid var(--border)', paddingInline: 12, fontSize: 14, color: 'var(--body)', background: 'var(--surface)', outline: 'none' },
 };

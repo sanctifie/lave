@@ -29,7 +29,7 @@ function formatDate(iso: string) {
 }
 
 const COLUMNS: Column<MealOrderRow>[] = [
-  { key: 'id',      header: 'ID',     render: (o) => <code style={{ fontSize: 12, color: '#006D77' }}>…{o.id.slice(-8)}</code>, width: '100px' },
+  { key: 'id',      header: 'ID',     render: (o) => <code style={{ fontSize: 12, color: 'var(--code)' }}>…{o.id.slice(-8)}</code>, width: '100px' },
   { key: 'plan',    header: 'Menu',   render: (o) => <strong>{o.mealPlan.name}</strong> },
   { key: 'total',   header: 'Total',  render: (o) => formatFcfa(o.totalFcfa) },
   { key: 'delivery',header: 'Livraison', render: (o) => {
@@ -38,7 +38,7 @@ const COLUMNS: Column<MealOrderRow>[] = [
     const isDelivered = s === 'delivered';
     return <Badge label={label} color={isDelivered ? '#16A34A' : '#D97706'} bg={isDelivered ? '#DCFCE7' : '#FEF3C7'} />;
   }},
-  { key: 'notes',   header: 'Notes',  render: (o) => <span style={{ color: '#64748B', fontSize: 13 }}>{o.notes ?? '—'}</span> },
+  { key: 'notes',   header: 'Notes',  render: (o) => <span style={{ color: 'var(--muted)', fontSize: 13 }}>{o.notes ?? '—'}</span> },
   { key: 'date',    header: 'Date',   render: (o) => formatDate(o.createdAt), width: '150px' },
 ];
 
@@ -52,7 +52,7 @@ export function Meals() {
 
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1E293B' }}>Commandes repas</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)' }}>Commandes repas</h1>
       <Table columns={COLUMNS} data={orders} keyFn={(o) => o.id} loading={loading} emptyMessage="Aucune commande repas" />
     </div>
   );

@@ -64,12 +64,12 @@ export function Pricing() {
     finally { setSaving(false); setEditing(null); }
   };
 
-  if (loading) return <div style={{ padding: 40, color: '#64748B', textAlign: 'center' }}>Chargement…</div>;
+  if (loading) return <div style={{ padding: 40, color: 'var(--muted)', textAlign: 'center' }}>Chargement…</div>;
 
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1E293B' }}>Tarification</h1>
-      <p style={{ color: '#64748B', fontSize: 14 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)' }}>Tarification</h1>
+      <p style={{ color: 'var(--muted)', fontSize: 14 }}>
         Modifiez les paramètres tarifaires de la plateforme. Les changements sont appliqués immédiatement.
       </p>
 
@@ -125,16 +125,16 @@ export function Pricing() {
 const styles: Record<string, React.CSSProperties> = {
   row: {
     display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
-    backgroundColor: '#fff', borderRadius: 12, padding: '16px 20px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+    backgroundColor: 'var(--surface)', borderRadius: 12, padding: '16px 20px',
+    boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
   },
-  kindLabel: { fontSize: 15, fontWeight: 600, color: '#1E293B' },
-  kindDesc:  { fontSize: 13, color: '#64748B', marginTop: 2 },
+  kindLabel: { fontSize: 15, fontWeight: 600, color: 'var(--ink)' },
+  kindDesc:  { fontSize: 13, color: 'var(--muted)', marginTop: 2 },
   valueArea: { display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 },
-  currentValue: { fontSize: 18, fontWeight: 700, color: '#1E293B' },
-  unit:      { fontSize: 12, color: '#94A3B8' },
-  input:     { height: 40, width: 120, borderRadius: 8, border: `1.5px solid ${theme.brand}`, paddingInline: 12, fontSize: 15, outline: 'none' },
-  editBtn:   { height: 36, paddingInline: 16, borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#374151' },
-  saveBtn:   { height: 36, paddingInline: 16, borderRadius: 8, border: 'none', background: theme.brand, color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
-  cancelBtn: { height: 36, paddingInline: 12, borderRadius: 8, border: '1px solid #E2E8F0', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#64748B' },
+  currentValue: { fontSize: 18, fontWeight: 700, color: 'var(--ink)' },
+  unit:      { fontSize: 12, color: 'var(--faint)' },
+  input:     { height: 40, width: 120, borderRadius: 8, border: `1.5px solid ${theme.brand}`, paddingInline: 12, fontSize: 15, outline: 'none', background: 'var(--surface)', color: 'var(--ink)' },
+  editBtn:   { height: 36, paddingInline: 16, borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, cursor: 'pointer', color: 'var(--body)' },
+  saveBtn:   { height: 36, paddingInline: 16, borderRadius: 8, border: 'none', background: theme.brand, color: '#04211e', fontSize: 13, cursor: 'pointer', fontWeight: 700 },
+  cancelBtn: { height: 36, paddingInline: 12, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 13, cursor: 'pointer', color: 'var(--muted)' },
 };
