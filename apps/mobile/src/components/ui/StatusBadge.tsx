@@ -28,8 +28,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: BadgeColor }> = {
   [OrderStatus.PREPARING]:          { label: fr.order.status.preparing,           color: 'info'    },
   [OrderStatus.READY_FOR_PICKUP]:   { label: fr.order.status.ready_for_pickup,   color: 'info'    },
   [OrderStatus.DISPATCHED]:         { label: fr.order.status.dispatched,          color: 'info'    },
-  [OrderStatus.DELIVERED]:          { label: fr.order.status.delivered,           color: 'success' },
-  [OrderStatus.CANCELLED]:          { label: fr.order.status.cancelled,           color: 'neutral' },
+  // 'delivered' et 'cancelled' sont partagés avec DeliveryStatus/AppointmentStatus
+  // (mêmes valeurs littérales) — définis plus bas, une seule fois.
 
   // Delivery
   [DeliveryStatus.PENDING_ASSIGNMENT]: { label: fr.delivery.status.pending_assignment, color: 'warning' },
