@@ -2,12 +2,22 @@ import { prisma } from '../../infrastructure/prisma/client';
 import { PrescriptionStatus, PrescriptionSource, MediaKind } from '@mbolo/shared';
 
 export class PrescriptionRepository {
-  async create(patientId: string, data: { type: string; targetPartnerId: string }) {
+  async create(
+    patientId: string,
+    data: { type: string; targetPartnerId: string; substitutionConsent?: string },
+  ) {
     return prisma.prescription.create({
       data: {
         patientId,
         type: data.type as Parameters<typeof prisma.prescription.create>[0]['data']['type'],
         targetPartnerId: data.targetPartnerId,
+        ...(data.substitutionConsent
+          ? {
+              substitutionConsent: data.substitutionConsent as Parameters<
+                typeof prisma.prescription.create
+              >[0]['data']['substitutionConsent'],
+            }
+          : {}),
       },
       include: { targetPartner: true, patient: { select: { name: true } } },
     });

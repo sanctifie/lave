@@ -56,6 +56,77 @@ describe('OrderService.partnerAction', () => {
   });
 });
 
+function setupSub(order: any, applyResult: any) {
+  const repo = {
+    findById: vi.fn().mockResolvedValue(order),
+    applySubstitutionDecision: vi.fn().mockResolvedValue(applyResult),
+  };
+  const notif = { send: vi.fn().mockResolvedValue(undefined) };
+  const deliveryRepo = { create: vi.fn().mockResolvedValue({ id: 'dlv1' }) };
+  const pricingRepo = { getByKind: vi.fn().mockResolvedValue({ valueFcfa: 1000 }) };
+  // push volontairement omis → pas d'appel prisma (boucle coursiers) dans le test
+  const service = new OrderService(repo as any, notif as any, deliveryRepo as any, pricingRepo as any);
+  return { repo, notif, deliveryRepo, service };
+}
+
+const subOrder = (over: Record<string, any> = {}) =>
+  makeOrder({
+    patientId: 'patient1',
+    serviceFeeFcfa: 500,
+    status: OrderStatus.PENDING_SUBSTITUTION,
+    items: [{ id: 'it1', substitutionStatus: 'pending' }],
+    ...over,
+  });
+
+describe('OrderService.decideSubstitution', () => {
+  it('403 si la commande n\'est pas au patient', async () => {
+    const { service } = setupSub(subOrder({ patientId: 'autre' }), null);
+    await expect(
+      service.decideSubstitution('ckorder1', 'patient1', { decisions: [{ itemId: 'it1', accepted: true }] } as any),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('422 si la commande n\'attend aucun équivalent', async () => {
+    const { service } = setupSub(subOrder({ status: OrderStatus.PENDING_PHARMACY }), null);
+    await expect(
+      service.decideSubstitution('ckorder1', 'patient1', { decisions: [{ itemId: 'it1', accepted: true }] } as any),
+    ).rejects.toMatchObject({ statusCode: 422 });
+  });
+
+  it('accepte : applique la décision et crée la livraison', async () => {
+    const { service, repo, deliveryRepo } = setupSub(subOrder(), {
+      order: { id: 'ckorder1', totalFcfa: 1200, status: OrderStatus.PENDING_PHARMACY },
+      allRejected: false,
+    });
+    const res = await service.decideSubstitution('ckorder1', 'patient1', {
+      decisions: [{ itemId: 'it1', accepted: true }],
+    } as any);
+    expect(repo.applySubstitutionDecision).toHaveBeenCalledWith('ckorder1', [{ itemId: 'it1', accepted: true }]);
+    expect(deliveryRepo.create).toHaveBeenCalled();
+    expect(res).toMatchObject({ cancelled: false });
+  });
+
+  it('tout refusé : annule la commande, pas de livraison', async () => {
+    const { service, notif, deliveryRepo } = setupSub(subOrder(), {
+      order: { id: 'ckorder1', totalFcfa: 0, status: OrderStatus.CANCELLED },
+      allRejected: true,
+    });
+    const res = await service.decideSubstitution('ckorder1', 'patient1', {
+      decisions: [{ itemId: 'it1', accepted: false }],
+    } as any);
+    expect(deliveryRepo.create).not.toHaveBeenCalled();
+    expect(notif.send).toHaveBeenCalled();
+    expect(res).toMatchObject({ cancelled: true });
+  });
+
+  it('ignore les décisions sur des articles non en attente (422 si rien ne reste)', async () => {
+    const { service } = setupSub(subOrder(), null);
+    await expect(
+      service.decideSubstitution('ckorder1', 'patient1', { decisions: [{ itemId: 'inconnu', accepted: true }] } as any),
+    ).rejects.toMatchObject({ statusCode: 422 });
+  });
+});
+
 describe('OrderService.getById', () => {
   it('403 si la commande n\'appartient pas au demandeur', async () => {
     const { service } = setup(makeOrder({ patientId: 'autre' }));

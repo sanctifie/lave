@@ -49,6 +49,9 @@ export enum PrescriptionStatus {
 
 export enum OrderStatus {
   PENDING_PHARMACY = 'pending_pharmacy',
+  // Le pharmacien a proposé un/des équivalent(s) : on attend l'accord du patient
+  // avant de préparer (uniquement si son consentement était « me demander »).
+  PENDING_SUBSTITUTION = 'pending_substitution',
   PHARMACY_ACCEPTED = 'pharmacy_accepted',
   PHARMACY_REJECTED = 'pharmacy_rejected',
   PREPARING = 'preparing',
@@ -56,6 +59,26 @@ export enum OrderStatus {
   DISPATCHED = 'dispatched',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
+}
+
+/**
+ * Consentement du patient à recevoir un équivalent (générique / thérapeutique)
+ * si le médicament exact est indisponible. Choisi à l'envoi de l'ordonnance.
+ * Le pharmacien reste le seul à décider de l'équivalence (dispensateur légal).
+ */
+export enum SubstitutionConsent {
+  ALLOW = 'allow', // accepte tout équivalent proposé par le pharmacien
+  ASK = 'ask',     // me demander à chaque fois (défaut)
+  DENY = 'deny',   // produit exact uniquement, aucune substitution
+}
+
+/** État d'un article dispensé vis-à-vis d'une éventuelle substitution. */
+export enum SubstitutionStatus {
+  NONE = 'none',                   // article conforme à l'ordonnance
+  PENDING = 'pending',             // équivalent proposé, en attente d'accord patient
+  ACCEPTED = 'accepted',           // équivalent accepté par le patient
+  AUTO_ACCEPTED = 'auto_accepted', // équivalent accepté d'office (consentement = allow)
+  REJECTED = 'rejected',           // équivalent refusé par le patient
 }
 
 export enum DeliveryStatus {

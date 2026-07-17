@@ -1,9 +1,11 @@
 import { z } from 'zod';
-import { PrescriptionType } from '@mbolo/shared';
+import { PrescriptionType, SubstitutionConsent } from '@mbolo/shared';
 
 export const CreatePrescriptionSchema = z.object({
   type: z.nativeEnum(PrescriptionType).default(PrescriptionType.DRUG),
   targetPartnerId: z.string().cuid('ID pharmacie invalide'),
+  // Consentement du patient à un équivalent si le produit exact manque.
+  substitutionConsent: z.nativeEnum(SubstitutionConsent).default(SubstitutionConsent.ASK),
 });
 
 export const ValidatePrescriptionSchema = z
@@ -15,6 +17,10 @@ export const ValidatePrescriptionSchema = z
           name: z.string().min(1),
           quantity: z.number().int().positive(),
           unitPriceFcfa: z.number().int().positive(),
+          // Substitution : cet article dispensé remplace-t-il un produit prescrit ?
+          substituted: z.boolean().optional(),
+          originalName: z.string().min(1).optional(), // produit d'origine (si substitué)
+          substitutionReason: z.string().min(1).optional(),
         }),
       )
       .optional(),
