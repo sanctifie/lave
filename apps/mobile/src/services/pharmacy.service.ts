@@ -15,6 +15,10 @@ export interface ValidationItem {
   name: string;
   quantity: number;
   unitPriceFcfa: number;
+  // Substitution : cet article dispensé remplace-t-il un produit prescrit ?
+  substituted?: boolean;
+  originalName?: string;
+  substitutionReason?: string;
 }
 
 export interface PharmacyOrderItem {
@@ -85,6 +89,13 @@ export const pharmacyService = {
         name:          i.name,
         quantity:      i.quantity,
         unitPriceFcfa: i.unitPriceFcfa,
+        ...(i.substituted
+          ? {
+              substituted: true,
+              originalName: i.originalName,
+              substitutionReason: i.substitutionReason,
+            }
+          : {}),
       })),
     });
   },

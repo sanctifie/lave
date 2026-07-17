@@ -60,11 +60,19 @@ export default function PrescriptionValidateScreen() {
     setItems((prev) =>
       prev.map((it) => {
         if (it._key !== key) return it;
-        if (field === 'name')          return { ...it, name: raw };
-        if (field === 'quantity')      return { ...it, quantity: parseInt(raw) || 0 };
-        if (field === 'unitPriceFcfa') return { ...it, unitPriceFcfa: parseInt(raw) || 0 };
+        if (field === 'name')               return { ...it, name: raw };
+        if (field === 'quantity')           return { ...it, quantity: parseInt(raw) || 0 };
+        if (field === 'unitPriceFcfa')      return { ...it, unitPriceFcfa: parseInt(raw) || 0 };
+        if (field === 'originalName')       return { ...it, originalName: raw };
+        if (field === 'substitutionReason') return { ...it, substitutionReason: raw };
         return it;
       })
+    );
+  };
+
+  const toggleSubstituted = (key: string) => {
+    setItems((prev) =>
+      prev.map((it) => (it._key === key ? { ...it, substituted: !it.substituted } : it)),
     );
   };
 
@@ -215,6 +223,35 @@ export default function PrescriptionValidateScreen() {
                           onChangeText={(v) => updateItem(item._key, 'unitPriceFcfa', v)}
                         />
                       </View>
+
+                      {/* Substitution : cet article remplace-t-il un produit prescrit ? */}
+                      <Pressable style={styles.subToggle} onPress={() => toggleSubstituted(item._key)}>
+                        <View style={[styles.subCheckbox, item.substituted && styles.subCheckboxOn]}>
+                          {item.substituted && <Text style={styles.subCheckMark}>✓</Text>}
+                        </View>
+                        <Text style={styles.subToggleTxt}>Équivalent (produit prescrit indisponible)</Text>
+                      </Pressable>
+                      {item.substituted && (
+                        <View style={styles.subFields}>
+                          <TextInput
+                            style={styles.inputMed}
+                            placeholder="Produit initialement prescrit"
+                            placeholderTextColor={colors.textDisabled}
+                            value={item.originalName ?? ''}
+                            onChangeText={(v) => updateItem(item._key, 'originalName', v)}
+                          />
+                          <TextInput
+                            style={styles.inputMed}
+                            placeholder="Motif (ex. rupture de stock)"
+                            placeholderTextColor={colors.textDisabled}
+                            value={item.substitutionReason ?? ''}
+                            onChangeText={(v) => updateItem(item._key, 'substitutionReason', v)}
+                          />
+                          <Text style={styles.subHint}>
+                            Le patient sera sollicité pour accepter, selon son consentement.
+                          </Text>
+                        </View>
+                      )}
                     </View>
                     {items.length > 1 && (
                       <Pressable onPress={() => removeItem(item._key)} style={styles.removeBtn}>
@@ -365,6 +402,17 @@ const styles = StyleSheet.create({
   inputPrice: { flex: 2 },
   removeBtn:  { paddingTop: spacing.sm, paddingLeft: spacing.xs },
   removeTxt:  { ...typography.bodyMedium, color: colors.error },
+
+  subToggle:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
+  subCheckbox: {
+    width: 20, height: 20, borderRadius: radii.sm, borderWidth: 1.5,
+    borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
+  },
+  subCheckboxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  subCheckMark:  { ...typography.label, color: colors.textOnDark },
+  subToggleTxt:  { ...typography.caption, color: colors.textSecondary, flex: 1 },
+  subFields:     { gap: spacing.xs, marginTop: spacing.xs, paddingLeft: spacing.md, borderLeftWidth: 2, borderLeftColor: colors.accent },
+  subHint:       { ...typography.caption, color: colors.textSecondary, fontStyle: 'italic' },
 
   addItemBtn: {
     borderWidth: 1.5,

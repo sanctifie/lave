@@ -6,6 +6,9 @@ export interface OrderItem {
   quantity: number;
   unitPriceFcfa: number;
   totalFcfa: number;
+  substitutionStatus: string;
+  originalName: string | null;
+  substitutionReason: string | null;
 }
 
 export interface Order {
@@ -29,11 +32,14 @@ export interface OrderDetail extends Order {
 
 function normalizeItem(i: any): OrderItem {
   return {
-    id:            i.id,
-    name:          i.name,
-    quantity:      i.quantity,
-    unitPriceFcfa: i.unitPriceFcfa,
-    totalFcfa:     i.totalFcfa,
+    id:                 i.id,
+    name:               i.name,
+    quantity:           i.quantity,
+    unitPriceFcfa:      i.unitPriceFcfa,
+    totalFcfa:          i.totalFcfa,
+    substitutionStatus: i.substitutionStatus ?? 'none',
+    originalName:       i.originalName ?? null,
+    substitutionReason: i.substitutionReason ?? null,
   };
 }
 
@@ -71,5 +77,15 @@ export const ordersService = {
       handoverCode:      raw.delivery?.handoverCode ?? null,
       transactionStatus: raw.transaction?.status ?? null,
     };
+  },
+
+  /** Le patient accepte/refuse les équivalents proposés (par article). */
+  async decideSubstitution(
+    orderId: string,
+    decisions: { itemId: string; accepted: boolean }[],
+  ): Promise<{ cancelled: boolean }> {
+    const { data } = await apiClient.patch<any>(`/orders/${orderId}/substitution-decision`, { decisions });
+    const raw = data.data ?? data;
+    return { cancelled: !!raw.cancelled };
   },
 };

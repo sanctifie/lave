@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { PrescriptionType } from '@mbolo/shared';
+import { PrescriptionType, SubstitutionConsent } from '@mbolo/shared';
 
 export interface PrescriptionListItem {
   id: string;
@@ -53,11 +53,15 @@ export const prescriptionsService = {
   async upload(params: {
     type: PrescriptionType;
     targetPartnerId: string;
+    substitutionConsent?: SubstitutionConsent;
     scan?: { uri: string; name: string; type: string };
   }): Promise<PrescriptionListItem> {
     const form = new FormData();
     form.append('type', params.type);
     form.append('targetPartnerId', params.targetPartnerId);
+    if (params.substitutionConsent) {
+      form.append('substitutionConsent', params.substitutionConsent);
+    }
     if (params.scan) {
       form.append('scan', {
         uri:  params.scan.uri,

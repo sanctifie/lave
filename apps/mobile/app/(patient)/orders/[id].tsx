@@ -73,6 +73,29 @@ export default function OrderDetailScreen() {
   // Remise
   const [code,         setCode]         = useState('');
   const [confirming,   setConfirming]   = useState(false);
+  const [subChoice,    setSubChoice]    = useState<Record<string, boolean>>({});
+  const [subSubmitting, setSubSubmitting] = useState(false);
+
+  const submitSubstitution = async () => {
+    if (!order) return;
+    const pending = order.items.filter((i) => i.substitutionStatus === 'pending');
+    const decisions = pending.map((i) => ({ itemId: i.id, accepted: subChoice[i.id] !== false }));
+    setSubSubmitting(true);
+    try {
+      const res = await ordersService.decideSubstitution(order.id, decisions);
+      Alert.alert(
+        res.cancelled ? 'Commande annulée' : 'Choix enregistré',
+        res.cancelled
+          ? 'Les équivalents ayant été refusés, la commande est annulée. Contactez votre pharmacien.'
+          : 'Merci — votre pharmacien prépare votre commande.',
+      );
+      await load();
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer votre choix. Réessayez.');
+    } finally {
+      setSubSubmitting(false);
+    }
+  };
 
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -172,7 +195,9 @@ export default function OrderDetailScreen() {
   const isCancelled = order.status === OrderStatus.CANCELLED || order.status === OrderStatus.PHARMACY_REJECTED;
   const isDispatched = order.status === OrderStatus.DISPATCHED;
   const isDelivered  = order.status === OrderStatus.DELIVERED;
-  const needsPayment = !isCancelled && !isDelivered && payStep === 'idle';
+  const isPendingSub = order.status === OrderStatus.PENDING_SUBSTITUTION;
+  const pendingSubs  = order.items.filter((i) => i.substitutionStatus === 'pending');
+  const needsPayment = !isCancelled && !isDelivered && !isPendingSub && payStep === 'idle';
   const total        = order.totalFcfa + order.serviceFeeFcfa;
 
   return (
@@ -244,6 +269,54 @@ export default function OrderDetailScreen() {
         {isCancelled && (
           <View style={styles.cancelledBanner}>
             <Text style={styles.cancelledText}>❌ Cette commande a été annulée ou refusée par la pharmacie.</Text>
+          </View>
+        )}
+
+        {/* Équivalents à valider */}
+        {isPendingSub && pendingSubs.length > 0 && (
+          <View style={styles.subCard}>
+            <Text style={styles.subCardTitle}>🔁 Équivalent(s) proposé(s)</Text>
+            <Text style={styles.subCardIntro}>
+              Un ou plusieurs médicaments étaient indisponibles. Votre pharmacien propose un
+              équivalent. Acceptez ou refusez avant préparation.
+            </Text>
+            {pendingSubs.map((item) => {
+              const accepted = subChoice[item.id] !== false;
+              return (
+                <View key={item.id} style={styles.subItem}>
+                  <Text style={styles.subOrig}>
+                    Prescrit : <Text style={styles.subStrike}>{item.originalName ?? '—'}</Text>
+                  </Text>
+                  <Text style={styles.subProp}>Proposé : {item.name} — {formatFcfa(item.unitPriceFcfa)}</Text>
+                  {item.substitutionReason ? (
+                    <Text style={styles.subReason}>Motif : {item.substitutionReason}</Text>
+                  ) : null}
+                  <View style={styles.subBtns}>
+                    <Pressable
+                      style={[styles.subBtn, accepted && styles.subBtnAccept]}
+                      onPress={() => setSubChoice((p) => ({ ...p, [item.id]: true }))}
+                    >
+                      <Text style={[styles.subBtnTxt, accepted && styles.subBtnTxtOn]}>Accepter</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.subBtn, !accepted && styles.subBtnReject]}
+                      onPress={() => setSubChoice((p) => ({ ...p, [item.id]: false }))}
+                    >
+                      <Text style={[styles.subBtnTxt, !accepted && styles.subBtnTxtOn]}>Refuser</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+            <Pressable
+              style={[styles.subConfirm, subSubmitting && { opacity: 0.6 }]}
+              disabled={subSubmitting}
+              onPress={submitSubstitution}
+            >
+              <Text style={styles.subConfirmTxt}>
+                {subSubmitting ? 'Enregistrement…' : 'Confirmer mon choix'}
+              </Text>
+            </Pressable>
           </View>
         )}
 
@@ -432,6 +505,49 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   cancelledText: { ...typography.body, color: colors.error },
+
+  subCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    ...shadows.card,
+  },
+  subCardTitle: { ...typography.bodyMedium, color: colors.text },
+  subCardIntro: { ...typography.caption, color: colors.textSecondary },
+  subItem: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    gap: 2,
+  },
+  subOrig:   { ...typography.caption, color: colors.textSecondary },
+  subStrike: { textDecorationLine: 'line-through' },
+  subProp:   { ...typography.bodyMedium, color: colors.text },
+  subReason: { ...typography.caption, color: colors.textSecondary, fontStyle: 'italic' },
+  subBtns:   { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  subBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  subBtnAccept: { backgroundColor: colors.success, borderColor: colors.success },
+  subBtnReject: { backgroundColor: colors.error, borderColor: colors.error },
+  subBtnTxt:    { ...typography.label, color: colors.textSecondary },
+  subBtnTxtOn:  { color: colors.textOnDark },
+  subConfirm: {
+    marginTop: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  subConfirmTxt: { ...typography.bodyMedium, color: colors.textOnDark },
 
   section:      { gap: spacing.sm },
   sectionTitle: { ...typography.bodyMedium, color: colors.text },

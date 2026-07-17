@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { PrescriptionType } from '@mbolo/shared';
+import { PrescriptionType, SubstitutionConsent } from '@mbolo/shared';
 import { prescriptionsService } from '../../../src/services/prescriptions.service';
 import { apiClient } from '../../../src/services/client';
 import { Button } from '../../../src/components/ui/Button';
@@ -26,12 +26,19 @@ interface PharmacyItem {
   address: string;
 }
 
+const CONSENT_OPTIONS: { value: SubstitutionConsent; label: string; hint: string }[] = [
+  { value: SubstitutionConsent.ASK,   label: 'Me demander à chaque fois', hint: 'Le pharmacien propose, vous validez avant préparation (recommandé)' },
+  { value: SubstitutionConsent.ALLOW, label: 'Oui, un équivalent me convient', hint: 'Le pharmacien peut remplacer directement, vous êtes notifié(e)' },
+  { value: SubstitutionConsent.DENY,  label: 'Non, produit exact uniquement', hint: 'Aucun remplacement : si indisponible, la commande est suspendue' },
+];
+
 export default function UploadScreen() {
   const router = useRouter();
 
   const [scan, setScan]               = useState<{ uri: string; name: string; type: string } | null>(null);
   const [pharmacies, setPharmacies]   = useState<PharmacyItem[]>([]);
   const [pharmacyId, setPharmacyId]   = useState<string | null>(null);
+  const [consent, setConsent]         = useState<SubstitutionConsent>(SubstitutionConsent.ASK);
   const [loadingPh, setLoadingPh]     = useState(true);
   const [submitting, setSubmitting]   = useState(false);
 
@@ -86,6 +93,7 @@ export default function UploadScreen() {
       await prescriptionsService.upload({
         type: PrescriptionType.DRUG,
         targetPartnerId: pharmacyId,
+        substitutionConsent: consent,
         scan,
       });
       Alert.alert('Envoyée !', 'Votre ordonnance a été transmise à la pharmacie.', [
@@ -185,6 +193,41 @@ export default function UploadScreen() {
               })}
             </View>
           )}
+        </View>
+
+        {/* Step 3 — Substitution consent */}
+        <View style={styles.section}>
+          <View style={styles.stepHeader}>
+            <View style={styles.stepBadge}><Text style={styles.stepNum}>3</Text></View>
+            <Text style={styles.stepTitle}>Produit indisponible ?</Text>
+          </View>
+          <Text style={styles.consentIntro}>
+            Si un médicament n'est pas en stock, acceptez-vous un équivalent (générique)
+            proposé par le pharmacien ?
+          </Text>
+          {CONSENT_OPTIONS.map((opt) => {
+            const selected = consent === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                style={[styles.pharmacyCard, selected && styles.pharmacyCardSelected]}
+                onPress={() => setConsent(opt.value)}
+              >
+                <View style={[styles.pharmacyRadio, selected && styles.pharmacyRadioSelected]}>
+                  {selected && <View style={styles.pharmacyRadioDot} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.pharmacyName, selected && { color: colors.primary }]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.pharmacyAddr}>{opt.hint}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+          <Text style={styles.consentLegal}>
+            Le pharmacien reste seul juge de l'équivalence et vous confirmera tout remplacement.
+          </Text>
         </View>
 
         {/* Submit */}
@@ -296,4 +339,7 @@ const styles = StyleSheet.create({
   pharmacyName: { ...typography.bodyMedium, color: colors.text },
   pharmacyAddr: { ...typography.caption, color: colors.textSecondary },
   noPharmacy:   { ...typography.caption, color: colors.textSecondary, textAlign: 'center', padding: spacing.md },
+
+  consentIntro: { ...typography.caption, color: colors.textSecondary },
+  consentLegal: { ...typography.caption, color: colors.textSecondary, fontStyle: 'italic', marginTop: spacing.xs },
 });
