@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
+import { rateLimit } from '../../middleware/rateLimit';
 import { validate } from '../../middleware/validate';
+import { HTTP } from '../../lib/errors';
 import { asyncHandler } from '../../lib/asyncHandler';
 import { UpdateDeliveryStatusSchema, HandoverSchema } from './schema';
 import { DeliveryService } from './service';
@@ -43,8 +45,8 @@ router.get('/me/availability', requireAuth, requireRole(UserRole.COURIER), async
 
 // Courier : toggle disponibilité
 router.patch('/me/availability', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
-  const { isAvailable } = req.body;
-  if (typeof isAvailable !== 'boolean') throw new Error('isAvailable doit être un booléen');
+  const { isAvailable } = req.body ?? {};
+  if (typeof isAvailable !== 'boolean') throw HTTP.unprocessable('isAvailable doit être un booléen');
   res.json({ data: await service.setCourierAvailability(req.user!.userId, isAvailable) });
 }));
 
@@ -74,9 +76,9 @@ router.get('/mine', requireAuth, requireRole(UserRole.COURIER), asyncHandler(asy
   res.json(await service.listMine(req.user!.userId));
 }));
 
-// Détail d'une livraison
+// Détail d'une livraison (patient destinataire ou coursier uniquement)
 router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
-  res.json(await service.getById(req.params.id));
+  res.json(await service.getById(req.params.id, { userId: req.user!.userId, role: req.user!.role }));
 }));
 
 // Courier : s'auto-assigne une livraison
@@ -105,13 +107,15 @@ router.patch(
   }),
 );
 
-// Patient : confirme la réception avec le code de remise → déclenche escrow release
+// Patient : confirme la réception avec le code de remise → déclenche escrow release.
+// Rate-limité : le code fait 6 chiffres, on bloque le brute-force par utilisateur.
 router.post(
   '/:id/handover',
   requireAuth,
+  rateLimit({ prefix: 'handover', windowSec: 900, max: 10, key: (req) => (req as any).user?.userId ?? req.ip ?? 'unknown' }),
   validate(HandoverSchema),
   asyncHandler(async (req, res) => {
-    res.json(await service.confirmHandover(req.params.id, req.body.code));
+    res.json(await service.confirmHandover(req.params.id, req.body.code, req.user!.userId));
   }),
 );
 

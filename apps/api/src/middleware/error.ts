@@ -18,6 +18,17 @@ export function errorHandler(
     return;
   }
 
+  // Erreurs Prisma courantes → statuts HTTP parlants (au lieu d'un 500 opaque).
+  const prismaCode = (err as { code?: string } | null)?.code;
+  if (prismaCode === 'P2002') {
+    res.status(409).json({ code: 'CONFLICT', message: 'Cette valeur existe déjà (doublon).' });
+    return;
+  }
+  if (prismaCode === 'P2025') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Ressource introuvable.' });
+    return;
+  }
+
   console.error('[unhandled error]', err);
   res.status(500).json({ code: 'INTERNAL', message: 'Une erreur interne est survenue' });
 }

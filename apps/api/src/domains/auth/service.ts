@@ -1,22 +1,36 @@
 import jwt from 'jsonwebtoken';
+import { randomInt } from 'crypto';
 import { redis } from '../../infrastructure/redis/client';
 import { HTTP } from '../../lib/errors';
 import { AuthRepository } from './repository';
+import { NotificationService } from '../../infrastructure/providers/notification';
 
 const OTP_TTL = Number(process.env.OTP_TTL_SECONDS ?? 300);
 const MAX_ATTEMPTS = 3;
 
 export class AuthService {
-  constructor(private readonly repo: AuthRepository) {}
+  constructor(
+    private readonly repo: AuthRepository,
+    // Optionnel pour ne pas casser les tests existants ; requis en prod pour
+    // que l'OTP parte réellement par WhatsApp/SMS.
+    private readonly notif?: NotificationService,
+  ) {}
 
   async requestOtp(phone: string): Promise<{ expiresIn: number }> {
-    const code = Math.floor(100_000 + Math.random() * 900_000).toString();
+    // Générateur cryptographique : un OTP issu de Math.random() est prédictible.
+    const code = randomInt(100_000, 1_000_000).toString();
     await redis.set(`otp:${phone}`, `${code}:0`, { EX: OTP_TTL });
 
-    // En dev, on logue l'OTP. En prod, NotificationService prend le relais (étape 4)
     if (process.env.NODE_ENV === 'development') {
       console.warn(`[OTP DEV] ${phone} → ${code}`);
     }
+
+    // Envoi réel (WhatsApp avec repli SMS). Sans provider configuré, le stub
+    // logue — le flux reste utilisable en développement.
+    await this.notif?.send({
+      to: phone,
+      message: `MBOLO Santé — votre code de connexion : ${code}\nValable ${Math.round(OTP_TTL / 60)} min. Ne le partagez jamais.`,
+    });
 
     return { expiresIn: OTP_TTL };
   }

@@ -7,7 +7,6 @@ import { NotificationService } from '../../infrastructure/providers/notification
 import { PaymentProvider } from '../../infrastructure/providers/payment';
 import { DeliveryStatus, OrderStatus, TransactionStatus, PricingKind } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
-import { payoutAfterCommission } from '../../lib/money';
 import { randomUUID } from 'crypto';
 import type { PaymentService } from '../payments/service';
 import type { PushService } from '../../infrastructure/push/service';
@@ -24,6 +23,14 @@ export class DeliveryService {
     private readonly push?: PushService,
   ) {}
 
+  // Le code de remise est le secret du PATIENT : il le montre au coursier à la
+  // réception. On le retire donc de toute réponse destinée au coursier — sinon
+  // celui-ci pourrait confirmer la livraison sans jamais rencontrer le patient.
+  private stripHandoverCode<T extends { handoverCode?: unknown }>(d: T): Omit<T, 'handoverCode'> {
+    const { handoverCode: _hidden, ...rest } = d;
+    return rest;
+  }
+
   async listAll(courierUserId: string) {
     const [mine, pending] = await Promise.all([
       this.repo.listForCourierByUserId(courierUserId),
@@ -31,7 +38,7 @@ export class DeliveryService {
     ]);
     const mineIds = new Set((mine as any[]).map((d) => d.id));
     const extra   = (pending as any[]).filter((d) => !mineIds.has(d.id));
-    return [...mine, ...extra];
+    return [...mine, ...extra].map((d) => this.stripHandoverCode(d));
   }
 
   async acceptDelivery(deliveryId: string, courierUserId: string) {
@@ -50,13 +57,13 @@ export class DeliveryService {
         });
       }
     }
-    return updated;
+    return this.stripHandoverCode(updated as any);
   }
 
   async updateDeliveryStatus(deliveryId: string, courierUserId: string, status: DeliveryStatus) {
     const updated = await this.repo.updateStatusByCourier(deliveryId, courierUserId, status);
     if (!updated) throw HTTP.forbidden('Non autorisé ou livraison introuvable');
-    return updated;
+    return this.stripHandoverCode(updated as any);
   }
 
   async setCourierAvailability(userId: string, isAvailable: boolean) {
@@ -67,18 +74,28 @@ export class DeliveryService {
     return { isAvailable: await this.repo.getCourierAvailability(userId) };
   }
 
-  async getById(id: string) {
+  async getById(id: string, requester: { userId: string; role: string }) {
     const d = await this.repo.findById(id);
     if (!d) throw HTTP.notFound('Livraison introuvable');
-    return d;
+    // Contrôle d'accès : patient destinataire, ou coursier (assigné, ou libre si
+    // la course est encore à prendre). Personne d'autre ne voit ces données
+    // (nom/téléphone du patient, adresses).
+    const patientId = (d as any).order?.patient?.id ?? null;
+    const isPatient = requester.userId === patientId;
+    const isCourier = requester.role === 'courier';
+    if (!isPatient && !isCourier) throw HTTP.forbidden();
+    // Le code de remise reste chez le patient : caviardé pour le coursier.
+    return isPatient ? d : this.stripHandoverCode(d as any);
   }
 
   async listMine(courierId: string) {
-    return this.repo.listForCourier(courierId);
+    const rows = await this.repo.listForCourier(courierId);
+    return (rows as any[]).map((d) => this.stripHandoverCode(d));
   }
 
   async listPending() {
-    return this.repo.listPending();
+    const rows = await this.repo.listPending();
+    return (rows as any[]).map((d) => this.stripHandoverCode(d));
   }
 
   async assign(deliveryId: string, courierId: string) {
@@ -118,7 +135,24 @@ export class DeliveryService {
     return this.repo.updateStatus(deliveryId, status, lat, lng);
   }
 
-  async confirmHandover(deliveryId: string, code: string) {
+  async confirmHandover(deliveryId: string, code: string, requesterId: string) {
+    // La confirmation libère l'escrow (mouvement d'argent) : seuls le coursier
+    // ASSIGNÉ (flux principal : il saisit le code que le patient lui montre)
+    // ou le patient destinataire peuvent la déclencher.
+    const existing = await this.repo.findById(deliveryId);
+    if (!existing) throw HTTP.notFound('Livraison introuvable');
+    const ownerId =
+      (existing as any).order?.patient?.id ?? (existing as any).order?.patientId ?? null;
+    const courierUserId = (existing as any).courierId
+      ? (
+          await prisma.courier.findUnique({
+            where: { id: (existing as any).courierId },
+            select: { userId: true },
+          })
+        )?.userId ?? null
+      : null;
+    if (requesterId !== ownerId && requesterId !== courierUserId) throw HTTP.forbidden();
+
     const delivery = await this.repo.confirmHandover(deliveryId, code);
     if (!delivery) throw HTTP.unprocessable('Code de remise invalide');
 
@@ -132,12 +166,15 @@ export class DeliveryService {
         await this.paymentProvider.releaseEscrow(txn.providerTransactionId);
         await this.paymentRepo.release(txn.id, txn.providerTransactionId);
 
-        // Payout vers la pharmacie (commission plateforme configurable)
+        // Payout vers la pharmacie — AUCUNE marge sur le médicament : elle
+        // reçoit l'intégralité de la part médicaments encaissée (part patient).
+        // La part caisse (tiers-payant) est recouvrée par la pharmacie via son
+        // bordereau ; la plateforme se rémunère uniquement sur les frais de
+        // service et de livraison, jamais sur le prix du médicament.
         const order = await this.orderRepo.findById(delivery.orderId);
         if (order) {
-          const commissionEntry = await this.pricingRepo.getByKind(PricingKind.PLATFORM_COMMISSION_PCT);
-          const commissionPct   = Number(commissionEntry?.valueNum ?? 15);
-          const pharmacyAmount  = payoutAfterCommission(order.totalFcfa, commissionPct);
+          const caisseShareFcfa = (order as any).caisseShareFcfa ?? 0;
+          const pharmacyAmount  = Math.max(0, order.totalFcfa - caisseShareFcfa);
           await this.paymentProvider.payout({
             amountFcfa: pharmacyAmount,
             phoneNumber: order.partner.phone,
