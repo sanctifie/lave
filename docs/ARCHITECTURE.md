@@ -217,6 +217,51 @@ En développement (sur l'ordinateur du développeur), tous ces services sont **s
 
 ---
 
+## Le stockage des fichiers (scans d'ordonnances)
+
+**Aujourd'hui (MVP)** : les scans d'ordonnances envoyés par les patients sont
+stockés **sur le disque du serveur API**, dans le dossier `uploads/`.
+
+- Chaque fichier reçoit un nom aléatoire (UUID) — jamais le nom d'origine.
+- Formats acceptés : JPEG, PNG, WebP, PDF (10 Mo max).
+- Les métadonnées (qui a envoyé quoi, rattachement à l'ordonnance) sont en base
+  de données, table `media`.
+- L'accès est **toujours authentifié** : seul le patient propriétaire ou la
+  pharmacie destinataire peut ouvrir un scan (`requireMediaAuth`).
+
+### ⚠️ Évolution prévue en production : stockage objet « compatible S3 »
+
+Le disque local convient au MVP mais a une limite sérieuse pour des données de
+santé : **si le serveur est redéployé ou tombe, les scans peuvent être perdus.**
+
+La cible en production est un **stockage objet compatible S3** (le standard du
+marché) :
+
+| Disque local (MVP actuel) | Stockage objet S3 (cible production) |
+|---|---|
+| Fichiers perdus si le serveur est recréé | Fichiers répliqués, survivent aux redéploiements |
+| Limité par le disque du serveur | Capacité illimitée, facturée à l'usage |
+| Un seul serveur peut servir les fichiers | Plusieurs serveurs API possibles (montée en charge) |
+| Sauvegardes manuelles | Versioning + chiffrement au repos intégrés |
+
+**Options retenues** (le code parlera « le langage S3 » dans tous les cas, donc
+on peut changer de fournisseur sans réécrire l'application) :
+
+1. **MinIO** (open source, auto-hébergé) — recommandé pour démarrer :
+   souveraineté des données de santé, hébergeable au Gabon. Déjà prévu dans le
+   projet DevOps (`devops/`).
+2. **AWS S3** ou compatible européen (Scaleway, OVH) — si l'on préfère du managé.
+
+**Plan de migration (quand on s'y mettra)** :
+- ajouter un client S3 dans l'API et un repli automatique sur le disque local
+  si aucun bucket n'est configuré (le développement continue de marcher tel quel) ;
+- uploader les scans vers le bucket (chiffrés au repos) ;
+- servir les fichiers via des **URLs signées temporaires**, toujours derrière
+  l'authentification existante ;
+- script de reprise pour migrer les fichiers déjà présents dans `uploads/`.
+
+---
+
 ## Pour aller plus loin
 
 - **Configurer les services externes** → [`docs/PROVIDERS.md`](./PROVIDERS.md)
