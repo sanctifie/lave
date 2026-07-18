@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { pharmacyService, InboxPrescription, ValidationItem } from '../../../src/services/pharmacy.service';
+import { pharmacyService, InboxPrescription, ValidationItem, RecommendationItem } from '../../../src/services/pharmacy.service';
 import { Button } from '../../../src/components/ui/Button';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
 import { PrescriptionStatus } from '@mbolo/shared';
@@ -25,11 +25,30 @@ interface ItemForm extends ValidationItem {
   _key: string;
 }
 
+interface RecoForm extends RecommendationItem {
+  _key: string;
+}
+
 function newItem(): ItemForm {
   return { _key: Math.random().toString(36).slice(2), name: '', quantity: 1, unitPriceFcfa: 0 };
 }
 
+function newReco(): RecoForm {
+  return { _key: Math.random().toString(36).slice(2), name: '', quantity: 1, unitPriceFcfa: 0, note: '' };
+}
+
 function formatFcfa(n: number) { return `${n.toLocaleString('fr-FR')} FCFA`; }
+
+/** Retourne l'allergie déclarée en conflit avec le nom du médicament, sinon null. */
+function findAllergyConflict(name: string, allergies: string[]): string | null {
+  const n = name.trim().toLowerCase();
+  if (!n) return null;
+  for (const a of allergies) {
+    const t = a.trim().toLowerCase();
+    if (t.length >= 3 && (n.includes(t) || t.includes(n))) return a;
+  }
+  return null;
+}
 
 export default function PrescriptionValidateScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
@@ -38,6 +57,7 @@ export default function PrescriptionValidateScreen() {
   const [rx, setRx]           = useState<InboxPrescription | null>(null);
   const [loading, setLoading] = useState(true);
   const [items, setItems]     = useState<ItemForm[]>([newItem()]);
+  const [recos, setRecos]     = useState<RecoForm[]>([]);
   const [rejectReason, setRejectReason] = useState('');
   const [mode, setMode]       = useState<'validate' | 'reject'>('validate');
   const [submitting, setSubmitting] = useState(false);
@@ -79,23 +99,65 @@ export default function PrescriptionValidateScreen() {
   const addItem   = () => setItems((prev) => [...prev, newItem()]);
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i._key !== key));
 
+  const updateReco = (key: string, field: keyof RecommendationItem, raw: string) => {
+    setRecos((prev) =>
+      prev.map((it) => {
+        if (it._key !== key) return it;
+        if (field === 'name')          return { ...it, name: raw };
+        if (field === 'quantity')      return { ...it, quantity: parseInt(raw) || 0 };
+        if (field === 'unitPriceFcfa') return { ...it, unitPriceFcfa: parseInt(raw) || 0 };
+        if (field === 'note')          return { ...it, note: raw };
+        return it;
+      }),
+    );
+  };
+  const addReco    = () => setRecos((prev) => [...prev, newReco()]);
+  const removeReco = (key: string) => setRecos((prev) => prev.filter((r) => r._key !== key));
+
   const totalFcfa = items.reduce((s, i) => s + i.quantity * i.unitPriceFcfa, 0);
+  // Conseils valides : nom renseigné, quantité et prix positifs.
+  const validRecos = recos.filter((r) => r.name.trim() && r.quantity > 0 && r.unitPriceFcfa > 0);
 
   const submit = async () => {
     if (mode === 'validate') {
       const invalid = items.some((i) => !i.name.trim() || i.quantity <= 0 || i.unitPriceFcfa <= 0);
       if (invalid) { Alert.alert('', 'Remplissez tous les médicaments (nom, quantité, prix).'); return; }
-      setSubmitting(true);
-      try {
-        await pharmacyService.validate(id, items.map(({ _key: _k, ...rest }) => rest));
-        Alert.alert('Validée !', 'L\'ordonnance a été validée et la commande créée.', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
-      } catch {
-        Alert.alert('Erreur', 'Impossible de valider. Réessayez.');
-      } finally {
-        setSubmitting(false);
+
+      const doValidate = async () => {
+        setSubmitting(true);
+        try {
+          await pharmacyService.validate(
+            id,
+            items.map(({ _key: _k, ...rest }) => rest),
+            validRecos.map(({ _key: _k, ...rest }) => rest),
+          );
+          Alert.alert('Validée !', 'L\'ordonnance a été validée et la commande créée.', [
+            { text: 'OK', onPress: () => router.back() },
+          ]);
+        } catch {
+          Alert.alert('Erreur', 'Impossible de valider. Réessayez.');
+        } finally {
+          setSubmitting(false);
+        }
+      };
+
+      // Sécurité : un médicament entre-t-il en conflit avec une allergie déclarée ?
+      const conflicts = items
+        .map((i) => ({ name: i.name, allergy: findAllergyConflict(i.name, rx?.allergies ?? []) }))
+        .filter((c) => c.allergy);
+      if (conflicts.length > 0) {
+        Alert.alert(
+          '⚠️ Allergie signalée',
+          conflicts.map((c) => `• ${c.name} (allergie : ${c.allergy})`).join('\n') +
+            '\n\nCe patient a déclaré une allergie potentiellement en conflit. Confirmez la dispensation sous votre responsabilité ?',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Confirmer quand même', style: 'destructive', onPress: doValidate },
+          ],
+        );
+        return;
       }
+      await doValidate();
     } else {
       if (!rejectReason.trim()) { Alert.alert('', 'Indiquez le motif de refus.'); return; }
       setSubmitting(true);
@@ -144,6 +206,20 @@ export default function PrescriptionValidateScreen() {
             </View>
           )}
         </View>
+
+        {/* Allergies déclarées — contrôle de sécurité à la dispensation */}
+        {rx?.allergies && rx.allergies.length > 0 && (
+          <View style={styles.allergyBanner}>
+            <Text style={styles.allergyIcon}>⚠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.allergyTitle}>Allergies déclarées</Text>
+              <Text style={styles.allergyList}>{rx.allergies.join(' · ')}</Text>
+              <Text style={styles.allergyHint}>
+                Vérifiez chaque médicament dispensé au regard de ces allergies.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Scan de l'ordonnance — indispensable pour valider en connaissance */}
         {rx?.mediaUrls && rx.mediaUrls.length > 0 && (
@@ -195,7 +271,9 @@ export default function PrescriptionValidateScreen() {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Médicaments préparés</Text>
 
-                {items.map((item) => (
+                {items.map((item) => {
+                  const conflict = findAllergyConflict(item.name, rx?.allergies ?? []);
+                  return (
                   <View key={item._key} style={styles.itemRow}>
                     <View style={styles.itemFields}>
                       <TextInput
@@ -223,6 +301,14 @@ export default function PrescriptionValidateScreen() {
                           onChangeText={(v) => updateItem(item._key, 'unitPriceFcfa', v)}
                         />
                       </View>
+
+                      {conflict && (
+                        <View style={styles.itemConflict}>
+                          <Text style={styles.itemConflictTxt}>
+                            ⚠️ Conflit possible avec l'allergie « {conflict} »
+                          </Text>
+                        </View>
+                      )}
 
                       {/* Substitution : cet article remplace-t-il un produit prescrit ? */}
                       <Pressable style={styles.subToggle} onPress={() => toggleSubstituted(item._key)}>
@@ -259,7 +345,8 @@ export default function PrescriptionValidateScreen() {
                       </Pressable>
                     )}
                   </View>
-                ))}
+                  );
+                })}
 
                 <Pressable style={styles.addItemBtn} onPress={addItem}>
                   <Text style={styles.addItemText}>+ Ajouter un médicament</Text>
@@ -268,6 +355,60 @@ export default function PrescriptionValidateScreen() {
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>Total patient</Text>
                   <Text style={styles.totalValue}>{formatFcfa(totalFcfa)}</Text>
+                </View>
+
+                {/* Conseil officinal (facultatif) : produits conseil / OTC */}
+                <View style={styles.recoSection}>
+                  <Text style={styles.recoTitle}>💡 Le pharmacien recommande</Text>
+                  <Text style={styles.recoSub}>
+                    Produits conseil (facultatifs). Le patient reste libre de les ajouter avant paiement.
+                  </Text>
+
+                  {recos.map((r) => (
+                    <View key={r._key} style={styles.recoRow}>
+                      <View style={styles.itemFields}>
+                        <TextInput
+                          style={styles.inputMed}
+                          placeholder="Produit conseillé (ex. vitamine C)"
+                          placeholderTextColor={colors.textDisabled}
+                          value={r.name}
+                          onChangeText={(v) => updateReco(r._key, 'name', v)}
+                        />
+                        <View style={styles.itemNumbers}>
+                          <TextInput
+                            style={styles.inputSmall}
+                            placeholder="Qté"
+                            placeholderTextColor={colors.textDisabled}
+                            keyboardType="number-pad"
+                            value={r.quantity > 0 ? String(r.quantity) : ''}
+                            onChangeText={(v) => updateReco(r._key, 'quantity', v)}
+                          />
+                          <TextInput
+                            style={[styles.inputSmall, styles.inputPrice]}
+                            placeholder="Prix (FCFA)"
+                            placeholderTextColor={colors.textDisabled}
+                            keyboardType="number-pad"
+                            value={r.unitPriceFcfa > 0 ? String(r.unitPriceFcfa) : ''}
+                            onChangeText={(v) => updateReco(r._key, 'unitPriceFcfa', v)}
+                          />
+                        </View>
+                        <TextInput
+                          style={styles.inputMed}
+                          placeholder="Conseil (ex. à prendre pendant le traitement)"
+                          placeholderTextColor={colors.textDisabled}
+                          value={r.note ?? ''}
+                          onChangeText={(v) => updateReco(r._key, 'note', v)}
+                        />
+                      </View>
+                      <Pressable onPress={() => removeReco(r._key)} style={styles.removeBtn}>
+                        <Text style={styles.removeTxt}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+
+                  <Pressable style={styles.addRecoBtn} onPress={addReco}>
+                    <Text style={styles.addRecoText}>+ Proposer un produit conseil</Text>
+                  </Pressable>
                 </View>
               </View>
             ) : (
@@ -324,6 +465,28 @@ const styles = StyleSheet.create({
   infoRow:   { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   infoLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   infoValue: { ...typography.bodyMedium, color: colors.text, flex: 2 },
+
+  allergyBanner: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    backgroundColor: colors.errorSurface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.error,
+  },
+  allergyIcon:  { fontSize: 22 },
+  allergyTitle: { ...typography.label, color: colors.error },
+  allergyList:  { ...typography.bodyMedium, color: colors.text, marginTop: 2 },
+  allergyHint:  { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+
+  itemConflict: {
+    backgroundColor: colors.errorSurface,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  itemConflictTxt: { ...typography.caption, color: colors.error },
 
   handledBox: {
     flexDirection: 'row',
@@ -427,6 +590,26 @@ const styles = StyleSheet.create({
   totalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm },
   totalLabel: { ...typography.bodyMedium, color: colors.textSecondary },
   totalValue: { ...typography.h3, color: colors.primary },
+
+  recoSection: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  recoTitle: { ...typography.bodyMedium, color: colors.text },
+  recoSub:   { ...typography.caption, color: colors.textSecondary },
+  recoRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  addRecoBtn: {
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    borderStyle: 'dashed',
+    borderRadius: radii.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  addRecoText: { ...typography.label, color: colors.accent },
 
   textArea: {
     ...typography.body,

@@ -94,6 +94,27 @@ enum SubstitutionStatus {
   rejected
 }
 
+// Nature d'un article : prescrit (dispensé) ou conseillé (conseil officinal / OTC).
+enum OrderItemKind {
+  prescribed
+  recommended
+}
+
+// État d'un article conseillé vis-à-vis du patient (il l'ajoute librement).
+enum RecommendationStatus {
+  none
+  suggested
+  accepted
+  declined
+}
+
+// Assurance maladie pour le tiers-payant (le patient ne règle que sa part).
+enum InsuranceProvider {
+  none
+  cnamgs
+  cnss
+}
+
 enum DeliveryStatus {
   pending_assignment
   assigned
@@ -205,6 +226,10 @@ model PatientProfile {
   dateOfBirth DateTime?
   bloodType   String?
   allergies   String[]
+  // Tiers-payant : assurance du patient et taux de prise en charge (0-100 %).
+  insuranceProvider     InsuranceProvider @default(none)
+  insuranceNumber       String?
+  insuranceCoverageRate Int?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -434,6 +459,12 @@ model Order {
   status         OrderStatus @default(pending_pharmacy)
   totalFcfa      Int
   serviceFeeFcfa Int         @default(0)
+  // Tiers-payant : instantané de l'assurance appliquée à cette commande.
+  // caisseShareFcfa = part prise en charge par la caisse sur les médicaments ;
+  // la part assuré (ticket modérateur) = totalFcfa - caisseShareFcfa.
+  insuranceProvider     InsuranceProvider @default(none)
+  insuranceCoverageRate Int               @default(0)
+  caisseShareFcfa       Int               @default(0)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -463,6 +494,13 @@ model OrderItem {
   substitutionStatus SubstitutionStatus @default(none)
   originalName       String? // produit initialement prescrit (si substitué)
   substitutionReason String? // motif (ex. rupture de stock)
+
+  // Conseil officinal (cross-sell) : article proposé par le pharmacien en
+  // complément. `recommendationNote` porte l'argumentaire (ex. « à prendre
+  // pendant le traitement »). Compté au total UNIQUEMENT si accepté par le patient.
+  kind                 OrderItemKind        @default(prescribed)
+  recommendationStatus RecommendationStatus @default(none)
+  recommendationNote   String?
 
   order Order @relation(fields: [orderId], references: [id])
 

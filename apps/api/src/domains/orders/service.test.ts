@@ -127,6 +127,73 @@ describe('OrderService.decideSubstitution', () => {
   });
 });
 
+function setupReco(order: any, applyResult: any) {
+  const repo = {
+    findById: vi.fn().mockResolvedValue(order),
+    applyRecommendationDecision: vi.fn().mockResolvedValue(applyResult),
+  };
+  const notif = { send: vi.fn().mockResolvedValue(undefined) };
+  const service = new OrderService(repo as any, notif as any);
+  return { repo, notif, service };
+}
+
+const recoOrder = (over: Record<string, any> = {}) =>
+  makeOrder({
+    patientId: 'patient1',
+    serviceFeeFcfa: 500,
+    status: OrderStatus.PENDING_PHARMACY,
+    items: [{ id: 'rec1', recommendationStatus: 'suggested' }],
+    ...over,
+  });
+
+describe('OrderService.decideRecommendation', () => {
+  it('403 si la commande n\'est pas au patient', async () => {
+    const { service } = setupReco(recoOrder({ patientId: 'autre' }), null);
+    await expect(
+      service.decideRecommendation('ckorder1', 'patient1', { decisions: [{ itemId: 'rec1', accepted: true }] } as any),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('422 si la commande n\'est plus modifiable', async () => {
+    const { service } = setupReco(recoOrder({ status: OrderStatus.PREPARING }), null);
+    await expect(
+      service.decideRecommendation('ckorder1', 'patient1', { decisions: [{ itemId: 'rec1', accepted: true }] } as any),
+    ).rejects.toMatchObject({ statusCode: 422 });
+  });
+
+  it('accepte un conseil : applique la décision et recalcule le total', async () => {
+    const { service, repo, notif } = setupReco(recoOrder(), {
+      order: { id: 'ckorder1', totalFcfa: 3000 },
+      totalFcfa: 3000,
+    });
+    const res = await service.decideRecommendation('ckorder1', 'patient1', {
+      decisions: [{ itemId: 'rec1', accepted: true }],
+    } as any);
+    expect(repo.applyRecommendationDecision).toHaveBeenCalledWith('ckorder1', [{ itemId: 'rec1', accepted: true }]);
+    expect(notif.send).toHaveBeenCalled();
+    expect(res).toMatchObject({ totalFcfa: 3000 });
+  });
+
+  it('écarte un conseil : pas de notification d\'ajout', async () => {
+    const { service, repo, notif } = setupReco(recoOrder(), {
+      order: { id: 'ckorder1', totalFcfa: 2000 },
+      totalFcfa: 2000,
+    });
+    await service.decideRecommendation('ckorder1', 'patient1', {
+      decisions: [{ itemId: 'rec1', accepted: false }],
+    } as any);
+    expect(repo.applyRecommendationDecision).toHaveBeenCalled();
+    expect(notif.send).not.toHaveBeenCalled();
+  });
+
+  it('422 si aucune décision ne porte sur un conseil en attente', async () => {
+    const { service } = setupReco(recoOrder(), null);
+    await expect(
+      service.decideRecommendation('ckorder1', 'patient1', { decisions: [{ itemId: 'inconnu', accepted: true }] } as any),
+    ).rejects.toMatchObject({ statusCode: 422 });
+  });
+});
+
 describe('OrderService.getById', () => {
   it('403 si la commande n\'appartient pas au demandeur', async () => {
     const { service } = setup(makeOrder({ patientId: 'autre' }));

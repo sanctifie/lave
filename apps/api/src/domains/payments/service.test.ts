@@ -174,3 +174,40 @@ describe('PaymentService.handleWebhook', () => {
     expect(echo).toEqual({ transactionId: 'PAY9', responseCode: 200 });
   });
 });
+
+function makeServiceWithOrder(order: any) {
+  const repo = makeRepo({
+    findByOrderId: vi.fn().mockResolvedValue(null),
+    createEscrow:  vi.fn().mockImplementation((d: any) => Promise.resolve({ id: 'txn_order', ...d })),
+  });
+  const orderRepo = { findById: vi.fn().mockResolvedValue(order) };
+  const service = new PaymentService(repo as any, orderRepo as any, {} as any, provider as any, {} as any);
+  return { repo, orderRepo, service };
+}
+
+describe('PaymentService.initEscrow — tiers-payant', () => {
+  beforeEach(() => { provider.initEscrow.mockClear(); });
+
+  it('sans assurance : débite le total médicaments + frais', async () => {
+    const order = { patientId: 'p1', totalFcfa: 10000, serviceFeeFcfa: 500, caisseShareFcfa: 0 };
+    const { service } = makeServiceWithOrder(order);
+    await service.initEscrow('p1', { orderId: 'ckorder1', phoneNumber: '24107000000' } as any);
+    expect(provider.initEscrow).toHaveBeenCalledWith(expect.objectContaining({ amountFcfa: 10500 }));
+  });
+
+  it('avec CNAMGS 80 % : le patient ne règle que le ticket modérateur + frais', async () => {
+    // 10000 médicaments, part caisse 8000 → part assuré 2000 + 500 frais = 2500
+    const order = { patientId: 'p1', totalFcfa: 10000, serviceFeeFcfa: 500, caisseShareFcfa: 8000 };
+    const { service } = makeServiceWithOrder(order);
+    await service.initEscrow('p1', { orderId: 'ckorder1', phoneNumber: '24107000000' } as any);
+    expect(provider.initEscrow).toHaveBeenCalledWith(expect.objectContaining({ amountFcfa: 2500 }));
+  });
+
+  it('refuse un patient qui n\'est pas propriétaire (403)', async () => {
+    const order = { patientId: 'autre', totalFcfa: 10000, serviceFeeFcfa: 500, caisseShareFcfa: 0 };
+    const { service } = makeServiceWithOrder(order);
+    await expect(
+      service.initEscrow('p1', { orderId: 'ckorder1', phoneNumber: '24107000000' } as any),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+});

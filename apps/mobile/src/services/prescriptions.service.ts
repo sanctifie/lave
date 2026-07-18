@@ -74,4 +74,10 @@ export const prescriptionsService = {
     });
     return data.data ?? data;
   },
+
+  /** Renouvelle une ordonnance déjà validée (traitement chronique). */
+  async renew(id: string): Promise<PrescriptionListItem> {
+    const { data } = await apiClient.post<{ data: PrescriptionListItem }>(`/prescriptions/${id}/renew`);
+    return data.data ?? data;
+  },
 };

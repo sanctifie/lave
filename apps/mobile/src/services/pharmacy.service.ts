@@ -9,6 +9,7 @@ export interface InboxPrescription {
   type: string;
   mediaUrls: string[];
   notes: string | null;
+  allergies: string[];
 }
 
 export interface ValidationItem {
@@ -19,6 +20,14 @@ export interface ValidationItem {
   substituted?: boolean;
   originalName?: string;
   substitutionReason?: string;
+}
+
+// Conseil officinal (cross-sell) : produit conseil / OTC proposé en complément.
+export interface RecommendationItem {
+  name: string;
+  quantity: number;
+  unitPriceFcfa: number;
+  note?: string;
 }
 
 export interface PharmacyOrderItem {
@@ -46,6 +55,7 @@ function normalizeRx(raw: any): InboxPrescription {
     status:      raw.status,
     type:        raw.type,
     notes:       raw.notes ?? null,
+    allergies:   raw.patient?.patientProfile?.allergies ?? [],
     mediaUrls:   (raw.media ?? []).map((m: any) =>
       (m.url as string).startsWith('http') ? m.url : `${API_URL}${m.url}`
     ),
@@ -82,7 +92,7 @@ export const pharmacyService = {
     return normalizeRx(raw);
   },
 
-  async validate(id: string, items: ValidationItem[]): Promise<void> {
+  async validate(id: string, items: ValidationItem[], recommendations: RecommendationItem[] = []): Promise<void> {
     await apiClient.patch(`/prescriptions/${id}/validate`, {
       approved: true,
       items: items.map((i) => ({
@@ -97,6 +107,16 @@ export const pharmacyService = {
             }
           : {}),
       })),
+      ...(recommendations.length
+        ? {
+            recommendations: recommendations.map((r) => ({
+              name:          r.name,
+              quantity:      r.quantity,
+              unitPriceFcfa: r.unitPriceFcfa,
+              ...(r.note ? { note: r.note } : {}),
+            })),
+          }
+        : {}),
     });
   },
 

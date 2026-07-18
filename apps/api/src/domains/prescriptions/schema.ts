@@ -24,6 +24,19 @@ export const ValidatePrescriptionSchema = z
         }),
       )
       .optional(),
+    // Conseil officinal (cross-sell) : produits conseil / OTC proposés en
+    // complément. Jamais des médicaments de substitution ; le patient reste
+    // libre de les ajouter (facultatif).
+    recommendations: z
+      .array(
+        z.object({
+          name: z.string().min(1),
+          quantity: z.number().int().positive(),
+          unitPriceFcfa: z.number().int().positive(),
+          note: z.string().min(1).optional(),
+        }),
+      )
+      .optional(),
     rejectionReason: z.string().min(5).optional(),
   })
   .refine(

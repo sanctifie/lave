@@ -11,6 +11,9 @@ import {
   OrderStatus,
   SubstitutionConsent,
   SubstitutionStatus,
+  OrderItemKind,
+  RecommendationStatus,
+  InsuranceProvider,
 } from '@mbolo/shared';
 import { CreatePrescriptionInput, ValidatePrescriptionInput } from './schema';
 import { prisma } from '../../infrastructure/prisma/client';
@@ -48,6 +51,41 @@ export class PrescriptionService {
     const rx = await this.repo.findWithMedia(id);
     if (!rx) throw HTTP.notFound('Ordonnance introuvable');
     if (rx.patientId !== requesterId) throw HTTP.forbidden();
+    return rx;
+  }
+
+  /**
+   * Renouvellement d'ordonnance : le patient relance une ordonnance déjà
+   * traitée (traitement chronique). On recrée une ordonnance « en attente » que
+   * le pharmacien devra revalider — la dispensation reste sous contrôle légal.
+   */
+  async renew(sourceId: string, patientId: string) {
+    const source = await this.repo.findById(sourceId);
+    if (!source) throw HTTP.notFound('Ordonnance introuvable');
+    if (source.patientId !== patientId) throw HTTP.forbidden();
+
+    // On ne renouvelle qu'une ordonnance qui a franchi la validation pharmacien.
+    const renewable: string[] = [
+      PrescriptionStatus.VALIDATED,
+      PrescriptionStatus.PARTIALLY_FILLED,
+      PrescriptionStatus.FILLED,
+    ];
+    if (!renewable.includes(source.status)) {
+      throw HTTP.unprocessable('Seule une ordonnance déjà validée peut être renouvelée.');
+    }
+
+    const rx = await this.repo.renewFrom(sourceId, patientId);
+    if (!rx) throw HTTP.notFound('Ordonnance introuvable');
+
+    // Notifie la pharmacie cible du renouvellement
+    const partnerPhone = rx.targetPartner?.whatsappNumber ?? rx.targetPartner?.phone;
+    if (partnerPhone) {
+      await this.notif.send({
+        to: partnerPhone,
+        message: `Demande de renouvellement de ${rx.patient?.name ?? 'un patient'}. Référence : ${rx.id}. Connectez-vous pour valider.`,
+      });
+    }
+
     return rx;
   }
 
@@ -124,15 +162,36 @@ export class PrescriptionService {
     const needsPatientApproval = items.some(
       (i) => i.substitutionStatus === SubstitutionStatus.PENDING,
     );
+    // Seuls les articles prescrits comptent dans le total ; les conseils
+    // officinaux (facultatifs) ne sont facturés que si le patient les ajoute.
     const totalFcfa = items.reduce((s, i) => s + i.quantity * i.unitPriceFcfa, 0);
+
+    // Conseil officinal (cross-sell) : proposé, non imposé. Ajouté à la commande
+    // en statut « suggéré » (hors total tant que le patient ne l'a pas accepté).
+    const recommendationItems = (input.recommendations ?? []).map((r) => ({
+      name: r.name,
+      quantity: r.quantity,
+      unitPriceFcfa: r.unitPriceFcfa,
+      kind: OrderItemKind.RECOMMENDED,
+      recommendationStatus: RecommendationStatus.SUGGESTED,
+      recommendationNote: r.note,
+    }));
+
+    // Tiers-payant : instantané de l'assurance du patient (part caisse calculée
+    // dans le repo à partir du total médicaments et du taux de prise en charge).
+    const profile = (rx as any).patient?.patientProfile;
+    const insuranceProvider = profile?.insuranceProvider ?? InsuranceProvider.NONE;
+    const insuranceCoverageRate = profile?.insuranceCoverageRate ?? 0;
 
     const order = await this.orderRepo.create(rx.patientId, {
       prescriptionId: rxId,
       partnerId,
-      items,
+      items: [...items, ...recommendationItems],
       totalFcfa,
       serviceFeeFcfa,
       status: needsPatientApproval ? OrderStatus.PENDING_SUBSTITUTION : OrderStatus.PENDING_PHARMACY,
+      insuranceProvider,
+      insuranceCoverageRate,
     });
 
     // Consentement « me demander » + équivalent proposé : on attend l'accord du
@@ -159,12 +218,15 @@ export class PrescriptionService {
     const autoNote = hasSubstitution
       ? `\n(Un ou plusieurs médicaments ont été remplacés par un équivalent, comme vous l'aviez accepté.)`
       : '';
+    const recoNote = recommendationItems.length
+      ? `\n💡 Votre pharmacien vous conseille ${recommendationItems.length} produit(s) en complément (facultatif) — à voir dans l'app.`
+      : '';
     await this.notif.send({
       to: rx.patient.phone,
       message:
         `Votre ordonnance a été validée ✓\n` +
         `Commande #${order.id.slice(-6).toUpperCase()} — Total : ${totalFcfa + serviceFeeFcfa} FCFA\n` +
-        `Livraison : ${deliveryFeeFcfa} FCFA${autoNote}\n` +
+        `Livraison : ${deliveryFeeFcfa} FCFA${autoNote}${recoNote}\n` +
         `Procédez au paiement pour confirmer.`,
     });
     this.push.sendToUser(rx.patientId, {

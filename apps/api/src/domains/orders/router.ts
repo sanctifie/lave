@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../lib/asyncHandler';
-import { PharmacyActionSchema, SubstitutionDecisionSchema } from './schema';
+import { PharmacyActionSchema, SubstitutionDecisionSchema, RecommendationDecisionSchema } from './schema';
 import { OrderService } from './service';
 import { OrderRepository } from './repository';
 import { DeliveryRepository } from '../deliveries/repository';
@@ -48,6 +48,17 @@ router.patch(
   validate(SubstitutionDecisionSchema),
   asyncHandler(async (req, res) => {
     res.json(await service.decideSubstitution(req.params.id, req.user!.userId, req.body));
+  }),
+);
+
+// Patient : ajoute / écarte les conseils officinaux proposés par le pharmacien
+router.patch(
+  '/:id/recommendation-decision',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  validate(RecommendationDecisionSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await service.decideRecommendation(req.params.id, req.user!.userId, req.body));
   }),
 );
 

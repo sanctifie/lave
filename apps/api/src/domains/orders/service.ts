@@ -4,8 +4,8 @@ import { DeliveryRepository } from '../deliveries/repository';
 import { PricingRepository } from '../pricing/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
 import { PushService } from '../../infrastructure/push/service';
-import { PharmacyActionInput, SubstitutionDecisionInput } from './schema';
-import { OrderStatus, PricingKind, SubstitutionStatus } from '@mbolo/shared';
+import { PharmacyActionInput, SubstitutionDecisionInput, RecommendationDecisionInput } from './schema';
+import { OrderStatus, PricingKind, SubstitutionStatus, RecommendationStatus } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 
 export class OrderService {
@@ -84,6 +84,42 @@ export class OrderService {
     }
 
     return { order: updated, delivery, cancelled: false };
+  }
+
+  /**
+   * Le patient ajoute ou écarte les conseils officinaux proposés par le
+   * pharmacien. N'affecte que les articles « conseillés » (jamais les prescrits) ;
+   * la commande n'est pas bloquée par ce choix, seul le total est recalculé.
+   */
+  async decideRecommendation(orderId: string, patientId: string, input: RecommendationDecisionInput) {
+    const order = await this.repo.findById(orderId);
+    if (!order) throw HTTP.notFound('Commande introuvable');
+    if (order.patientId !== patientId) throw HTTP.forbidden();
+    // On ne touche pas à une commande déjà en préparation/livrée/annulée.
+    const editable =
+      order.status === OrderStatus.PENDING_PHARMACY || order.status === OrderStatus.PHARMACY_ACCEPTED;
+    if (!editable) throw HTTP.unprocessable('Cette commande ne peut plus être modifiée');
+
+    // On ne décide que des articles réellement « suggérés ».
+    const suggestedIds = new Set(
+      order.items
+        .filter((i) => i.recommendationStatus === RecommendationStatus.SUGGESTED)
+        .map((i) => i.id),
+    );
+    const decisions = input.decisions.filter((d) => suggestedIds.has(d.itemId));
+    if (decisions.length === 0) throw HTTP.unprocessable('Aucun conseil en attente sur cette commande');
+
+    const { order: updated, totalFcfa } = await this.repo.applyRecommendationDecision(orderId, decisions);
+    const nbAdded = decisions.filter((d) => d.accepted).length;
+    if (nbAdded > 0) {
+      await this.notif.send({
+        to: order.patient.phone,
+        message:
+          `${nbAdded} produit(s) conseillé(s) ajouté(s) à votre commande #${orderId.slice(-6).toUpperCase()}.\n` +
+          `Nouveau total : ${totalFcfa + order.serviceFeeFcfa} FCFA. Procédez au paiement pour confirmer.`,
+      });
+    }
+    return { order: updated, totalFcfa };
   }
 
   async getById(id: string, requesterId: string) {

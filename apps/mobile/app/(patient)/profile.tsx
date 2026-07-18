@@ -17,10 +17,20 @@ import { colors, spacing, radii, typography, shadows } from '../../src/theme';
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 type BloodType = typeof BLOOD_TYPES[number];
 
+const INSURERS = [
+  { key: 'none',   label: 'Aucune' },
+  { key: 'cnamgs', label: 'CNAMGS' },
+  { key: 'cnss',   label: 'CNSS' },
+] as const;
+type Insurer = typeof INSURERS[number]['key'];
+
 interface PatientProfile {
   dateOfBirth: string | null;
   bloodType:   string | null;
   allergies:   string[];
+  insuranceProvider?:     string | null;
+  insuranceNumber?:       string | null;
+  insuranceCoverageRate?: number | null;
 }
 
 function formatDate(iso: string | null): string {
@@ -48,6 +58,10 @@ export default function PatientProfileScreen() {
   const [bloodType, setBloodType] = useState<BloodType | null>(null);
   const [allergies, setAllergies] = useState('');
 
+  const [insurer,     setInsurer]     = useState<Insurer>('none');
+  const [insNumber,   setInsNumber]   = useState('');
+  const [coverageStr, setCoverageStr] = useState('');
+
   const load = useCallback(async () => {
     try {
       const { data } = await apiClient.get<{ data: PatientProfile | null }>('/users/me/patient-profile');
@@ -56,6 +70,9 @@ export default function PatientProfileScreen() {
         setDob(p.dateOfBirth ? formatDate(p.dateOfBirth) : '');
         setBloodType((p.bloodType as BloodType) ?? null);
         setAllergies(p.allergies.join(', '));
+        setInsurer((p.insuranceProvider as Insurer) ?? 'none');
+        setInsNumber(p.insuranceNumber ?? '');
+        setCoverageStr(p.insuranceCoverageRate != null ? String(p.insuranceCoverageRate) : '');
       }
     } catch {}
     finally { setLoading(false); }
@@ -69,12 +86,21 @@ export default function PatientProfileScreen() {
       Alert.alert('Date invalide', 'Format attendu : JJ/MM/AAAA');
       return;
     }
+    const hasInsurer = insurer !== 'none';
+    const coverage = coverageStr.trim() ? parseInt(coverageStr, 10) : null;
+    if (hasInsurer && coverage != null && (isNaN(coverage) || coverage < 0 || coverage > 100)) {
+      Alert.alert('Taux invalide', 'Le taux de prise en charge doit être compris entre 0 et 100.');
+      return;
+    }
     setSaving(true);
     try {
       await apiClient.patch('/users/me/patient-profile', {
         dateOfBirth: isoDate,
         bloodType:   bloodType ?? null,
         allergies:   allergies.split(',').map((a) => a.trim()).filter(Boolean),
+        insuranceProvider:     insurer,
+        insuranceNumber:       hasInsurer ? (insNumber.trim() || null) : null,
+        insuranceCoverageRate: hasInsurer ? coverage : null,
       });
       Alert.alert('Profil mis à jour', 'Vos informations médicales ont été enregistrées.');
     } catch {
@@ -156,6 +182,63 @@ export default function PatientProfileScreen() {
               />
               <Text style={styles.inputHint}>Séparez par des virgules</Text>
             </View>
+          </View>
+
+          {/* Assurance & tiers-payant */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Assurance & tiers-payant</Text>
+            <Text style={styles.cardHint}>
+              Avec le tiers-payant, vous ne réglez que votre part (ticket modérateur) ;
+              votre caisse prend en charge le reste.
+            </Text>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Organisme</Text>
+              <View style={styles.bloodGrid}>
+                {INSURERS.map((ins) => (
+                  <Pressable
+                    key={ins.key}
+                    style={[styles.bloodChip, insurer === ins.key && styles.bloodChipSelected]}
+                    onPress={() => setInsurer(ins.key)}
+                  >
+                    <Text style={[styles.bloodChipText, insurer === ins.key && styles.bloodChipTextSelected]}>
+                      {ins.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {insurer !== 'none' && (
+              <>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Numéro d'assuré</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex : 24-XXXXXX"
+                    placeholderTextColor={colors.textDisabled}
+                    value={insNumber}
+                    onChangeText={setInsNumber}
+                    autoCapitalize="characters"
+                  />
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Taux de prise en charge (%)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex : 80"
+                    placeholderTextColor={colors.textDisabled}
+                    value={coverageStr}
+                    onChangeText={setCoverageStr}
+                    keyboardType="number-pad"
+                    maxLength={3}
+                  />
+                  <Text style={styles.inputHint}>
+                    Part prise en charge par la caisse sur le prix des médicaments.
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
 
           <Button

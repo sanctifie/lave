@@ -81,6 +81,39 @@ export enum SubstitutionStatus {
   REJECTED = 'rejected',           // équivalent refusé par le patient
 }
 
+/**
+ * Nature d'un article de commande.
+ * - PRESCRIBED : article issu de l'ordonnance (dispensé par le pharmacien).
+ * - RECOMMENDED : conseil officinal (produit conseil / OTC) proposé par le
+ *   pharmacien en complément. Jamais un médicament de substitution, jamais
+ *   imposé : le patient l'ajoute librement avant paiement.
+ */
+export enum OrderItemKind {
+  PRESCRIBED = 'prescribed',
+  RECOMMENDED = 'recommended',
+}
+
+/** État d'un article recommandé (conseil officinal) vis-à-vis du patient. */
+export enum RecommendationStatus {
+  NONE = 'none',           // article non concerné (article prescrit)
+  SUGGESTED = 'suggested', // conseillé par le pharmacien, en attente du choix patient
+  ACCEPTED = 'accepted',   // ajouté à la commande par le patient
+  DECLINED = 'declined',   // écarté par le patient
+}
+
+/**
+ * Assurance maladie du patient pour le tiers-payant.
+ * - CNAMGS : Caisse Nationale d'Assurance Maladie et de Garantie Sociale (Gabon).
+ * - CNSS : Caisse Nationale de Sécurité Sociale.
+ * Le tiers-payant répartit QUI paie (assuré / caisse) sans jamais modifier le
+ * prix du médicament — aucune marge plateforme n'est ajoutée.
+ */
+export enum InsuranceProvider {
+  NONE = 'none',
+  CNAMGS = 'cnamgs',
+  CNSS = 'cnss',
+}
+
 export enum DeliveryStatus {
   PENDING_ASSIGNMENT = 'pending_assignment',
   ASSIGNED = 'assigned',

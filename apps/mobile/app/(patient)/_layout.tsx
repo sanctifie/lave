@@ -57,6 +57,8 @@ export default function PatientLayout() {
           tabBarIcon: ({ focused }) => <Icon emoji="👤" focused={focused} />,
         }}
       />
+      {/* Écran secondaire : accessible depuis une ordonnance, masqué de la barre. */}
+      <Tabs.Screen name="reminders" options={{ href: null }} />
     </Tabs>
   );
 }
