@@ -40,7 +40,8 @@ export class PrescriptionRepository {
     return prisma.prescription.findUnique({
       where: { id },
       include: {
-        patient: { select: { name: true, phone: true } },
+        // Allergies incluses : sécurité pharmaceutique (contrôle à la dispensation).
+        patient: { select: { name: true, phone: true, patientProfile: { select: { allergies: true } } } },
         targetPartner: true,
         orders: true,
       },

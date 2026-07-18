@@ -9,6 +9,7 @@ export interface InboxPrescription {
   type: string;
   mediaUrls: string[];
   notes: string | null;
+  allergies: string[];
 }
 
 export interface ValidationItem {
@@ -46,6 +47,7 @@ function normalizeRx(raw: any): InboxPrescription {
     status:      raw.status,
     type:        raw.type,
     notes:       raw.notes ?? null,
+    allergies:   raw.patient?.patientProfile?.allergies ?? [],
     mediaUrls:   (raw.media ?? []).map((m: any) =>
       (m.url as string).startsWith('http') ? m.url : `${API_URL}${m.url}`
     ),
