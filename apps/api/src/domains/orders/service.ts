@@ -5,7 +5,15 @@ import { PricingRepository } from '../pricing/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
 import { PushService } from '../../infrastructure/push/service';
 import { PharmacyActionInput, SubstitutionDecisionInput, RecommendationDecisionInput } from './schema';
-import { OrderStatus, PricingKind, SubstitutionStatus, RecommendationStatus } from '@mbolo/shared';
+import {
+  OrderStatus,
+  PricingKind,
+  SubstitutionStatus,
+  RecommendationStatus,
+  OrderItemKind,
+  TransactionStatus,
+  DeliveryStatus,
+} from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 
 export class OrderService {
@@ -135,6 +143,83 @@ export class OrderService {
 
   async listForPartner(partnerId: string) {
     return this.repo.listForPartner(partnerId);
+  }
+
+  /** Tableau de bord business : CA, panier moyen, conseils, top produits. */
+  async statsForPartner(partnerId: string) {
+    const { agg, items } = await this.repo.statsForPartner(partnerId);
+    const ordersCount   = agg._count._all;
+    const revenueFcfa   = agg._sum.totalFcfa ?? 0;
+    const caisseFcfa    = agg._sum.caisseShareFcfa ?? 0;
+    const avgBasketFcfa = ordersCount ? Math.round(revenueFcfa / ordersCount) : 0;
+
+    const advice = items.filter(
+      (i) => i.kind === OrderItemKind.RECOMMENDED && i.recommendationStatus === RecommendationStatus.ACCEPTED,
+    );
+    const adviceCount       = advice.length;
+    const adviceRevenueFcfa = advice.reduce((s, i) => s + i.totalFcfa, 0);
+
+    // Top produits (par CA) sur les articles réellement facturés.
+    const billable = items.filter(
+      (i) => i.kind !== OrderItemKind.RECOMMENDED || i.recommendationStatus === RecommendationStatus.ACCEPTED,
+    );
+    const byName = new Map<string, { name: string; qty: number; revenueFcfa: number }>();
+    for (const i of billable) {
+      const e = byName.get(i.name) ?? { name: i.name, qty: 0, revenueFcfa: 0 };
+      e.qty += i.quantity;
+      e.revenueFcfa += i.totalFcfa;
+      byName.set(i.name, e);
+    }
+    const topProducts = [...byName.values()].sort((a, b) => b.revenueFcfa - a.revenueFcfa).slice(0, 5);
+
+    return { ordersCount, revenueFcfa, caisseFcfa, avgBasketFcfa, adviceCount, adviceRevenueFcfa, topProducts };
+  }
+
+  /** Encaissements : versé / en séquestre (à verser) / en attente de paiement. */
+  async earningsForPartner(partnerId: string) {
+    const orders = await this.repo.earningsForPartner(partnerId);
+    let releasedFcfa = 0;
+    let escrowFcfa = 0;
+    let pendingFcfa = 0;
+    const rows = orders.map((o) => {
+      // La pharmacie perçoit 100 % du prix médicament (aucune marge plateforme).
+      const dueFcfa = o.totalFcfa;
+      const txn = o.transaction?.status;
+      const delivered = o.delivery?.status === DeliveryStatus.DELIVERED || o.status === OrderStatus.DELIVERED;
+      let state: 'released' | 'escrow' | 'pending';
+      if (delivered || txn === TransactionStatus.RELEASED) {
+        state = 'released';
+        releasedFcfa += dueFcfa;
+      } else if (txn === TransactionStatus.HELD || txn === TransactionStatus.CAPTURED) {
+        state = 'escrow';
+        escrowFcfa += dueFcfa;
+      } else {
+        state = 'pending';
+        pendingFcfa += dueFcfa;
+      }
+      return { orderId: o.id, dueFcfa, state, createdAt: o.createdAt };
+    });
+    return { releasedFcfa, escrowFcfa, pendingFcfa, rows };
+  }
+
+  /** Bordereau tiers-payant : créances part-caisse à récupérer. */
+  async insuranceClaimsForPartner(partnerId: string) {
+    const orders = await this.repo.insuranceClaimsForPartner(partnerId);
+    const totalFcfa = orders.reduce((s, o) => s + o.caisseShareFcfa, 0);
+    const byProvider: Record<string, number> = {};
+    for (const o of orders) {
+      byProvider[o.insuranceProvider] = (byProvider[o.insuranceProvider] ?? 0) + o.caisseShareFcfa;
+    }
+    const rows = orders.map((o) => ({
+      orderId: o.id,
+      patientName: o.patient?.name ?? '—',
+      provider: o.insuranceProvider,
+      coverageRate: o.insuranceCoverageRate,
+      caisseShareFcfa: o.caisseShareFcfa,
+      totalFcfa: o.totalFcfa,
+      createdAt: o.createdAt,
+    }));
+    return { totalFcfa, count: orders.length, byProvider, rows };
   }
 
   async partnerAction(orderId: string, partnerId: string, input: PharmacyActionInput) {

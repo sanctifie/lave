@@ -24,6 +24,8 @@ interface PharmacyItem {
   id: string;
   legalName: string;
   address: string;
+  isOnDuty?: boolean;
+  openingHours?: string | null;
 }
 
 const CONSENT_OPTIONS: { value: SubstitutionConsent; label: string; hint: string }[] = [
@@ -183,10 +185,17 @@ export default function UploadScreen() {
                       {selected && <View style={styles.pharmacyRadioDot} />}
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.pharmacyName, selected && { color: colors.primary }]}>
-                        {ph.legalName}
+                      <View style={styles.pharmacyNameRow}>
+                        <Text style={[styles.pharmacyName, selected && { color: colors.primary }]}>
+                          {ph.legalName}
+                        </Text>
+                        {ph.isOnDuty && (
+                          <View style={styles.dutyBadge}><Text style={styles.dutyBadgeTxt}>🌙 De garde</Text></View>
+                        )}
+                      </View>
+                      <Text style={styles.pharmacyAddr}>
+                        {ph.address}{ph.openingHours ? ` · ${ph.openingHours}` : ''}
                       </Text>
-                      <Text style={styles.pharmacyAddr}>{ph.address}</Text>
                     </View>
                   </Pressable>
                 );
@@ -337,6 +346,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   pharmacyName: { ...typography.bodyMedium, color: colors.text },
+  pharmacyNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  dutyBadge: { backgroundColor: colors.primarySurface, borderRadius: radii.full, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  dutyBadgeTxt: { ...typography.small, color: colors.accent, fontWeight: '700' },
   pharmacyAddr: { ...typography.caption, color: colors.textSecondary },
   noPharmacy:   { ...typography.caption, color: colors.textSecondary, textAlign: 'center', padding: spacing.md },
 

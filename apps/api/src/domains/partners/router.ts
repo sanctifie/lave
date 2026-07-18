@@ -23,6 +23,11 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   res.json({ data: list });
 }));
 
+// Profil de ma pharmacie (staff). Déclaré avant `/:id` pour éviter la collision.
+router.get('/me', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
+  res.json({ data: await service.getMine(req.user!.userId) });
+}));
+
 // ── Poste de dispensation : catalogue produits (staff pharmacie) ─────────────
 // Déclaré avant `/:id` pour éviter la collision de routes.
 router.get('/me/products', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {

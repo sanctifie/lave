@@ -34,6 +34,11 @@ export class PartnerService {
     return partner;
   }
 
+  /** Profil de la pharmacie du membre du personnel connecté. */
+  async getMine(userId: string) {
+    return this.requirePartner(userId);
+  }
+
   // ── Garde & vitrine ────────────────────────────────────────────────────────
   async updateDuty(userId: string, data: UpdateDutyInput) {
     const partner = await this.requirePartner(userId);

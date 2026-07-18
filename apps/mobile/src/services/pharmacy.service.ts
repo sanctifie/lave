@@ -136,4 +136,69 @@ export const pharmacyService = {
   async orderAction(orderId: string, action: 'prepare' | 'ready' | 'reject', reason?: string): Promise<void> {
     await apiClient.patch(`/orders/${orderId}/pharmacy-action`, { action, reason });
   },
+
+  // ── Business (tableau de bord, encaissements, tiers-payant, garde) ──────────
+  async stats(): Promise<PharmacyStats> {
+    const { data } = await apiClient.get<any>('/orders/partner/stats');
+    return data.data ?? data;
+  },
+
+  async earnings(): Promise<PharmacyEarnings> {
+    const { data } = await apiClient.get<any>('/orders/partner/earnings');
+    return data.data ?? data;
+  },
+
+  async insuranceClaims(): Promise<InsuranceClaims> {
+    const { data } = await apiClient.get<any>('/orders/partner/insurance-claims');
+    return data.data ?? data;
+  },
+
+  async myProfile(): Promise<PartnerProfileLite> {
+    const { data } = await apiClient.get<any>('/partners/me');
+    return data.data ?? data;
+  },
+
+  async setDuty(isOnDuty: boolean, openingHours?: string | null): Promise<PartnerProfileLite> {
+    const { data } = await apiClient.patch<any>('/partners/me/duty', { isOnDuty, ...(openingHours !== undefined ? { openingHours } : {}) });
+    return data.data ?? data;
+  },
 };
+
+export interface PharmacyStats {
+  ordersCount: number;
+  revenueFcfa: number;
+  caisseFcfa: number;
+  avgBasketFcfa: number;
+  adviceCount: number;
+  adviceRevenueFcfa: number;
+  topProducts: { name: string; qty: number; revenueFcfa: number }[];
+}
+
+export interface PharmacyEarnings {
+  releasedFcfa: number;
+  escrowFcfa: number;
+  pendingFcfa: number;
+  rows: { orderId: string; dueFcfa: number; state: 'released' | 'escrow' | 'pending'; createdAt: string }[];
+}
+
+export interface InsuranceClaims {
+  totalFcfa: number;
+  count: number;
+  byProvider: Record<string, number>;
+  rows: {
+    orderId: string;
+    patientName: string;
+    provider: string;
+    coverageRate: number;
+    caisseShareFcfa: number;
+    totalFcfa: number;
+    createdAt: string;
+  }[];
+}
+
+export interface PartnerProfileLite {
+  id: string;
+  legalName: string;
+  isOnDuty: boolean;
+  openingHours: string | null;
+}

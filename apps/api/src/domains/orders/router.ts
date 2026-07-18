@@ -35,6 +35,28 @@ router.get('/partner/list', requireAuth, requireRole(UserRole.PARTNER_STAFF), as
   res.json(await service.listForPartner(partner.id));
 }));
 
+// Pharmacien : tableau de bord business / encaissements / bordereau CNAMGS
+async function resolvePartner(userId: string) {
+  const partner = await prisma.partnerProfile.findFirst({ where: { staff: { some: { id: userId } } } });
+  if (!partner) throw HTTP.forbidden('Vous n\'êtes rattaché à aucun partenaire');
+  return partner;
+}
+
+router.get('/partner/stats', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
+  const partner = await resolvePartner(req.user!.userId);
+  res.json(await service.statsForPartner(partner.id));
+}));
+
+router.get('/partner/earnings', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
+  const partner = await resolvePartner(req.user!.userId);
+  res.json(await service.earningsForPartner(partner.id));
+}));
+
+router.get('/partner/insurance-claims', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
+  const partner = await resolvePartner(req.user!.userId);
+  res.json(await service.insuranceClaimsForPartner(partner.id));
+}));
+
 // Patient : détail d'une commande
 router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
   res.json(await service.getById(req.params.id, req.user!.userId));

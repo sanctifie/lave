@@ -194,6 +194,66 @@ describe('OrderService.decideRecommendation', () => {
   });
 });
 
+describe('OrderService.statsForPartner', () => {
+  it('agrège CA, panier moyen, conseils et top produits', async () => {
+    const repo = {
+      statsForPartner: vi.fn().mockResolvedValue({
+        agg: { _count: { _all: 2 }, _sum: { totalFcfa: 10000, caisseShareFcfa: 4000 } },
+        items: [
+          { name: 'Doliprane', quantity: 2, totalFcfa: 4000, kind: 'prescribed', recommendationStatus: 'none' },
+          { name: 'Amoxicilline', quantity: 1, totalFcfa: 6000, kind: 'prescribed', recommendationStatus: 'none' },
+          { name: 'Vitamine C', quantity: 1, totalFcfa: 1500, kind: 'recommended', recommendationStatus: 'accepted' },
+          { name: 'Probiotiques', quantity: 1, totalFcfa: 3000, kind: 'recommended', recommendationStatus: 'suggested' },
+        ],
+      }),
+    };
+    const service = new OrderService(repo as any, {} as any);
+    const res = await service.statsForPartner('partner1');
+    expect(res.ordersCount).toBe(2);
+    expect(res.revenueFcfa).toBe(10000);
+    expect(res.avgBasketFcfa).toBe(5000);
+    expect(res.adviceCount).toBe(1); // seul le conseil accepté compte
+    expect(res.adviceRevenueFcfa).toBe(1500);
+    // top produit = Amoxicilline (6000) ; le conseil suggéré (non accepté) est exclu
+    expect(res.topProducts[0]).toMatchObject({ name: 'Amoxicilline', revenueFcfa: 6000 });
+    expect(res.topProducts.find((p: any) => p.name === 'Probiotiques')).toBeUndefined();
+  });
+});
+
+describe('OrderService.earningsForPartner', () => {
+  it('classe les commandes en versé / séquestre / en attente', async () => {
+    const repo = {
+      earningsForPartner: vi.fn().mockResolvedValue([
+        { id: 'o1', totalFcfa: 5000, status: 'delivered', transaction: { status: 'released' }, delivery: { status: 'delivered' } },
+        { id: 'o2', totalFcfa: 3000, status: 'preparing', transaction: { status: 'captured' }, delivery: null },
+        { id: 'o3', totalFcfa: 2000, status: 'pending_pharmacy', transaction: null, delivery: null },
+      ]),
+    };
+    const service = new OrderService(repo as any, {} as any);
+    const res = await service.earningsForPartner('partner1');
+    expect(res.releasedFcfa).toBe(5000);
+    expect(res.escrowFcfa).toBe(3000);
+    expect(res.pendingFcfa).toBe(2000);
+    expect(res.rows).toHaveLength(3);
+  });
+});
+
+describe('OrderService.insuranceClaimsForPartner', () => {
+  it('totalise les créances part-caisse par organisme', async () => {
+    const repo = {
+      insuranceClaimsForPartner: vi.fn().mockResolvedValue([
+        { id: 'o1', createdAt: new Date(), insuranceProvider: 'cnamgs', insuranceCoverageRate: 80, caisseShareFcfa: 5600, totalFcfa: 7000, patient: { name: 'Awa' } },
+        { id: 'o2', createdAt: new Date(), insuranceProvider: 'cnamgs', insuranceCoverageRate: 80, caisseShareFcfa: 2400, totalFcfa: 3000, patient: { name: 'Koffi' } },
+      ]),
+    };
+    const service = new OrderService(repo as any, {} as any);
+    const res = await service.insuranceClaimsForPartner('partner1');
+    expect(res.totalFcfa).toBe(8000);
+    expect(res.count).toBe(2);
+    expect(res.byProvider.cnamgs).toBe(8000);
+  });
+});
+
 describe('OrderService.getById', () => {
   it('403 si la commande n\'appartient pas au demandeur', async () => {
     const { service } = setup(makeOrder({ patientId: 'autre' }));
