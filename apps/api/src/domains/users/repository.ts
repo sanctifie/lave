@@ -17,7 +17,17 @@ export class UserRepository {
     return (prisma as any).patientProfile.findUnique({ where: { userId } });
   }
 
-  async upsertPatientProfile(userId: string, data: { dateOfBirth?: Date | null; bloodType?: string | null; allergies?: string[] }) {
+  async upsertPatientProfile(
+    userId: string,
+    data: {
+      dateOfBirth?: Date | null;
+      bloodType?: string | null;
+      allergies?: string[];
+      insuranceProvider?: string;
+      insuranceNumber?: string | null;
+      insuranceCoverageRate?: number | null;
+    },
+  ) {
     return (prisma as any).patientProfile.upsert({
       where:  { userId },
       create: { userId, ...data },

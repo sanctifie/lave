@@ -13,6 +13,7 @@ import {
   SubstitutionStatus,
   OrderItemKind,
   RecommendationStatus,
+  InsuranceProvider,
 } from '@mbolo/shared';
 import { CreatePrescriptionInput, ValidatePrescriptionInput } from './schema';
 import { prisma } from '../../infrastructure/prisma/client';
@@ -176,6 +177,12 @@ export class PrescriptionService {
       recommendationNote: r.note,
     }));
 
+    // Tiers-payant : instantané de l'assurance du patient (part caisse calculée
+    // dans le repo à partir du total médicaments et du taux de prise en charge).
+    const profile = (rx as any).patient?.patientProfile;
+    const insuranceProvider = profile?.insuranceProvider ?? InsuranceProvider.NONE;
+    const insuranceCoverageRate = profile?.insuranceCoverageRate ?? 0;
+
     const order = await this.orderRepo.create(rx.patientId, {
       prescriptionId: rxId,
       partnerId,
@@ -183,6 +190,8 @@ export class PrescriptionService {
       totalFcfa,
       serviceFeeFcfa,
       status: needsPatientApproval ? OrderStatus.PENDING_SUBSTITUTION : OrderStatus.PENDING_PHARMACY,
+      insuranceProvider,
+      insuranceCoverageRate,
     });
 
     // Consentement « me demander » + équivalent proposé : on attend l'accord du

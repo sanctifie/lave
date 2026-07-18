@@ -1,5 +1,19 @@
 import { prisma } from '../../infrastructure/prisma/client';
-import { OrderStatus, SubstitutionStatus, OrderItemKind, RecommendationStatus } from '@mbolo/shared';
+import {
+  OrderStatus,
+  SubstitutionStatus,
+  OrderItemKind,
+  RecommendationStatus,
+  InsuranceProvider,
+} from '@mbolo/shared';
+
+// Tiers-payant : part prise en charge par la caisse sur le total médicaments.
+// Arrondi à l'entier FCFA le plus proche. Aucun impact sur le prix — simple
+// répartition de qui paie (assuré / caisse).
+export function caisseShareOf(totalFcfa: number, coverageRate: number): number {
+  const rate = Math.max(0, Math.min(100, coverageRate));
+  return Math.round((totalFcfa * rate) / 100);
+}
 
 type OrderStatusValue = `${OrderStatus}`;
 type SubStatusValue = `${SubstitutionStatus}`;
@@ -44,8 +58,13 @@ export class OrderRepository {
       totalFcfa: number;
       serviceFeeFcfa: number;
       status?: OrderStatusValue;
+      insuranceProvider?: `${InsuranceProvider}`;
+      insuranceCoverageRate?: number;
     },
   ) {
+    const coverageRate = data.insuranceCoverageRate ?? 0;
+    const provider = data.insuranceProvider ?? InsuranceProvider.NONE;
+    const caisseShareFcfa = provider === InsuranceProvider.NONE ? 0 : caisseShareOf(data.totalFcfa, coverageRate);
     return prisma.order.create({
       data: {
         patientId,
@@ -53,6 +72,9 @@ export class OrderRepository {
         partnerId: data.partnerId,
         totalFcfa: data.totalFcfa,
         serviceFeeFcfa: data.serviceFeeFcfa,
+        insuranceProvider: provider as InsuranceProvider,
+        insuranceCoverageRate: coverageRate,
+        caisseShareFcfa,
         ...(data.status ? { status: data.status as OrderStatus } : {}),
         items: {
           create: data.items.map((i) => ({
@@ -99,10 +121,17 @@ export class OrderRepository {
         (i) => i.kind !== OrderItemKind.RECOMMENDED && i.substitutionStatus !== SubstitutionStatus.REJECTED,
       );
       const allRejected = keptPrescribed.length === 0;
+      // Tiers-payant : la part caisse suit le nouveau total médicaments.
+      const current = await tx.order.findUnique({ where: { id: orderId } });
+      const caisseShareFcfa =
+        current && current.insuranceProvider !== InsuranceProvider.NONE
+          ? caisseShareOf(totalFcfa, current.insuranceCoverageRate)
+          : 0;
       const updated = await tx.order.update({
         where: { id: orderId },
         data: {
           totalFcfa,
+          caisseShareFcfa,
           status: (allRejected ? OrderStatus.CANCELLED : OrderStatus.PENDING_PHARMACY) as OrderStatus,
         },
         include: { items: true },
@@ -129,9 +158,15 @@ export class OrderRepository {
       }
       const items = await tx.orderItem.findMany({ where: { orderId } });
       const totalFcfa = items.filter(countsTowardTotal).reduce((s, i) => s + i.totalFcfa, 0);
+      // Tiers-payant : la part caisse suit le nouveau total médicaments.
+      const current = await tx.order.findUnique({ where: { id: orderId } });
+      const caisseShareFcfa =
+        current && current.insuranceProvider !== InsuranceProvider.NONE
+          ? caisseShareOf(totalFcfa, current.insuranceCoverageRate)
+          : 0;
       const updated = await tx.order.update({
         where: { id: orderId },
-        data: { totalFcfa },
+        data: { totalFcfa, caisseShareFcfa },
         include: { items: true },
       });
       return { order: updated, totalFcfa };

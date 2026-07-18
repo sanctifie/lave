@@ -28,6 +28,9 @@ export class UserService {
       dateOfBirth: data.dateOfBirth != null ? new Date(data.dateOfBirth) : data.dateOfBirth,
       bloodType:   data.bloodType,
       allergies:   data.allergies,
+      insuranceProvider:     data.insuranceProvider,
+      insuranceNumber:       data.insuranceNumber,
+      insuranceCoverageRate: data.insuranceCoverageRate,
     });
   }
 }

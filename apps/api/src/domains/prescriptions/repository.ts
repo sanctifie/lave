@@ -86,8 +86,20 @@ export class PrescriptionRepository {
     return prisma.prescription.findUnique({
       where: { id },
       include: {
-        // Allergies incluses : sécurité pharmaceutique (contrôle à la dispensation).
-        patient: { select: { name: true, phone: true, patientProfile: { select: { allergies: true } } } },
+        // Allergies + assurance : sécurité pharmaceutique et tiers-payant.
+        patient: {
+          select: {
+            name: true,
+            phone: true,
+            patientProfile: {
+              select: {
+                allergies: true,
+                insuranceProvider: true,
+                insuranceCoverageRate: true,
+              },
+            },
+          },
+        },
         targetPartner: true,
         orders: true,
       },

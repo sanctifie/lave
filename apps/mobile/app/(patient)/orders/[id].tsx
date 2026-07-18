@@ -225,7 +225,13 @@ export default function OrderDetailScreen() {
     (i) => i.recommendationStatus !== 'suggested' && i.recommendationStatus !== 'declined',
   );
   const needsPayment = !isCancelled && !isDelivered && !isPendingSub && payStep === 'idle';
-  const total        = order.totalFcfa + order.serviceFeeFcfa;
+  // Tiers-payant : le patient ne règle que sa part (médicaments non couverts +
+  // frais). caisseShareFcfa = 0 sans assurance → comportement inchangé.
+  const hasInsurance    = order.insuranceProvider !== 'none' && order.caisseShareFcfa > 0;
+  const patientMedShare = order.totalFcfa - order.caisseShareFcfa;
+  const deliveryFee     = order.deliveryFeeFcfa ?? 0;
+  const amountToPay     = patientMedShare + order.serviceFeeFcfa + deliveryFee;
+  const insurerLabel    = order.insuranceProvider === 'cnamgs' ? 'CNAMGS' : order.insuranceProvider === 'cnss' ? 'CNSS' : 'Assurance';
 
   return (
     <KeyboardAvoidingView
@@ -416,6 +422,24 @@ export default function OrderDetailScreen() {
 
             <View style={styles.priceDivider} />
 
+            {hasInsurance && (
+              <>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Sous-total médicaments</Text>
+                  <Text style={styles.priceValue}>{formatFcfa(order.totalFcfa)}</Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={[styles.priceLabel, styles.caisseLabel]}>
+                    Pris en charge {insurerLabel} ({order.insuranceCoverageRate}%)
+                  </Text>
+                  <Text style={[styles.priceValue, styles.caisseValue]}>− {formatFcfa(order.caisseShareFcfa)}</Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Votre part (médicaments)</Text>
+                  <Text style={styles.priceValue}>{formatFcfa(patientMedShare)}</Text>
+                </View>
+              </>
+            )}
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>{fr.order.serviceFee}</Text>
               <Text style={styles.priceValue}>{formatFcfa(order.serviceFeeFcfa)}</Text>
@@ -427,9 +451,14 @@ export default function OrderDetailScreen() {
               </View>
             )}
             <View style={[styles.priceRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>{fr.order.grandTotal}</Text>
-              <Text style={styles.totalValue}>{formatFcfa(order.deliveryFeeFcfa != null ? total + order.deliveryFeeFcfa : total)}</Text>
+              <Text style={styles.totalLabel}>{hasInsurance ? 'À votre charge' : fr.order.grandTotal}</Text>
+              <Text style={styles.totalValue}>{formatFcfa(amountToPay)}</Text>
             </View>
+            {hasInsurance && (
+              <Text style={styles.caisseNote}>
+                💳 {formatFcfa(order.caisseShareFcfa)} facturés au tiers-payant {insurerLabel} — vous ne réglez que votre part.
+              </Text>
+            )}
           </View>
         </View>
 
@@ -439,7 +468,7 @@ export default function OrderDetailScreen() {
             <Text style={styles.sectionTitle}>💳 Paiement Mobile Money</Text>
             <View style={styles.payCard}>
               <Text style={styles.payHint}>
-                Réglez {formatFcfa(total)} par Mobile Money pour confirmer votre commande.
+                Réglez {formatFcfa(amountToPay)} par Mobile Money pour confirmer votre commande.
               </Text>
               <Text style={styles.inputLabel}>Numéro Mobile Money</Text>
               <TextInput
@@ -457,7 +486,7 @@ export default function OrderDetailScreen() {
                 disabled={paying}
               >
                 <Text style={styles.payBtnText}>
-                  {paying ? 'Traitement…' : `Payer ${formatFcfa(total)}`}
+                  {paying ? 'Traitement…' : `Payer ${formatFcfa(amountToPay)}`}
                 </Text>
               </Pressable>
             </View>
@@ -687,6 +716,9 @@ const styles = StyleSheet.create({
   totalRow:     { marginTop: spacing.xs },
   totalLabel:   { ...typography.bodyMedium, color: colors.text },
   totalValue:   { ...typography.bodyMedium, color: colors.primary },
+  caisseLabel:  { color: colors.success, flex: 1 },
+  caisseValue:  { color: colors.success },
+  caisseNote:   { ...typography.small, color: colors.textSecondary, marginTop: spacing.xs },
 
   // Paiement
   payCard: {

@@ -34,8 +34,13 @@ export class PaymentService {
     if (existing) throw HTTP.conflict('Un escrow existe déjà pour cette commande');
 
     const idempotencyKey = randomUUID();
-    const amount         = (order as any).totalFcfa + (order as any).serviceFeeFcfa;
-    const result         = await this.provider.initEscrow({ amountFcfa: amount, phoneNumber: input.phoneNumber, idempotencyKey });
+    // Tiers-payant : le patient ne règle que sa part (ticket modérateur) sur les
+    // médicaments ; la part caisse (caisseShareFcfa) est facturée à l'assurance.
+    // Sans assurance, caisseShareFcfa = 0 → montant inchangé.
+    const caisseShareFcfa = (order as any).caisseShareFcfa ?? 0;
+    const patientMedShare = (order as any).totalFcfa - caisseShareFcfa;
+    const amount          = patientMedShare + (order as any).serviceFeeFcfa;
+    const result          = await this.provider.initEscrow({ amountFcfa: amount, phoneNumber: input.phoneNumber, idempotencyKey });
 
     return this.repo.createEscrow({
       orderId:               input.orderId,

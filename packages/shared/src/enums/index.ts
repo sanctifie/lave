@@ -101,6 +101,19 @@ export enum RecommendationStatus {
   DECLINED = 'declined',   // écarté par le patient
 }
 
+/**
+ * Assurance maladie du patient pour le tiers-payant.
+ * - CNAMGS : Caisse Nationale d'Assurance Maladie et de Garantie Sociale (Gabon).
+ * - CNSS : Caisse Nationale de Sécurité Sociale.
+ * Le tiers-payant répartit QUI paie (assuré / caisse) sans jamais modifier le
+ * prix du médicament — aucune marge plateforme n'est ajoutée.
+ */
+export enum InsuranceProvider {
+  NONE = 'none',
+  CNAMGS = 'cnamgs',
+  CNSS = 'cnss',
+}
+
 export enum DeliveryStatus {
   PENDING_ASSIGNMENT = 'pending_assignment',
   ASSIGNED = 'assigned',

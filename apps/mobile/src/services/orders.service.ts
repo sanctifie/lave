@@ -31,6 +31,9 @@ export interface OrderDetail extends Order {
   deliveryFeeFcfa: number | null;
   handoverCode: string | null;
   transactionStatus: string | null;
+  insuranceProvider: string;
+  insuranceCoverageRate: number;
+  caisseShareFcfa: number;
 }
 
 function normalizeItem(i: any): OrderItem {
@@ -82,6 +85,9 @@ export const ordersService = {
       deliveryFeeFcfa:   raw.delivery?.deliveryFeeFcfa ?? null,
       handoverCode:      raw.delivery?.handoverCode ?? null,
       transactionStatus: raw.transaction?.status ?? null,
+      insuranceProvider:     raw.insuranceProvider ?? 'none',
+      insuranceCoverageRate: raw.insuranceCoverageRate ?? 0,
+      caisseShareFcfa:       raw.caisseShareFcfa ?? 0,
     };
   },
 
