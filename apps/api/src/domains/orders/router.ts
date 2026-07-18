@@ -2,16 +2,24 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../lib/asyncHandler';
-import { PharmacyActionSchema } from './schema';
+import { PharmacyActionSchema, SubstitutionDecisionSchema } from './schema';
 import { OrderService } from './service';
 import { OrderRepository } from './repository';
-import { notificationService } from '../../infrastructure/container';
+import { DeliveryRepository } from '../deliveries/repository';
+import { PricingRepository } from '../pricing/repository';
+import { notificationService, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 import { HTTP } from '../../lib/errors';
 
 const router: Router = Router();
-const service = new OrderService(new OrderRepository(), notificationService);
+const service = new OrderService(
+  new OrderRepository(),
+  notificationService,
+  new DeliveryRepository(),
+  new PricingRepository(),
+  pushService,
+);
 
 // Patient : liste ses commandes
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
@@ -31,6 +39,17 @@ router.get('/partner/list', requireAuth, requireRole(UserRole.PARTNER_STAFF), as
 router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
   res.json(await service.getById(req.params.id, req.user!.userId));
 }));
+
+// Patient : accepte / refuse les équivalents proposés par le pharmacien
+router.patch(
+  '/:id/substitution-decision',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  validate(SubstitutionDecisionSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await service.decideSubstitution(req.params.id, req.user!.userId, req.body));
+  }),
+);
 
 // Pharmacien : action sur une commande (prepare / ready / reject)
 router.patch(

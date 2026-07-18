@@ -68,6 +68,7 @@ enum PrescriptionStatus {
 
 enum OrderStatus {
   pending_pharmacy
+  pending_substitution
   pharmacy_accepted
   pharmacy_rejected
   preparing
@@ -75,6 +76,22 @@ enum OrderStatus {
   dispatched
   delivered
   cancelled
+}
+
+// Consentement du patient à un équivalent si le produit exact manque (choisi à
+// l'upload de l'ordonnance). Le pharmacien reste seul juge de l'équivalence.
+enum SubstitutionConsent {
+  allow
+  ask
+  deny
+}
+
+enum SubstitutionStatus {
+  none
+  pending
+  accepted
+  auto_accepted
+  rejected
 }
 
 enum DeliveryStatus {
@@ -382,6 +399,8 @@ model Prescription {
   targetPartnerId String?
   consultationId  String?            @unique
   notes           String?
+  // Consentement du patient à la substitution par un équivalent (défaut : demander)
+  substitutionConsent SubstitutionConsent @default(ask)
   // Validation médicale (médecin, si teleconsultation)
   issuedById      String?
   issuedAt        DateTime?
@@ -437,6 +456,13 @@ model OrderItem {
   quantity      Int
   unitPriceFcfa Int
   totalFcfa     Int
+
+  // Substitution : `name` est le produit RÉELLEMENT dispensé. Si c'est un
+  // équivalent, on garde une trace du produit d'origine, du motif et de l'état
+  // d'accord (traçabilité pharmaceutique).
+  substitutionStatus SubstitutionStatus @default(none)
+  originalName       String? // produit initialement prescrit (si substitué)
+  substitutionReason String? // motif (ex. rupture de stock)
 
   order Order @relation(fields: [orderId], references: [id])
 

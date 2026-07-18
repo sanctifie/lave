@@ -38,7 +38,9 @@ export const theme = {
   shadow:       'var(--shadow)',
   shadowLg:     'var(--shadow-lg)',
 
-  // Sémantique
+  // Sémantique (valeurs pilotées par les variables CSS — cf. index.css, dark mode).
+  // Le succès est un vert « herbe » franc, volontairement éloigné du teal de marque
+  // pour que « validé » ne se confonde jamais avec un accent.
   success:        'var(--success)',
   successSurface: 'var(--success-surface)',
   warning:        'var(--warning)',

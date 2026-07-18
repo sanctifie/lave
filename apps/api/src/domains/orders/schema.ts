@@ -23,5 +23,18 @@ export const PharmacyActionSchema = z.discriminatedUnion('action', [
   }),
 ]);
 
+// Décision du patient sur les équivalents proposés (par article).
+export const SubstitutionDecisionSchema = z.object({
+  decisions: z
+    .array(
+      z.object({
+        itemId: z.string().cuid(),
+        accepted: z.boolean(),
+      }),
+    )
+    .min(1),
+});
+
 export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
 export type PharmacyActionInput = z.infer<typeof PharmacyActionSchema>;
+export type SubstitutionDecisionInput = z.infer<typeof SubstitutionDecisionSchema>;

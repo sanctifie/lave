@@ -5,7 +5,13 @@ import { DeliveryRepository } from '../deliveries/repository';
 import { PricingRepository } from '../pricing/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
 import { PushService } from '../../infrastructure/push/service';
-import { PrescriptionStatus, PricingKind } from '@mbolo/shared';
+import {
+  PrescriptionStatus,
+  PricingKind,
+  OrderStatus,
+  SubstitutionConsent,
+  SubstitutionStatus,
+} from '@mbolo/shared';
 import { CreatePrescriptionInput, ValidatePrescriptionInput } from './schema';
 import { prisma } from '../../infrastructure/prisma/client';
 
@@ -83,7 +89,41 @@ export class PrescriptionService {
     const serviceFeeFcfa = serviceFeeEntry?.valueFcfa ?? 500;
     const deliveryFeeFcfa = deliveryFeeEntry?.valueFcfa ?? 1000;
 
-    const items = input.items!;
+    // ── Substitution : le pharmacien peut avoir remplacé un produit indisponible
+    // par un équivalent. Le consentement du patient (choisi à l'upload) décide.
+    const consent = (rx as any).substitutionConsent ?? SubstitutionConsent.ASK;
+    const rawItems = input.items!;
+    const hasSubstitution = rawItems.some((i) => i.substituted);
+
+    // Garde-fou légal : « produit exact uniquement » → aucune substitution admise.
+    if (consent === SubstitutionConsent.DENY && hasSubstitution) {
+      throw HTTP.unprocessable(
+        "Le patient n'accepte aucun équivalent : dispensez le produit exact ou refusez l'ordonnance.",
+      );
+    }
+
+    const items = rawItems.map((i) => {
+      if (!i.substituted) {
+        return { name: i.name, quantity: i.quantity, unitPriceFcfa: i.unitPriceFcfa };
+      }
+      // allow → accepté d'office ; ask → en attente de l'accord du patient
+      const substitutionStatus =
+        consent === SubstitutionConsent.ALLOW
+          ? SubstitutionStatus.AUTO_ACCEPTED
+          : SubstitutionStatus.PENDING;
+      return {
+        name: i.name,
+        quantity: i.quantity,
+        unitPriceFcfa: i.unitPriceFcfa,
+        substitutionStatus,
+        originalName: i.originalName,
+        substitutionReason: i.substitutionReason,
+      };
+    });
+
+    const needsPatientApproval = items.some(
+      (i) => i.substitutionStatus === SubstitutionStatus.PENDING,
+    );
     const totalFcfa = items.reduce((s, i) => s + i.quantity * i.unitPriceFcfa, 0);
 
     const order = await this.orderRepo.create(rx.patientId, {
@@ -92,17 +132,39 @@ export class PrescriptionService {
       items,
       totalFcfa,
       serviceFeeFcfa,
+      status: needsPatientApproval ? OrderStatus.PENDING_SUBSTITUTION : OrderStatus.PENDING_PHARMACY,
     });
+
+    // Consentement « me demander » + équivalent proposé : on attend l'accord du
+    // patient AVANT de préparer/livrer. Aucune livraison créée à ce stade.
+    if (needsPatientApproval) {
+      const nb = items.filter((i) => i.substitutionStatus === SubstitutionStatus.PENDING).length;
+      await this.notif.send({
+        to: rx.patient.phone,
+        message:
+          `Votre pharmacien propose un équivalent pour ${nb} médicament(s) indisponible(s).\n` +
+          `Ouvrez l'app MBOLO pour accepter ou refuser avant préparation.`,
+      });
+      this.push.sendToUser(rx.patientId, {
+        title: '🔁 Équivalent proposé',
+        body: `${nb} médicament(s) à valider avant préparation.`,
+        data: { type: 'substitution_proposed', orderId: order.id },
+      });
+      return { prescription: updatedRx, order, delivery: null, pendingSubstitution: true };
+    }
 
     const delivery = await this.deliveryRepo.create(order.id, deliveryFeeFcfa);
 
-    // Notifie le patient
+    // Notifie le patient (en signalant les équivalents acceptés d'office le cas échéant)
+    const autoNote = hasSubstitution
+      ? `\n(Un ou plusieurs médicaments ont été remplacés par un équivalent, comme vous l'aviez accepté.)`
+      : '';
     await this.notif.send({
       to: rx.patient.phone,
       message:
         `Votre ordonnance a été validée ✓\n` +
         `Commande #${order.id.slice(-6).toUpperCase()} — Total : ${totalFcfa + serviceFeeFcfa} FCFA\n` +
-        `Livraison : ${deliveryFeeFcfa} FCFA\n` +
+        `Livraison : ${deliveryFeeFcfa} FCFA${autoNote}\n` +
         `Procédez au paiement pour confirmer.`,
     });
     this.push.sendToUser(rx.patientId, {
