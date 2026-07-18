@@ -249,14 +249,39 @@ model PartnerProfile {
   landmark           String
   isActive           Boolean            @default(true)
   verificationStatus VerificationStatus @default(pending_verification)
+  // Vitrine & garde : pharmacie de garde (mise en avant) + horaires affichés.
+  isOnDuty           Boolean            @default(false)
+  openingHours       String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  staff                 User[]         @relation("StaffMember")
+  staff                 User[]            @relation("StaffMember")
   orders                Order[]
-  incomingPrescriptions Prescription[] @relation("PrescriptionTarget")
+  incomingPrescriptions Prescription[]    @relation("PrescriptionTarget")
+  products              PharmacyProduct[]
 
   @@map("partner_profiles")
+}
+
+// Catalogue produits de l'officine : socle du « poste de dispensation ».
+// Permet la saisie assistée (recherche/scan code-barres) à la validation et le
+// cross-sell (produits conseil). Le prix reste fixé par la pharmacie.
+model PharmacyProduct {
+  id        String   @id @default(cuid())
+  partnerId String
+  name      String
+  barcode   String?
+  priceFcfa Int
+  inStock   Boolean  @default(true)
+  isAdvice  Boolean  @default(false) // produit conseil / OTC (cross-sell)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  partner PartnerProfile @relation(fields: [partnerId], references: [id])
+
+  @@unique([partnerId, barcode])
+  @@index([partnerId])
+  @@map("pharmacy_products")
 }
 
 model DoctorProfile {

@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { pharmacyService, InboxPrescription, ValidationItem, RecommendationItem } from '../../../src/services/pharmacy.service';
+import { catalogService } from '../../../src/services/catalog.service';
+import { BarcodeScanner } from '../../../src/components/BarcodeScanner';
 import { Button } from '../../../src/components/ui/Button';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
 import { PrescriptionStatus } from '@mbolo/shared';
@@ -61,6 +63,8 @@ export default function PrescriptionValidateScreen() {
   const [rejectReason, setRejectReason] = useState('');
   const [mode, setMode]       = useState<'validate' | 'reject'>('validate');
   const [submitting, setSubmitting] = useState(false);
+  // Poste de dispensation : scan code-barres pour remplir un article depuis le catalogue.
+  const [scanForKey, setScanForKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -98,6 +102,21 @@ export default function PrescriptionValidateScreen() {
 
   const addItem   = () => setItems((prev) => [...prev, newItem()]);
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i._key !== key));
+
+  // Scan d'un code-barres → remplit nom + prix de l'article depuis le catalogue.
+  const onScannedForItem = async (code: string) => {
+    const key = scanForKey;
+    setScanForKey(null);
+    if (!key) return;
+    const product = await catalogService.byBarcode(code);
+    if (!product) {
+      Alert.alert('Produit inconnu', `Le code-barres ${code} n'est pas dans votre catalogue. Ajoutez-le depuis l'onglet Catalogue.`);
+      return;
+    }
+    setItems((prev) =>
+      prev.map((it) => (it._key === key ? { ...it, name: product.name, unitPriceFcfa: product.priceFcfa } : it)),
+    );
+  };
 
   const updateReco = (key: string, field: keyof RecommendationItem, raw: string) => {
     setRecos((prev) =>
@@ -276,13 +295,18 @@ export default function PrescriptionValidateScreen() {
                   return (
                   <View key={item._key} style={styles.itemRow}>
                     <View style={styles.itemFields}>
-                      <TextInput
-                        style={styles.inputMed}
-                        placeholder="Nom du médicament"
-                        placeholderTextColor={colors.textDisabled}
-                        value={item.name}
-                        onChangeText={(v) => updateItem(item._key, 'name', v)}
-                      />
+                      <View style={styles.nameRow}>
+                        <TextInput
+                          style={[styles.inputMed, { flex: 1 }]}
+                          placeholder="Nom du médicament"
+                          placeholderTextColor={colors.textDisabled}
+                          value={item.name}
+                          onChangeText={(v) => updateItem(item._key, 'name', v)}
+                        />
+                        <Pressable style={styles.itemScanBtn} onPress={() => setScanForKey(item._key)}>
+                          <Text style={styles.itemScanTxt}>📷</Text>
+                        </Pressable>
+                      </View>
                       <View style={styles.itemNumbers}>
                         <TextInput
                           style={[styles.inputSmall]}
@@ -436,6 +460,12 @@ export default function PrescriptionValidateScreen() {
           </>
         )}
       </ScrollView>
+
+      <BarcodeScanner
+        visible={scanForKey !== null}
+        onClose={() => setScanForKey(null)}
+        onScanned={onScannedForItem}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -539,6 +569,12 @@ const styles = StyleSheet.create({
 
   itemRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   itemFields:{ flex: 1, gap: spacing.xs },
+  nameRow:   { flexDirection: 'row', gap: spacing.sm, alignItems: 'stretch' },
+  itemScanBtn: {
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.md,
+    borderRadius: radii.md, borderWidth: 1.5, borderColor: colors.primary,
+  },
+  itemScanTxt: { fontSize: 18 },
   inputMed: {
     ...typography.body,
     color: colors.text,
