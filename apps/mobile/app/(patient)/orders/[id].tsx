@@ -76,6 +76,25 @@ export default function OrderDetailScreen() {
   const [subChoice,    setSubChoice]    = useState<Record<string, boolean>>({});
   const [subSubmitting, setSubSubmitting] = useState(false);
 
+  // Conseils officinaux proposés par le pharmacien (facultatifs)
+  const [recoChoice,    setRecoChoice]    = useState<Record<string, boolean>>({});
+  const [recoSubmitting, setRecoSubmitting] = useState(false);
+
+  const submitRecommendations = async () => {
+    if (!order) return;
+    const suggested = order.items.filter((i) => i.recommendationStatus === 'suggested');
+    const decisions = suggested.map((i) => ({ itemId: i.id, accepted: recoChoice[i.id] === true }));
+    setRecoSubmitting(true);
+    try {
+      await ordersService.decideRecommendation(order.id, decisions);
+      await load();
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer votre choix. Réessayez.');
+    } finally {
+      setRecoSubmitting(false);
+    }
+  };
+
   const submitSubstitution = async () => {
     if (!order) return;
     const pending = order.items.filter((i) => i.substitutionStatus === 'pending');
@@ -197,6 +216,14 @@ export default function OrderDetailScreen() {
   const isDelivered  = order.status === OrderStatus.DELIVERED;
   const isPendingSub = order.status === OrderStatus.PENDING_SUBSTITUTION;
   const pendingSubs  = order.items.filter((i) => i.substitutionStatus === 'pending');
+  // Conseils encore en attente du choix patient (modifiables tant que non préparé)
+  const suggestedRecos = order.items.filter((i) => i.recommendationStatus === 'suggested');
+  const canDecideRecos = order.status === OrderStatus.PENDING_PHARMACY || order.status === OrderStatus.PHARMACY_ACCEPTED;
+  // Articles affichés dans le récap : prescrits + conseils acceptés (on masque les
+  // conseils encore suggérés — ils vivent dans leur carte — et ceux écartés).
+  const billableItems = order.items.filter(
+    (i) => i.recommendationStatus !== 'suggested' && i.recommendationStatus !== 'declined',
+  );
   const needsPayment = !isCancelled && !isDelivered && !isPendingSub && payStep === 'idle';
   const total        = order.totalFcfa + order.serviceFeeFcfa;
 
@@ -320,16 +347,66 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
+        {/* Le pharmacien recommande (conseils facultatifs) */}
+        {suggestedRecos.length > 0 && canDecideRecos && (
+          <View style={styles.recoCard}>
+            <Text style={styles.recoCardTitle}>💡 Le pharmacien recommande</Text>
+            <Text style={styles.recoCardIntro}>
+              En complément de votre traitement (facultatif). Cochez ce que vous
+              souhaitez ajouter à votre commande — vous restez libre de tout refuser.
+            </Text>
+            {suggestedRecos.map((item) => {
+              const checked = recoChoice[item.id] === true;
+              return (
+                <Pressable
+                  key={item.id}
+                  style={styles.recoItem}
+                  onPress={() => setRecoChoice((p) => ({ ...p, [item.id]: !checked }))}
+                >
+                  <View style={[styles.recoCheckbox, checked && styles.recoCheckboxOn]}>
+                    {checked && <Text style={styles.recoCheckMark}>✓</Text>}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.recoItemName}>{item.name}</Text>
+                    {item.recommendationNote ? (
+                      <Text style={styles.recoItemNote}>{item.recommendationNote}</Text>
+                    ) : null}
+                    <Text style={styles.recoItemPrice}>
+                      {item.quantity} × {formatFcfa(item.unitPriceFcfa)} = {formatFcfa(item.totalFcfa)}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              style={[styles.recoConfirm, recoSubmitting && { opacity: 0.6 }]}
+              disabled={recoSubmitting}
+              onPress={submitRecommendations}
+            >
+              <Text style={styles.recoConfirmTxt}>
+                {recoSubmitting
+                  ? 'Enregistrement…'
+                  : Object.values(recoChoice).some((v) => v)
+                    ? 'Ajouter à ma commande'
+                    : 'Ne rien ajouter, continuer'}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Médicaments */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Médicaments</Text>
           <View style={styles.itemsCard}>
-            {order.items.map((item, i) => (
+            {billableItems.map((item, i) => (
               <View key={item.id}>
                 {i > 0 && <View style={styles.itemDivider} />}
                 <View style={styles.itemRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.itemName}>{item.name}</Text>
+                    <Text style={styles.itemName}>
+                      {item.name}
+                      {item.kind === 'recommended' ? '  💡' : ''}
+                    </Text>
                     <Text style={styles.itemQty}>Qté : {item.quantity} × {formatFcfa(item.unitPriceFcfa)}</Text>
                   </View>
                   <Text style={styles.itemTotal}>{formatFcfa(item.totalFcfa)}</Text>
@@ -548,6 +625,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subConfirmTxt: { ...typography.bodyMedium, color: colors.textOnDark },
+
+  // Conseil officinal (cross-sell)
+  recoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    ...shadows.card,
+  },
+  recoCardTitle: { ...typography.bodyMedium, color: colors.text },
+  recoCardIntro: { ...typography.caption, color: colors.textSecondary },
+  recoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  },
+  recoCheckbox: {
+    width: 22, height: 22, borderRadius: radii.sm, borderWidth: 1.5,
+    borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginTop: 2,
+  },
+  recoCheckboxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  recoCheckMark:  { ...typography.label, color: colors.textOnDark },
+  recoItemName:  { ...typography.bodyMedium, color: colors.text },
+  recoItemNote:  { ...typography.caption, color: colors.textSecondary, fontStyle: 'italic' },
+  recoItemPrice: { ...typography.caption, color: colors.text, marginTop: 2 },
+  recoConfirm: {
+    marginTop: spacing.xs,
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  recoConfirmTxt: { ...typography.bodyMedium, color: colors.textOnDark },
 
   section:      { gap: spacing.sm },
   sectionTitle: { ...typography.bodyMedium, color: colors.text },

@@ -9,6 +9,9 @@ export interface OrderItem {
   substitutionStatus: string;
   originalName: string | null;
   substitutionReason: string | null;
+  kind: string;
+  recommendationStatus: string;
+  recommendationNote: string | null;
 }
 
 export interface Order {
@@ -40,6 +43,9 @@ function normalizeItem(i: any): OrderItem {
     substitutionStatus: i.substitutionStatus ?? 'none',
     originalName:       i.originalName ?? null,
     substitutionReason: i.substitutionReason ?? null,
+    kind:                 i.kind ?? 'prescribed',
+    recommendationStatus: i.recommendationStatus ?? 'none',
+    recommendationNote:   i.recommendationNote ?? null,
   };
 }
 
@@ -87,5 +93,15 @@ export const ordersService = {
     const { data } = await apiClient.patch<any>(`/orders/${orderId}/substitution-decision`, { decisions });
     const raw = data.data ?? data;
     return { cancelled: !!raw.cancelled };
+  },
+
+  /** Le patient ajoute/écarte les conseils officinaux proposés (par article). */
+  async decideRecommendation(
+    orderId: string,
+    decisions: { itemId: string; accepted: boolean }[],
+  ): Promise<{ totalFcfa: number }> {
+    const { data } = await apiClient.patch<any>(`/orders/${orderId}/recommendation-decision`, { decisions });
+    const raw = data.data ?? data;
+    return { totalFcfa: raw.totalFcfa ?? raw.order?.totalFcfa ?? 0 };
   },
 };

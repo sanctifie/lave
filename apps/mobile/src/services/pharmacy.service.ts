@@ -22,6 +22,14 @@ export interface ValidationItem {
   substitutionReason?: string;
 }
 
+// Conseil officinal (cross-sell) : produit conseil / OTC proposé en complément.
+export interface RecommendationItem {
+  name: string;
+  quantity: number;
+  unitPriceFcfa: number;
+  note?: string;
+}
+
 export interface PharmacyOrderItem {
   name: string;
   quantity: number;
@@ -84,7 +92,7 @@ export const pharmacyService = {
     return normalizeRx(raw);
   },
 
-  async validate(id: string, items: ValidationItem[]): Promise<void> {
+  async validate(id: string, items: ValidationItem[], recommendations: RecommendationItem[] = []): Promise<void> {
     await apiClient.patch(`/prescriptions/${id}/validate`, {
       approved: true,
       items: items.map((i) => ({
@@ -99,6 +107,16 @@ export const pharmacyService = {
             }
           : {}),
       })),
+      ...(recommendations.length
+        ? {
+            recommendations: recommendations.map((r) => ({
+              name:          r.name,
+              quantity:      r.quantity,
+              unitPriceFcfa: r.unitPriceFcfa,
+              ...(r.note ? { note: r.note } : {}),
+            })),
+          }
+        : {}),
     });
   },
 

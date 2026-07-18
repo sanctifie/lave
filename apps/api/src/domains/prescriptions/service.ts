@@ -11,6 +11,8 @@ import {
   OrderStatus,
   SubstitutionConsent,
   SubstitutionStatus,
+  OrderItemKind,
+  RecommendationStatus,
 } from '@mbolo/shared';
 import { CreatePrescriptionInput, ValidatePrescriptionInput } from './schema';
 import { prisma } from '../../infrastructure/prisma/client';
@@ -124,12 +126,25 @@ export class PrescriptionService {
     const needsPatientApproval = items.some(
       (i) => i.substitutionStatus === SubstitutionStatus.PENDING,
     );
+    // Seuls les articles prescrits comptent dans le total ; les conseils
+    // officinaux (facultatifs) ne sont facturés que si le patient les ajoute.
     const totalFcfa = items.reduce((s, i) => s + i.quantity * i.unitPriceFcfa, 0);
+
+    // Conseil officinal (cross-sell) : proposé, non imposé. Ajouté à la commande
+    // en statut « suggéré » (hors total tant que le patient ne l'a pas accepté).
+    const recommendationItems = (input.recommendations ?? []).map((r) => ({
+      name: r.name,
+      quantity: r.quantity,
+      unitPriceFcfa: r.unitPriceFcfa,
+      kind: OrderItemKind.RECOMMENDED,
+      recommendationStatus: RecommendationStatus.SUGGESTED,
+      recommendationNote: r.note,
+    }));
 
     const order = await this.orderRepo.create(rx.patientId, {
       prescriptionId: rxId,
       partnerId,
-      items,
+      items: [...items, ...recommendationItems],
       totalFcfa,
       serviceFeeFcfa,
       status: needsPatientApproval ? OrderStatus.PENDING_SUBSTITUTION : OrderStatus.PENDING_PHARMACY,
@@ -159,12 +174,15 @@ export class PrescriptionService {
     const autoNote = hasSubstitution
       ? `\n(Un ou plusieurs médicaments ont été remplacés par un équivalent, comme vous l'aviez accepté.)`
       : '';
+    const recoNote = recommendationItems.length
+      ? `\n💡 Votre pharmacien vous conseille ${recommendationItems.length} produit(s) en complément (facultatif) — à voir dans l'app.`
+      : '';
     await this.notif.send({
       to: rx.patient.phone,
       message:
         `Votre ordonnance a été validée ✓\n` +
         `Commande #${order.id.slice(-6).toUpperCase()} — Total : ${totalFcfa + serviceFeeFcfa} FCFA\n` +
-        `Livraison : ${deliveryFeeFcfa} FCFA${autoNote}\n` +
+        `Livraison : ${deliveryFeeFcfa} FCFA${autoNote}${recoNote}\n` +
         `Procédez au paiement pour confirmer.`,
     });
     this.push.sendToUser(rx.patientId, {

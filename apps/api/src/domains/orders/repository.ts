@@ -1,8 +1,10 @@
 import { prisma } from '../../infrastructure/prisma/client';
-import { OrderStatus, SubstitutionStatus } from '@mbolo/shared';
+import { OrderStatus, SubstitutionStatus, OrderItemKind, RecommendationStatus } from '@mbolo/shared';
 
 type OrderStatusValue = `${OrderStatus}`;
 type SubStatusValue = `${SubstitutionStatus}`;
+type ItemKindValue = `${OrderItemKind}`;
+type RecoStatusValue = `${RecommendationStatus}`;
 
 export interface NewOrderItem {
   name: string;
@@ -11,6 +13,25 @@ export interface NewOrderItem {
   substitutionStatus?: SubStatusValue;
   originalName?: string;
   substitutionReason?: string;
+  kind?: ItemKindValue;
+  recommendationStatus?: RecoStatusValue;
+  recommendationNote?: string;
+}
+
+// Un article compte dans le total à régler s'il n'est ni un équivalent refusé,
+// ni un conseil officinal non encore accepté (suggéré ou écarté).
+function countsTowardTotal(i: {
+  substitutionStatus: string;
+  recommendationStatus: string;
+}): boolean {
+  if (i.substitutionStatus === SubstitutionStatus.REJECTED) return false;
+  if (
+    i.recommendationStatus === RecommendationStatus.SUGGESTED ||
+    i.recommendationStatus === RecommendationStatus.DECLINED
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export class OrderRepository {
@@ -42,6 +63,9 @@ export class OrderRepository {
             substitutionStatus: (i.substitutionStatus ?? SubstitutionStatus.NONE) as SubstitutionStatus,
             originalName: i.originalName ?? null,
             substitutionReason: i.substitutionReason ?? null,
+            kind: (i.kind ?? OrderItemKind.PRESCRIBED) as OrderItemKind,
+            recommendationStatus: (i.recommendationStatus ?? RecommendationStatus.NONE) as RecommendationStatus,
+            recommendationNote: i.recommendationNote ?? null,
           })),
         },
       },
@@ -65,11 +89,16 @@ export class OrderRepository {
           },
         });
       }
-      // Total recalculé sur les articles restants (les refusés sont exclus).
+      // Total recalculé sur les articles facturables (équivalents refusés et
+      // conseils non acceptés exclus).
       const items = await tx.orderItem.findMany({ where: { orderId } });
-      const kept = items.filter((i) => i.substitutionStatus !== SubstitutionStatus.REJECTED);
-      const totalFcfa = kept.reduce((s, i) => s + i.totalFcfa, 0);
-      const allRejected = kept.length === 0;
+      const billable = items.filter(countsTowardTotal);
+      const totalFcfa = billable.reduce((s, i) => s + i.totalFcfa, 0);
+      // « Tout refusé » se juge sur les seuls articles prescrits.
+      const keptPrescribed = items.filter(
+        (i) => i.kind !== OrderItemKind.RECOMMENDED && i.substitutionStatus !== SubstitutionStatus.REJECTED,
+      );
+      const allRejected = keptPrescribed.length === 0;
       const updated = await tx.order.update({
         where: { id: orderId },
         data: {
@@ -79,6 +108,33 @@ export class OrderRepository {
         include: { items: true },
       });
       return { order: updated, allRejected, keptTotalFcfa: totalFcfa };
+    });
+  }
+
+  /** Applique le choix du patient sur les articles conseillés (conseil officinal). */
+  async applyRecommendationDecision(
+    orderId: string,
+    decisions: { itemId: string; accepted: boolean }[],
+  ) {
+    return prisma.$transaction(async (tx) => {
+      for (const d of decisions) {
+        await tx.orderItem.update({
+          where: { id: d.itemId },
+          data: {
+            recommendationStatus: (d.accepted
+              ? RecommendationStatus.ACCEPTED
+              : RecommendationStatus.DECLINED) as RecommendationStatus,
+          },
+        });
+      }
+      const items = await tx.orderItem.findMany({ where: { orderId } });
+      const totalFcfa = items.filter(countsTowardTotal).reduce((s, i) => s + i.totalFcfa, 0);
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: { totalFcfa },
+        include: { items: true },
+      });
+      return { order: updated, totalFcfa };
     });
   }
 

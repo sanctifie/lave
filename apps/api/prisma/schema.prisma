@@ -94,6 +94,20 @@ enum SubstitutionStatus {
   rejected
 }
 
+// Nature d'un article : prescrit (dispensé) ou conseillé (conseil officinal / OTC).
+enum OrderItemKind {
+  prescribed
+  recommended
+}
+
+// État d'un article conseillé vis-à-vis du patient (il l'ajoute librement).
+enum RecommendationStatus {
+  none
+  suggested
+  accepted
+  declined
+}
+
 enum DeliveryStatus {
   pending_assignment
   assigned
@@ -463,6 +477,13 @@ model OrderItem {
   substitutionStatus SubstitutionStatus @default(none)
   originalName       String? // produit initialement prescrit (si substitué)
   substitutionReason String? // motif (ex. rupture de stock)
+
+  // Conseil officinal (cross-sell) : article proposé par le pharmacien en
+  // complément. `recommendationNote` porte l'argumentaire (ex. « à prendre
+  // pendant le traitement »). Compté au total UNIQUEMENT si accepté par le patient.
+  kind                 OrderItemKind        @default(prescribed)
+  recommendationStatus RecommendationStatus @default(none)
+  recommendationNote   String?
 
   order Order @relation(fields: [orderId], references: [id])
 

@@ -35,6 +35,19 @@ export const SubstitutionDecisionSchema = z.object({
     .min(1),
 });
 
+// Choix du patient sur les conseils officinaux proposés (par article).
+export const RecommendationDecisionSchema = z.object({
+  decisions: z
+    .array(
+      z.object({
+        itemId: z.string().cuid(),
+        accepted: z.boolean(),
+      }),
+    )
+    .min(1),
+});
+
 export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
 export type PharmacyActionInput = z.infer<typeof PharmacyActionSchema>;
 export type SubstitutionDecisionInput = z.infer<typeof SubstitutionDecisionSchema>;
+export type RecommendationDecisionInput = z.infer<typeof RecommendationDecisionSchema>;

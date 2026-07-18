@@ -81,6 +81,26 @@ export enum SubstitutionStatus {
   REJECTED = 'rejected',           // équivalent refusé par le patient
 }
 
+/**
+ * Nature d'un article de commande.
+ * - PRESCRIBED : article issu de l'ordonnance (dispensé par le pharmacien).
+ * - RECOMMENDED : conseil officinal (produit conseil / OTC) proposé par le
+ *   pharmacien en complément. Jamais un médicament de substitution, jamais
+ *   imposé : le patient l'ajoute librement avant paiement.
+ */
+export enum OrderItemKind {
+  PRESCRIBED = 'prescribed',
+  RECOMMENDED = 'recommended',
+}
+
+/** État d'un article recommandé (conseil officinal) vis-à-vis du patient. */
+export enum RecommendationStatus {
+  NONE = 'none',           // article non concerné (article prescrit)
+  SUGGESTED = 'suggested', // conseillé par le pharmacien, en attente du choix patient
+  ACCEPTED = 'accepted',   // ajouté à la commande par le patient
+  DECLINED = 'declined',   // écarté par le patient
+}
+
 export enum DeliveryStatus {
   PENDING_ASSIGNMENT = 'pending_assignment',
   ASSIGNED = 'assigned',
