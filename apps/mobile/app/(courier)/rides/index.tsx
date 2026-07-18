@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ridesService, Ride } from '../../../src/services/rides.service';
+import { apiClient } from '../../../src/services/client';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
 
 type Tab = 'available' | 'mine';
@@ -36,7 +37,7 @@ export default function CourierRidesScreen() {
     try {
       if (tab === 'available') setRides(await ridesService.listAvailable());
       else {
-        const { data } = await (await import('../../../src/services/client')).apiClient.get('/rides/courier/mine');
+        const { data } = await apiClient.get('/rides/courier/mine');
         setRides(data.data);
       }
     } catch { /* silencieux */ }

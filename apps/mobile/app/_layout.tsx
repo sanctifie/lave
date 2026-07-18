@@ -10,8 +10,8 @@ export default function RootLayout() {
   const { isAuthenticated, user } = useAuthStore();
   const segments = useSegments();
   const router   = useRouter();
-  const notifListener    = useRef<Notifications.EventSubscription>();
-  const responseListener = useRef<Notifications.EventSubscription>();
+  const notifListener    = useRef<Notifications.Subscription>();
+  const responseListener = useRef<Notifications.Subscription>();
 
   // Redirection par rôle
   useEffect(() => {

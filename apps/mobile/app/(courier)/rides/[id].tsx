@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ridesService, Ride } from '../../../src/services/rides.service';
+import { apiClient } from '../../../src/services/client';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -38,7 +39,7 @@ export default function CourierRideDetailScreen() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await (await import('../../../src/services/client')).apiClient.get(`/rides/${id}`);
+      const { data } = await apiClient.get(`/rides/${id}`);
       setRide(data.data);
     } catch {
       Alert.alert('Erreur', 'Impossible de charger la course');
