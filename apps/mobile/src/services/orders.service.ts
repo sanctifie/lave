@@ -22,13 +22,16 @@ export interface Order {
   pharmacyName: string | null;
   createdAt: string;
   items: OrderItem[];
-  delivery: { status: string; handoverCode: string } | null;
+  // handoverCode absent volontairement : le code de remise est détenu par le
+  // coursier, le patient le saisit à la réception.
+  delivery: { status: string } | null;
 }
 
 export interface OrderDetail extends Order {
   deliveryId: string | null;
   deliveryStatus: string | null;
   deliveryFeeFcfa: number | null;
+  /** Code de remise du patient : il le MONTRE au coursier, qui le saisit. */
   handoverCode: string | null;
   transactionStatus: string | null;
   insuranceProvider: string;
@@ -82,7 +85,8 @@ export const ordersService = {
       delivery:          raw.delivery ?? null,
       deliveryId:        raw.delivery?.id ?? null,
       deliveryStatus:    raw.delivery?.status ?? null,
-      deliveryFeeFcfa:   raw.delivery?.deliveryFeeFcfa ?? null,
+      // Champ Prisma : feeFcfa (l'ancien mapping deliveryFeeFcfa était toujours null)
+      deliveryFeeFcfa:   raw.delivery?.feeFcfa ?? raw.delivery?.deliveryFeeFcfa ?? null,
       handoverCode:      raw.delivery?.handoverCode ?? null,
       transactionStatus: raw.transaction?.status ?? null,
       insuranceProvider:     raw.insuranceProvider ?? 'none',

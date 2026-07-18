@@ -22,31 +22,32 @@ const STATUS_CONFIG: Record<string, { label: string; color: BadgeColor }> = {
   [PrescriptionStatus.FILLED]:              { label: fr.prescription.status.filled,               color: 'success' },
 
   // Order
-  [OrderStatus.PENDING_PHARMACY]:   { label: fr.order.status.pending_pharmacy,   color: 'warning' },
+  [OrderStatus.PENDING_PHARMACY]:     { label: fr.order.status.pending_pharmacy,     color: 'warning' },
+  [OrderStatus.PENDING_SUBSTITUTION]: { label: fr.order.status.pending_substitution, color: 'warning' },
   [OrderStatus.PHARMACY_ACCEPTED]:  { label: fr.order.status.pharmacy_accepted,  color: 'info'    },
   [OrderStatus.PHARMACY_REJECTED]:  { label: fr.order.status.pharmacy_rejected,  color: 'error'   },
   [OrderStatus.PREPARING]:          { label: fr.order.status.preparing,           color: 'info'    },
   [OrderStatus.READY_FOR_PICKUP]:   { label: fr.order.status.ready_for_pickup,   color: 'info'    },
   [OrderStatus.DISPATCHED]:         { label: fr.order.status.dispatched,          color: 'info'    },
+  // 'delivered' et 'cancelled' sont partagés par plusieurs enums (mêmes valeurs
+  // string) : une seule entrée par valeur, définie ici.
   [OrderStatus.DELIVERED]:          { label: fr.order.status.delivered,           color: 'success' },
   [OrderStatus.CANCELLED]:          { label: fr.order.status.cancelled,           color: 'neutral' },
 
-  // Delivery
+  // Delivery (delivered → déjà couvert ci-dessus)
   [DeliveryStatus.PENDING_ASSIGNMENT]: { label: fr.delivery.status.pending_assignment, color: 'warning' },
   [DeliveryStatus.ASSIGNED]:           { label: fr.delivery.status.assigned,           color: 'info'    },
   [DeliveryStatus.EN_ROUTE_PICKUP]:    { label: fr.delivery.status.en_route_pickup,    color: 'info'    },
   [DeliveryStatus.PICKED_UP]:          { label: fr.delivery.status.picked_up,          color: 'info'    },
   [DeliveryStatus.EN_ROUTE_DELIVERY]:  { label: fr.delivery.status.en_route_delivery,  color: 'info'    },
-  [DeliveryStatus.DELIVERED]:          { label: fr.delivery.status.delivered,           color: 'success' },
   [DeliveryStatus.FAILED]:             { label: fr.delivery.status.failed,              color: 'error'   },
 
-  // Appointment
+  // Appointment (cancelled → déjà couvert ci-dessus)
   [AppointmentStatus.PENDING]:      { label: fr.appointment.status.pending,      color: 'warning' },
   [AppointmentStatus.CONFIRMED]:    { label: fr.appointment.status.confirmed,    color: 'info'    },
   [AppointmentStatus.WAITING_ROOM]: { label: fr.appointment.status.waiting_room, color: 'warning' },
   [AppointmentStatus.IN_PROGRESS]:  { label: fr.appointment.status.in_progress,  color: 'info'    },
   [AppointmentStatus.COMPLETED]:    { label: fr.appointment.status.completed,    color: 'success' },
-  [AppointmentStatus.CANCELLED]:    { label: fr.appointment.status.cancelled,    color: 'neutral' },
   [AppointmentStatus.NO_SHOW]:      { label: fr.appointment.status.no_show,      color: 'error'   },
 };
 

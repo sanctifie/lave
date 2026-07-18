@@ -5,9 +5,10 @@ import { asyncHandler } from '../../lib/asyncHandler';
 import { RequestOtpSchema, VerifyOtpSchema } from './schema';
 import { AuthService } from './service';
 import { AuthRepository } from './repository';
+import { notificationService } from '../../infrastructure/container';
 
 const router: Router = Router();
-const service = new AuthService(new AuthRepository());
+const service = new AuthService(new AuthRepository(), notificationService);
 
 const phoneKey = (req: { body?: { phone?: string } }) => req.body?.phone ?? 'unknown';
 

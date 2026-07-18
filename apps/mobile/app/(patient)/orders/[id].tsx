@@ -70,9 +70,6 @@ export default function OrderDetailScreen() {
   const pollCount = useRef(0);
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Remise
-  const [code,         setCode]         = useState('');
-  const [confirming,   setConfirming]   = useState(false);
   const [subChoice,    setSubChoice]    = useState<Record<string, boolean>>({});
   const [subSubmitting, setSubSubmitting] = useState(false);
 
@@ -173,26 +170,6 @@ export default function OrderDetailScreen() {
       Alert.alert('Erreur', msg);
     } finally {
       setPaying(false);
-    }
-  };
-
-  const handleHandover = async () => {
-    if (code.trim().length < 4) {
-      Alert.alert('Code invalide', 'Entrez le code à 6 chiffres remis par le livreur.');
-      return;
-    }
-    if (!order?.deliveryId) return;
-    setConfirming(true);
-    try {
-      await apiClient.post(`/deliveries/${order.deliveryId}/handover`, { code: code.trim() });
-      Alert.alert('Livraison confirmée !', 'Merci pour votre commande. Le paiement est libéré.', [
-        { text: 'OK', onPress: () => { load(); router.back(); } },
-      ]);
-    } catch (err: any) {
-      const msg = err?.response?.data?.message ?? 'Code incorrect. Vérifiez le code remis par le livreur.';
-      Alert.alert('Erreur', msg);
-    } finally {
-      setConfirming(false);
     }
   };
 
@@ -516,31 +493,20 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
-        {/* Confirmation de réception */}
-        {isDispatched && (
+        {/* Code de remise : le patient le MONTRE au livreur, qui le saisit pour
+            confirmer la livraison et libérer le paiement. */}
+        {isDispatched && order.handoverCode && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📦 {fr.order.handover}</Text>
             <View style={styles.handoverCard}>
-              <Text style={styles.handoverHint}>{fr.order.handoverHint}</Text>
-              <TextInput
-                style={styles.codeInput}
-                value={code}
-                onChangeText={setCode}
-                placeholder="000000"
-                placeholderTextColor={colors.textDisabled}
-                keyboardType="number-pad"
-                maxLength={6}
-                textAlign="center"
-              />
-              <Pressable
-                style={[styles.handoverBtn, confirming && styles.payBtnDisabled]}
-                onPress={handleHandover}
-                disabled={confirming}
-              >
-                <Text style={styles.handoverBtnText}>
-                  {confirming ? 'Vérification…' : 'Confirmer la réception'}
-                </Text>
-              </Pressable>
+              <Text style={styles.handoverHint}>
+                À la réception, montrez ce code au livreur. C'est lui qui le saisit
+                pour confirmer la livraison — ne le partagez qu'en main propre.
+              </Text>
+              <View style={styles.codeDisplay}>
+                <Text style={styles.codeDisplayTxt}>{order.handoverCode}</Text>
+              </View>
+              <Text style={styles.codeCaption}>Votre code de remise</Text>
             </View>
           </View>
         )}
@@ -789,6 +755,16 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.info,
   },
   handoverHint: { ...typography.body, color: colors.textSecondary },
+  codeDisplay: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primarySurface,
+    alignItems: 'center',
+  },
+  codeDisplayTxt: { ...typography.h1, color: colors.primary, letterSpacing: 10 },
+  codeCaption:    { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
   codeInput: {
     ...typography.h2,
     color: colors.text,

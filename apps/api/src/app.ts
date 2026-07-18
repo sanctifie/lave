@@ -34,8 +34,19 @@ const corsOrigins = (process.env.CORS_ORIGINS ?? '')
   .map((o) => o.trim())
   .filter(Boolean);
 
+// Derrière un reverse proxy (nginx, ALB…), req.ip doit refléter le client réel
+// sinon le rate-limit par IP vise l'IP du proxy (limite partagée par tous).
+// TRUST_PROXY=1 (nombre de sauts) ou une liste d'IP/CIDR ; absent = désactivé.
+if (process.env.TRUST_PROXY) {
+  const tp = process.env.TRUST_PROXY;
+  app.set('trust proxy', /^\d+$/.test(tp) ? Number(tp) : tp);
+}
+
 app.use(helmet());
 app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins, credentials: true } : undefined));
+// Le JWT peut transiter en query (?token=) pour /uploads : on le caviarde dans
+// les logs pour ne jamais écrire un jeton valide sur disque.
+morgan.token('url', (req) => (req.url ?? '').replace(/([?&]token=)[^&]+/, '$1[REDACTED]'));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(metricsMiddleware);

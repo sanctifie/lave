@@ -57,9 +57,10 @@ export const fr = {
     grandTotal:   'Total à payer',
     pay:          'Payer',
     handover:     'Confirmer la réception',
-    handoverHint: 'Entrez le code remis par le livreur',
+    handoverHint: 'Montrez ce code au livreur à la réception',
     status: {
       pending_pharmacy:   'En attente de la pharmacie',
+      pending_substitution: 'Équivalent à valider',
       pharmacy_accepted:  'Acceptée',
       pharmacy_rejected:  'Refusée',
       preparing:          'En préparation',

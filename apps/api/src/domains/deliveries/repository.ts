@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import { prisma } from '../../infrastructure/prisma/client';
 import { DeliveryStatus } from '@mbolo/shared';
 
@@ -16,7 +17,17 @@ const DELIVERY_INCLUDE = {
 
 export class DeliveryRepository {
   async create(orderId: string, feeFcfa: number) {
-    return prisma.delivery.create({ data: { orderId, feeFcfa } });
+    // Code de remise court (6 chiffres, crypto-sûr) : c'est ce que le patient
+    // saisit à la réception. Retry en cas de collision (contrainte unique).
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const handoverCode = randomInt(100_000, 1_000_000).toString();
+      try {
+        return await prisma.delivery.create({ data: { orderId, feeFcfa, handoverCode } });
+      } catch (e: any) {
+        if (e?.code !== 'P2002') throw e; // autre erreur → propage
+      }
+    }
+    throw new Error('Impossible de générer un code de remise unique');
   }
 
   async findById(id: string) {

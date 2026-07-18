@@ -178,7 +178,9 @@ export class OrderRepository {
       where: { id },
       include: {
         items: true,
-        delivery: true,
+        // Le code de remise appartient au PATIENT : il l'affiche au coursier à
+        // la réception, et c'est le coursier qui le saisit pour confirmer.
+        delivery: { select: { id: true, status: true, feeFcfa: true, courierId: true, handoverCode: true } },
         transaction: true,
         patient: { select: { name: true, phone: true } },
         partner: { select: { legalName: true, whatsappNumber: true, phone: true } },
@@ -191,7 +193,7 @@ export class OrderRepository {
       where: { patientId },
       include: {
         items: true,
-        delivery: { select: { status: true, handoverCode: true } },
+        delivery: { select: { status: true } },
         partner:  { select: { legalName: true } },
       },
       orderBy: { createdAt: 'desc' },
