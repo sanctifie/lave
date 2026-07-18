@@ -209,4 +209,60 @@ export class OrderRepository {
   async updateStatus(id: string, status: OrderStatus) {
     return prisma.order.update({ where: { id }, data: { status } });
   }
+
+  // Commandes « réalisées » = ni annulées ni refusées par la pharmacie.
+  private get realizedWhere() {
+    return { status: { notIn: [OrderStatus.CANCELLED, OrderStatus.PHARMACY_REJECTED] as OrderStatus[] } };
+  }
+
+  /** Tableau de bord : agrégats de CA et articles pour une pharmacie. */
+  async statsForPartner(partnerId: string) {
+    const where = { partnerId, ...this.realizedWhere };
+    const [agg, items] = await Promise.all([
+      prisma.order.aggregate({
+        where,
+        _count: { _all: true },
+        _sum: { totalFcfa: true, caisseShareFcfa: true },
+      }),
+      prisma.orderItem.findMany({
+        where: { order: where },
+        select: { name: true, totalFcfa: true, quantity: true, kind: true, recommendationStatus: true },
+      }),
+    ]);
+    return { agg, items };
+  }
+
+  /** Encaissements : commandes avec l'état de paiement et de livraison. */
+  async earningsForPartner(partnerId: string) {
+    return prisma.order.findMany({
+      where: { partnerId, ...this.realizedWhere },
+      select: {
+        id: true,
+        totalFcfa: true,
+        caisseShareFcfa: true,
+        status: true,
+        createdAt: true,
+        transaction: { select: { status: true } },
+        delivery: { select: { status: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /** Bordereau tiers-payant : commandes avec une part caisse à récupérer. */
+  async insuranceClaimsForPartner(partnerId: string) {
+    return prisma.order.findMany({
+      where: { partnerId, caisseShareFcfa: { gt: 0 }, ...this.realizedWhere },
+      select: {
+        id: true,
+        createdAt: true,
+        insuranceProvider: true,
+        insuranceCoverageRate: true,
+        caisseShareFcfa: true,
+        totalFcfa: true,
+        patient: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

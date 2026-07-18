@@ -44,12 +44,22 @@ export default function PharmacyLayout() {
         }}
       />
       <Tabs.Screen
+        name="catalog"
+        options={{
+          title: 'Catalogue',
+          tabBarIcon: ({ focused }) => <Icon emoji="📦" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="meals"
         options={{
           title: 'Cuisine',
           tabBarIcon: ({ focused }) => <Icon emoji="🥗" focused={focused} />,
         }}
       />
+      {/* Routes secondaires (accès depuis le tableau de bord), masquées de la barre. */}
+      <Tabs.Screen name="earnings" options={{ href: null }} />
+      <Tabs.Screen name="insurance" options={{ href: null }} />
     </Tabs>
   );
 }

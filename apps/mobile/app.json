@@ -5,10 +5,16 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "mbolo",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "android": {
       "package": "com.mbolo.sante",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.mbolo.sante",
@@ -30,6 +36,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "MBOLO Santé utilise votre position pour estimer le trajet et le tarif de vos transports médicaux."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Autoriser $(PRODUCT_NAME) à utiliser la caméra pour scanner les codes-barres des médicaments."
         }
       ]
     ],

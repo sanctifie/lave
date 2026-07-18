@@ -8,13 +8,16 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/auth.store';
-import { pharmacyService, InboxPrescription, PharmacyOrder } from '../../src/services/pharmacy.service';
+import { Switch } from 'react-native';
+import { pharmacyService, InboxPrescription, PharmacyOrder, PharmacyStats, PartnerProfileLite } from '../../src/services/pharmacy.service';
 import { colors, spacing, radii, typography, shadows } from '../../src/theme';
 import { OrderStatus, PrescriptionStatus } from '@mbolo/shared';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
+
+function fcfa(n: number) { return `${n.toLocaleString('fr-FR')} FCFA`; }
 
 export default function PharmacyDashboard() {
   const router  = useRouter();
@@ -23,19 +26,35 @@ export default function PharmacyDashboard() {
 
   const [inbox, setInbox]     = useState<InboxPrescription[]>([]);
   const [orders, setOrders]   = useState<PharmacyOrder[]>([]);
+  const [stats, setStats]     = useState<PharmacyStats | null>(null);
+  const [profile, setProfile] = useState<PartnerProfileLite | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const [rx, ord] = await Promise.all([
+      const [rx, ord, st, prof] = await Promise.all([
         pharmacyService.inbox(),
         pharmacyService.listOrders(),
+        pharmacyService.stats().catch(() => null),
+        pharmacyService.myProfile().catch(() => null),
       ]);
       setInbox(rx);
       setOrders(ord);
+      setStats(st);
+      setProfile(prof);
     } catch {}
     finally { setLoading(false); }
   }, []);
+
+  const toggleDuty = async (value: boolean) => {
+    setProfile((p) => (p ? { ...p, isOnDuty: value } : p)); // optimiste
+    try {
+      const updated = await pharmacyService.setDuty(value);
+      setProfile(updated);
+    } catch {
+      setProfile((p) => (p ? { ...p, isOnDuty: !value } : p)); // rollback
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -70,6 +89,51 @@ export default function PharmacyDashboard() {
           <Text style={styles.bannerSub}>Validez, préparez, livrez</Text>
         </View>
         <Text style={styles.bannerEmoji}>💊</Text>
+      </View>
+
+      {/* Pharmacie de garde */}
+      <View style={styles.dutyCard}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.dutyTitle}>🌙 Pharmacie de garde</Text>
+          <Text style={styles.dutySub}>
+            {profile?.isOnDuty ? 'Mise en avant auprès des patients — vous captez les urgences.' : 'Activez pour être prioritaire la nuit et les jours fériés.'}
+          </Text>
+        </View>
+        <Switch
+          value={!!profile?.isOnDuty}
+          onValueChange={toggleDuty}
+          trackColor={{ true: colors.primary, false: colors.border }}
+          thumbColor={colors.surface}
+        />
+      </View>
+
+      {/* Mon activité (business) */}
+      <Text style={styles.sectionTitle}>Mon activité</Text>
+      <View style={styles.bizRow}>
+        {[
+          { label: 'CA médicaments',  value: stats ? fcfa(stats.revenueFcfa) : '—', icon: '💰' },
+          { label: 'Panier moyen',    value: stats ? fcfa(stats.avgBasketFcfa) : '—', icon: '🧺' },
+          { label: 'Conseils vendus', value: stats ? String(stats.adviceCount) : '—', icon: '💡' },
+        ].map((s) => (
+          <View key={s.label} style={styles.bizCard}>
+            <Text style={styles.statIcon}>{s.icon}</Text>
+            <Text style={styles.bizValue}>{loading ? '—' : s.value}</Text>
+            <Text style={styles.statLabel}>{s.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Raccourcis */}
+      <View style={styles.shortcutRow}>
+        <Pressable style={styles.shortcut} onPress={() => router.push('/(pharmacy)/earnings' as never)}>
+          <Text style={styles.shortcutIcon}>💰</Text><Text style={styles.shortcutTxt}>Encaissements</Text>
+        </Pressable>
+        <Pressable style={styles.shortcut} onPress={() => router.push('/(pharmacy)/insurance' as never)}>
+          <Text style={styles.shortcutIcon}>🧾</Text><Text style={styles.shortcutTxt}>Tiers-payant</Text>
+        </Pressable>
+        <Pressable style={styles.shortcut} onPress={() => router.push('/(pharmacy)/catalog' as never)}>
+          <Text style={styles.shortcutIcon}>📦</Text><Text style={styles.shortcutTxt}>Catalogue</Text>
+        </Pressable>
       </View>
 
       {/* Stats */}
@@ -191,6 +255,44 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle:  { ...typography.h3, color: colors.text },
   seeAll:        { ...typography.label, color: colors.primary },
+
+  dutyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    ...shadows.card,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.accent,
+  },
+  dutyTitle: { ...typography.bodyMedium, color: colors.text },
+  dutySub:   { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+
+  bizRow: { flexDirection: 'row', gap: spacing.sm },
+  bizCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    alignItems: 'center',
+    gap: spacing.xs,
+    ...shadows.card,
+  },
+  bizValue: { ...typography.bodyMedium, color: colors.primary, textAlign: 'center' },
+
+  shortcutRow: { flexDirection: 'row', gap: spacing.sm },
+  shortcut: {
+    flex: 1,
+    backgroundColor: colors.primarySurface,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  shortcutIcon: { fontSize: 22 },
+  shortcutTxt:  { ...typography.small, color: colors.primary, fontWeight: '600' },
 
   statsRow: { flexDirection: 'row', gap: spacing.sm },
   statCard: {
