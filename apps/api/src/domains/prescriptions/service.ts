@@ -53,6 +53,41 @@ export class PrescriptionService {
     return rx;
   }
 
+  /**
+   * Renouvellement d'ordonnance : le patient relance une ordonnance déjà
+   * traitée (traitement chronique). On recrée une ordonnance « en attente » que
+   * le pharmacien devra revalider — la dispensation reste sous contrôle légal.
+   */
+  async renew(sourceId: string, patientId: string) {
+    const source = await this.repo.findById(sourceId);
+    if (!source) throw HTTP.notFound('Ordonnance introuvable');
+    if (source.patientId !== patientId) throw HTTP.forbidden();
+
+    // On ne renouvelle qu'une ordonnance qui a franchi la validation pharmacien.
+    const renewable: string[] = [
+      PrescriptionStatus.VALIDATED,
+      PrescriptionStatus.PARTIALLY_FILLED,
+      PrescriptionStatus.FILLED,
+    ];
+    if (!renewable.includes(source.status)) {
+      throw HTTP.unprocessable('Seule une ordonnance déjà validée peut être renouvelée.');
+    }
+
+    const rx = await this.repo.renewFrom(sourceId, patientId);
+    if (!rx) throw HTTP.notFound('Ordonnance introuvable');
+
+    // Notifie la pharmacie cible du renouvellement
+    const partnerPhone = rx.targetPartner?.whatsappNumber ?? rx.targetPartner?.phone;
+    if (partnerPhone) {
+      await this.notif.send({
+        to: partnerPhone,
+        message: `Demande de renouvellement de ${rx.patient?.name ?? 'un patient'}. Référence : ${rx.id}. Connectez-vous pour valider.`,
+      });
+    }
+
+    return rx;
+  }
+
   async listMine(patientId: string) {
     return this.repo.listForPatient(patientId);
   }

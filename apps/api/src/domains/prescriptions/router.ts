@@ -49,6 +49,16 @@ router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
   res.json(await service.getById(req.params.id, req.user!.userId));
 }));
 
+// Patient : renouvelle une ordonnance déjà validée (traitement chronique)
+router.post(
+  '/:id/renew',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await service.renew(req.params.id, req.user!.userId));
+  }),
+);
+
 // Pharmacien : voir les ordonnances en attente de son officine
 router.get('/partner/inbox', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
   const partner = await prisma.partnerProfile.findFirst({

@@ -94,6 +94,9 @@ function handleNotificationTap(data: Record<string, string>, router: ReturnType<
     case 'prescription_validated':
       if (data.orderId) router.push('/(patient)/orders' as any);
       break;
+    case 'medication_reminder':
+      router.push('/(patient)/reminders' as any);
+      break;
     case 'ride_accepted':
     case 'ride_arrived':
     case 'ride_completed':

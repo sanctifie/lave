@@ -23,6 +23,52 @@ export class PrescriptionRepository {
     });
   }
 
+  /**
+   * Renouvellement : recrée une ordonnance à partir d'une existante (même
+   * pharmacie, même type, même consentement de substitution) et recopie le(s)
+   * scan(s) d'origine. Le statut repart à « en attente de validation » : le
+   * pharmacien reste le dispensateur légal et doit tout revalider.
+   */
+  async renewFrom(sourceId: string, patientId: string) {
+    const source = await prisma.prescription.findUnique({
+      where: { id: sourceId },
+      include: { targetPartner: true },
+    });
+    if (!source) return null;
+
+    const media = await prisma.media.findMany({
+      where: { refTable: 'prescriptions', refId: sourceId },
+    });
+
+    return prisma.$transaction(async (tx) => {
+      const rx = await tx.prescription.create({
+        data: {
+          patientId,
+          type: source.type,
+          targetPartnerId: source.targetPartnerId,
+          substitutionConsent: source.substitutionConsent,
+          status: PrescriptionStatus.PENDING_VALIDATION,
+          notes: `Renouvellement de l'ordonnance #${sourceId.slice(-6).toUpperCase()}`,
+        },
+        include: { targetPartner: true, patient: { select: { name: true } } },
+      });
+      // Recopie les scans d'origine (nouvelles lignes Media pointant le même fichier).
+      for (const m of media) {
+        await tx.media.create({
+          data: {
+            kind: m.kind,
+            url: m.url,
+            mimeType: m.mimeType,
+            uploadedById: patientId,
+            refTable: 'prescriptions',
+            refId: rx.id,
+          },
+        });
+      }
+      return rx;
+    });
+  }
+
   async attachMedia(prescriptionId: string, uploadedById: string, filename: string, mimeType: string) {
     return prisma.media.create({
       data: {

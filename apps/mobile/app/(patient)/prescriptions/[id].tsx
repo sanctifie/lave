@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   Pressable,
@@ -37,6 +38,24 @@ export default function PrescriptionDetailScreen() {
   const [rx, setRx]           = useState<PrescriptionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(false);
+  const [renewing, setRenewing] = useState(false);
+
+  const handleRenew = useCallback(async () => {
+    setRenewing(true);
+    try {
+      const created = await prescriptionsService.renew(id);
+      Alert.alert(
+        'Renouvellement envoyé',
+        'Votre demande a été transmise à la pharmacie. Vous serez notifié dès qu\'elle sera validée.',
+        [{ text: 'Voir', onPress: () => router.replace(`/(patient)/prescriptions/${created.id}` as never) }],
+      );
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Renouvellement impossible. Réessayez.';
+      Alert.alert('Erreur', msg);
+    } finally {
+      setRenewing(false);
+    }
+  }, [id]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,6 +89,11 @@ export default function PrescriptionDetailScreen() {
 
   const isRejected = rx.status === PrescriptionStatus.REJECTED;
   const isPending  = rx.status === PrescriptionStatus.PENDING_VALIDATION;
+  const isRenewable = [
+    PrescriptionStatus.VALIDATED,
+    PrescriptionStatus.PARTIALLY_FILLED,
+    PrescriptionStatus.FILLED,
+  ].includes(rx.status as PrescriptionStatus);
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -158,6 +182,34 @@ export default function PrescriptionDetailScreen() {
               </Pressable>
             );
           })}
+        </View>
+      )}
+
+      {/* Traitement chronique : renouvellement + rappels de prise */}
+      {isRenewable && (
+        <View style={styles.careCard}>
+          <Text style={styles.careTitle}>Suivi de traitement</Text>
+          <Text style={styles.careHint}>
+            Traitement au long cours ? Renouvelez cette ordonnance en un geste ou
+            programmez des rappels de prise.
+          </Text>
+          <View style={styles.careBtns}>
+            <Pressable
+              style={[styles.careBtn, styles.careBtnPrimary, renewing && { opacity: 0.6 }]}
+              disabled={renewing}
+              onPress={handleRenew}
+            >
+              <Text style={styles.careBtnPrimaryTxt}>
+                {renewing ? 'Envoi…' : '🔄 Renouveler'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.careBtn, styles.careBtnGhost]}
+              onPress={() => router.push('/(patient)/reminders' as never)}
+            >
+              <Text style={styles.careBtnGhostTxt}>⏰ Rappels de prise</Text>
+            </Pressable>
+          </View>
         </View>
       )}
 
@@ -263,6 +315,29 @@ const styles = StyleSheet.create({
   },
   pdfIcon: { fontSize: 24 },
   pdfText: { ...typography.bodyMedium, color: colors.primary },
+
+  careCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    ...shadows.card,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.accent,
+  },
+  careTitle: { ...typography.bodyMedium, color: colors.text },
+  careHint:  { ...typography.caption, color: colors.textSecondary },
+  careBtns:  { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  careBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.full,
+    alignItems: 'center',
+  },
+  careBtnPrimary:    { backgroundColor: colors.primary },
+  careBtnPrimaryTxt: { ...typography.label, color: colors.textOnDark },
+  careBtnGhost:      { borderWidth: 1.5, borderColor: colors.accent },
+  careBtnGhostTxt:   { ...typography.label, color: colors.accent },
 
   orderCard: {
     backgroundColor: colors.surface,
