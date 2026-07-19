@@ -47,6 +47,8 @@ export interface PharmacyOrder {
   totalFcfa: number;
   createdAt: string;
   items: PharmacyOrderItem[];
+  // Circuit stupéfiant : none | to_collect | collected | verified
+  paperStatus: string;
 }
 
 function normalizeRx(raw: any): InboxPrescription {
@@ -72,6 +74,7 @@ function normalizeOrder(raw: any): PharmacyOrder {
     status:         raw.status,
     totalFcfa:      raw.totalFcfa,
     createdAt:      raw.createdAt,
+    paperStatus:    raw.paperStatus ?? 'none',
     items:          (raw.items ?? []).map((i: any) => ({
       name:          i.name,
       quantity:      i.quantity,
@@ -144,6 +147,11 @@ export const pharmacyService = {
 
   async orderAction(orderId: string, action: 'prepare' | 'ready' | 'reject', reason?: string): Promise<void> {
     await apiClient.patch(`/orders/${orderId}/pharmacy-action`, { action, reason });
+  },
+
+  /** Stupéfiant — étape 2 : original vérifié en main + n° d'ordonnancier inscrit. */
+  async paperVerified(orderId: string): Promise<void> {
+    await apiClient.patch(`/orders/${orderId}/paper-verified`);
   },
 
   // ── Business (tableau de bord, encaissements, tiers-payant, garde) ──────────

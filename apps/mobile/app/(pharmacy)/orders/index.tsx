@@ -68,6 +68,25 @@ export default function PharmacyOrdersScreen() {
     }
   };
 
+  // Stupéfiant : le coursier a déposé l'original → un employé inscrit le n°
+  // d'ordonnancier dessus et scelle au colis (débloque la remise au patient).
+  const confirmPaper = (order: PharmacyOrder) => {
+    Alert.alert(
+      'Original vérifié ?',
+      'Confirmez que vous avez l\'ordonnance ORIGINALE en main, que vous y avez retranscrit le n° d\'ordre + la date de l\'ordonnancier, et que vous la scellez au colis.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          onPress: async () => {
+            try { await pharmacyService.paperVerified(order.id); await load(); }
+            catch { Alert.alert('Erreur', 'Action impossible. Réessayez.'); }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -129,6 +148,26 @@ export default function PharmacyOrdersScreen() {
                 ))}
                 {order.items.length > 3 && (
                   <Text style={styles.moreItems}>+{order.items.length - 3} autres</Text>
+                )}
+
+                {/* Stupéfiant : circuit de l'ordonnance originale */}
+                {order.paperStatus === 'to_collect' && (
+                  <View style={styles.paperInfo}>
+                    <Text style={styles.paperInfoTxt}>⚖️ Stupéfiant — le coursier récupère l'original chez le patient.</Text>
+                  </View>
+                )}
+                {order.paperStatus === 'collected' && (
+                  <>
+                    <View style={styles.divider} />
+                    <Pressable style={[styles.actionBtn, styles.actionBtnWarn]} onPress={() => confirmPaper(order)}>
+                      <Text style={styles.actionBtnText}>⚖️ Original reçu — inscrire le n° d'ordonnancier & sceller</Text>
+                    </Pressable>
+                  </>
+                )}
+                {order.paperStatus === 'verified' && (
+                  <View style={styles.paperInfo}>
+                    <Text style={styles.paperInfoTxt}>✓ Original annoté & scellé au colis.</Text>
+                  </View>
                 )}
 
                 {/* Action */}
@@ -219,6 +258,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionBtnDanger:     { backgroundColor: colors.error },
+  actionBtnWarn:       { backgroundColor: colors.warning },
+  paperInfo:           { marginTop: spacing.sm, backgroundColor: colors.warningSurface, borderRadius: radii.md, padding: spacing.sm },
+  paperInfoTxt:        { ...typography.caption, color: colors.warning },
   actionBtnText:       { ...typography.label, color: colors.textOnDark },
   actionBtnTextDanger: { color: colors.textOnDark },
 

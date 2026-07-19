@@ -215,31 +215,42 @@ export default function DeliveryDetailScreen() {
           />
         )}
 
-        {/* Stupéfiant : étiquette d'annotation obligatoire AVANT le code */}
-        {needsHandover && delivery?.paperStatus === 'to_annotate' && (
+        {/* Stupéfiant — étape 1 : récupérer l'original CHEZ LE PATIENT d'abord */}
+        {delivery?.paperStatus === 'to_collect' && (
           <View style={styles.paperCard}>
-            <Text style={styles.paperTitle}>⚖️ Ordonnance avec stupéfiant</Text>
+            <Text style={styles.paperTitle}>⚖️ Course stupéfiant — étape 1</Text>
             <Text style={styles.paperHint}>
-              Demandez l'ordonnance papier ORIGINALE au patient, apposez-y le papillon
-              d'annotation rédigé par le pharmacien (joint au colis), puis rendez-la au
-              patient. Vous n'écrivez rien vous-même. Sans original présenté, ne livrez pas.
+              Passez D'ABORD chez le patient récupérer l'ordonnance papier ORIGINALE,
+              puis apportez-la à la pharmacie : c'est un employé de l'officine qui doit
+              y inscrire le n° d'ordonnancier. Vous n'écrivez rien vous-même.
             </Text>
             <Pressable
               style={styles.paperBtn}
               onPress={async () => {
                 try {
-                  if (delivery.orderId) await deliveriesService.paperAnnotated(delivery.orderId);
+                  if (delivery.orderId) await deliveriesService.paperCollected(delivery.orderId);
                   await load();
                 } catch { Alert.alert('Erreur', 'Impossible de confirmer. Réessayez.'); }
               }}
             >
-              <Text style={styles.paperBtnTxt}>✓ Original vérifié & papillon apposé</Text>
+              <Text style={styles.paperBtnTxt}>✓ Original récupéré chez le patient</Text>
             </Pressable>
           </View>
         )}
 
-        {/* Handover code — only shown when delivering to patient */}
-        {needsHandover && delivery?.paperStatus !== 'to_annotate' && (
+        {/* Stupéfiant — attente : original chez le pharmacien pour annotation */}
+        {delivery?.paperStatus === 'collected' && (
+          <View style={styles.paperCard}>
+            <Text style={styles.paperTitle}>⚖️ Original déposé à l'officine</Text>
+            <Text style={styles.paperHint}>
+              Déposez l'original à la pharmacie. Le pharmacien y inscrit le n° d'ordonnancier
+              et scelle le colis avec l'original — la remise au patient se débloque ensuite.
+            </Text>
+          </View>
+        )}
+
+        {/* Handover code — verrouillé tant qu'un original stupéfiant n'est pas vérifié */}
+        {needsHandover && delivery?.paperStatus !== 'to_collect' && delivery?.paperStatus !== 'collected' && (
           <View style={styles.handoverCard}>
             <Text style={styles.handoverTitle}>Code de remise</Text>
             <Text style={styles.handoverHint}>
