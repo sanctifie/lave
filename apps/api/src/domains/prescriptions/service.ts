@@ -215,9 +215,10 @@ export class PrescriptionService {
     // (fait dès la validation, y compris si une substitution reste en attente
     // sur d'autres articles — un stupéfiant n'est jamais substituable).
     if (controlledItems.length > 0) {
-      // À la remise, le coursier apposera l'étiquette d'annotation sur
-      // l'original papier, que le patient conserve (la pharmacie garde le scan).
-      await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'to_annotate' } });
+      // Boucle stupéfiant : le coursier récupère D'ABORD l'original chez le
+      // patient, le pharmacien le vérifie et l'annote de sa main, puis le colis
+      // repart avec l'original scellé.
+      await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'to_collect' } });
       await this.repo.recordControlledDispensing({
         partnerId,
         partnerName: (rx as any).targetPartner?.legalName ?? 'Pharmacie',
@@ -247,7 +248,12 @@ export class PrescriptionService {
       return { prescription: updatedRx, order, delivery: null, pendingSubstitution: true };
     }
 
-    const delivery = await this.deliveryRepo.create(order.id, deliveryFeeFcfa);
+    // Course stupéfiant : boucle patient → officine → patient, tarif majoré
+    // (configurable ; défaut : 2 × la course de base).
+    const controlledFee = controlledItems.length
+      ? (await this.pricingRepo.getByKind(PricingKind.CONTROLLED_DELIVERY_FEE))?.valueFcfa ?? deliveryFeeFcfa * 2
+      : deliveryFeeFcfa;
+    const delivery = await this.deliveryRepo.create(order.id, controlledFee);
 
     // Notifie le patient (en signalant les équivalents acceptés d'office le cas échéant)
     const autoNote = hasSubstitution

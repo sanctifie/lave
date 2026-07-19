@@ -121,8 +121,9 @@ export enum InsuranceProvider {
  * d'annotation voyage avec le colis, le patient conserve son original annoté. */
 export enum PaperStatus {
   NONE = 'none',
-  TO_ANNOTATE = 'to_annotate',
-  ANNOTATED = 'annotated',
+  TO_COLLECT = 'to_collect',   // récupérer l'original chez le patient (étape 1)
+  COLLECTED = 'collected',     // en route vers l'officine (étape 2)
+  VERIFIED = 'verified',       // vérifié + annoté par le pharmacien, scellé au colis (étape 3)
 }
 
 export enum DeliveryStatus {
@@ -198,4 +199,6 @@ export enum PricingKind {
   MEAL_DELIVERY_FEE = 'meal_delivery_fee',
   RIDE_BASE_FEE = 'ride_base_fee',
   RIDE_PER_KM = 'ride_per_km',
+  // Course stupéfiant (boucle patient → officine → patient) : tarif majoré
+  CONTROLLED_DELIVERY_FEE = 'controlled_delivery_fee',
 }

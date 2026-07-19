@@ -153,6 +153,15 @@ export class DeliveryService {
       : null;
     if (requesterId !== ownerId && requesterId !== courierUserId) throw HTTP.forbidden();
 
+    // Stupéfiant : la remise est verrouillée tant que le pharmacien n'a pas
+    // vérifié l'original en main et apposé sa mention (paperStatus = verified).
+    const paperStatus = (existing as any).order?.paperStatus ?? 'none';
+    if (paperStatus === 'to_collect' || paperStatus === 'collected') {
+      throw HTTP.unprocessable(
+        "Ordonnance originale non encore vérifiée par le pharmacien — livraison impossible.",
+      );
+    }
+
     const delivery = await this.repo.confirmHandover(deliveryId, code);
     if (!delivery) throw HTTP.unprocessable('Code de remise invalide');
 

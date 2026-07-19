@@ -84,11 +84,9 @@ router.patch(
   }),
 );
 
-// Coursier : original vérifié + étiquette d'annotation apposée à la remise.
-// Obligatoire AVANT la saisie du code de remise pour un stupéfiant : sans
-// original présenté, pas de livraison.
+// Coursier — étape 1 : original récupéré CHEZ LE PATIENT (course stupéfiant)
 router.patch(
-  '/:id/paper-annotated',
+  '/:id/paper-collected',
   requireAuth,
   requireRole(UserRole.COURIER),
   asyncHandler(async (req, res) => {
@@ -97,10 +95,29 @@ router.patch(
       include: { delivery: { select: { courierId: true } } },
     });
     if (!order) throw HTTP.notFound('Commande introuvable');
-    if ((order as any).paperStatus !== 'to_annotate') throw HTTP.unprocessable('Aucune annotation attendue');
+    if ((order as any).paperStatus !== 'to_collect') throw HTTP.unprocessable('Aucun original à récupérer');
     const courier = await prisma.courier.findUnique({ where: { userId: req.user!.userId } });
     if (!courier || order.delivery?.courierId !== courier.id) throw HTTP.forbidden();
-    const updated = await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'annotated' } });
+    const updated = await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'collected' } });
+    res.json({ data: { paperStatus: updated.paperStatus } });
+  }),
+);
+
+// Pharmacien — étape 2 : original vérifié en main, mention manuscrite apposée,
+// scellé au colis. Sans cette étape, la remise au patient reste verrouillée.
+router.patch(
+  '/:id/paper-verified',
+  requireAuth,
+  requireRole(UserRole.PARTNER_STAFF),
+  asyncHandler(async (req, res) => {
+    const partner = await prisma.partnerProfile.findFirst({
+      where: { staff: { some: { id: req.user!.userId } } },
+    });
+    if (!partner) throw HTTP.forbidden('Vous n\'êtes rattaché à aucun partenaire');
+    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+    if (!order || order.partnerId !== partner.id) throw HTTP.notFound('Commande introuvable');
+    if ((order as any).paperStatus !== 'collected') throw HTTP.unprocessable('Original non encore déposé par le coursier');
+    const updated = await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'verified' } });
     res.json({ data: { paperStatus: updated.paperStatus } });
   }),
 );

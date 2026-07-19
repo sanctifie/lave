@@ -114,9 +114,10 @@ enum RecommendationStatus {
 // le coursier l'appose sur l'original que LE PATIENT CONSERVE (comme au
 // comptoir : original annoté rendu, copie gardée). Aucun retour de papier.
 enum PaperStatus {
-  none        // pas d'annotation à faire
-  to_annotate // le coursier doit apposer l'étiquette sur l'original à la remise
-  annotated   // original vérifié et annoté chez le patient (boucle fermée)
+  none       // commande sans stupéfiant
+  to_collect // étape 1 : le coursier récupère l'original CHEZ LE PATIENT d'abord
+  collected  // étape 2 : original en sacoche, en route vers l'officine
+  verified   // étape 3 : original vérifié + mention manuscrite du pharmacien, scellé au colis
 }
 
 // Assurance maladie pour le tiers-payant (le patient ne règle que sa part).
@@ -199,6 +200,7 @@ enum PricingKind {
   meal_delivery_fee
   ride_base_fee
   ride_per_km
+  controlled_delivery_fee
 }
 
 // ─────────────────────────────────────────────────────────────

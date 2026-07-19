@@ -54,9 +54,9 @@ export const deliveriesService = {
     await apiClient.patch(`/deliveries/${id}/status`, { status });
   },
 
-  /** Stupéfiant : original vérifié + étiquette d'annotation apposée. */
-  async paperAnnotated(orderId: string): Promise<void> {
-    await apiClient.patch(`/orders/${orderId}/paper-annotated`);
+  /** Stupéfiant — étape 1 : le coursier récupère l'original CHEZ LE PATIENT. */
+  async paperCollected(orderId: string): Promise<void> {
+    await apiClient.patch(`/orders/${orderId}/paper-collected`);
   },
 
   async confirmHandover(id: string, code: string): Promise<void> {
