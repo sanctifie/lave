@@ -168,7 +168,7 @@ export default function PrescriptionValidateScreen() {
           Alert.alert(
             'Validée !',
             hasControlled
-              ? 'Commande créée. ⚖️ Joignez au colis l\'étiquette d\'annotation (pharmacie, date, n° d\'ordonnancier) : le coursier l\'apposera sur l\'original du patient.'
+              ? 'Commande créée. ⚖️ Rédigez À LA MAIN votre mention codifiée d\'ordonnancier (n° d\'ordre, date, quantités — selon la convention) sur un papillon, et scellez-le avec le colis : le coursier l\'apposera sur l\'original du patient.'
               : 'L\'ordonnance a été validée et la commande créée.',
             [{ text: 'OK', onPress: () => router.back() }],
           );
@@ -411,8 +411,9 @@ export default function PrescriptionValidateScreen() {
                     />
                     <Text style={styles.ctrlHint}>
                       N° d'ordre, date, patient, médicament, quantité, prix et prescripteur seront
-                      inscrits automatiquement au registre. L'ordonnance sera annotée « servi » :
-                      aucune re-délivrance possible.
+                      inscrits automatiquement au registre. Rédigez ensuite votre mention manuscrite
+                      codifiée (papillon joint au colis) — l'ordonnance numérique sera annotée
+                      « servi » : aucune re-délivrance possible.
                     </Text>
                   </View>
                 )}
