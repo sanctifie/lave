@@ -59,6 +59,15 @@ router.post(
   }),
 );
 
+// Pharmacien : ordonnancier légal (registre des stupéfiants dispensés)
+router.get('/partner/register', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
+  const partner = await prisma.partnerProfile.findFirst({
+    where: { staff: { some: { id: req.user!.userId } } },
+  });
+  if (!partner) throw HTTP.forbidden('Vous n\'êtes rattaché à aucun partenaire');
+  res.json({ data: await repo.listDispensingRecords(partner.id) });
+}));
+
 // Pharmacien : voir les ordonnances en attente de son officine
 router.get('/partner/inbox', requireAuth, requireRole(UserRole.PARTNER_STAFF), asyncHandler(async (req, res) => {
   const partner = await prisma.partnerProfile.findFirst({

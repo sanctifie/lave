@@ -132,6 +132,20 @@ export default function PrescriptionDetailScreen() {
         </View>
       )}
 
+      {/* Cachet numérique + annotation ordonnancier */}
+      {rx.dispensedAt && (
+        <View style={styles.stampCard}>
+          <Text style={styles.stampTxt}>
+            ✔️ Servie le {formatDate(rx.dispensedAt)}{rx.dispensedByName ? ` — ${rx.dispensedByName}` : ''}
+          </Text>
+        </View>
+      )}
+      {rx.controlledNote && (
+        <View style={styles.ctrlCard}>
+          <Text style={styles.ctrlTxt}>⚖️ {rx.controlledNote} — cette ordonnance ne peut plus être re-servie.</Text>
+        </View>
+      )}
+
       {/* Motif de refus */}
       {isRejected && rx.rejectionReason && (
         <View style={styles.rejectionCard}>
@@ -270,6 +284,11 @@ const styles = StyleSheet.create({
   },
   pendingIcon: { fontSize: 18 },
   pendingText: { ...typography.body, color: colors.warning, flex: 1 },
+
+  stampCard: { backgroundColor: colors.successSurface, borderRadius: radii.lg, padding: spacing.md },
+  stampTxt:  { ...typography.bodyMedium, color: colors.success },
+  ctrlCard:  { backgroundColor: colors.warningSurface, borderRadius: radii.lg, padding: spacing.md },
+  ctrlTxt:   { ...typography.caption, color: colors.warning },
 
   rejectionCard: {
     backgroundColor: colors.errorSurface,

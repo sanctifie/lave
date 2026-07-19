@@ -16,6 +16,11 @@ export interface PrescriptionDetail extends PrescriptionListItem {
   mediaUrls: string[];
   orderId: string | null;
   orderTotalFcfa: number | null;
+  /** Cachet numérique : servie le … par … */
+  dispensedAt: string | null;
+  dispensedByName: string | null;
+  /** Annotation ordonnancier (stupéfiant déjà servi) */
+  controlledNote: string | null;
 }
 
 export const prescriptionsService = {
@@ -47,6 +52,9 @@ export const prescriptionsService = {
       mediaUrls:         (raw.media ?? []).map((m: any) => m.url as string),
       orderId:           raw.orders?.[0]?.id ?? null,
       orderTotalFcfa:    raw.orders?.[0]?.totalFcfa ?? null,
+      dispensedAt:       raw.dispensedAt ?? null,
+      dispensedByName:   raw.dispensedByName ?? null,
+      controlledNote:    raw.controlledNote ?? null,
     };
   },
 

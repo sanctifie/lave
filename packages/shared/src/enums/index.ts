@@ -37,6 +37,9 @@ export enum PrescriptionSource {
 export enum PrescriptionType {
   DRUG = 'drug',
   OSTEO = 'osteo',
+  // Conseil au comptoir : le patient décrit ses symptômes, sans ordonnance ;
+  // le pharmacien répond par des produits conseil (jamais de stupéfiants).
+  ADVICE = 'advice',
 }
 
 export enum PrescriptionStatus {

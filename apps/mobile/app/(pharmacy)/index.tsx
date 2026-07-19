@@ -131,8 +131,8 @@ export default function PharmacyDashboard() {
         <Pressable style={styles.shortcut} onPress={() => router.push('/(pharmacy)/insurance' as never)}>
           <Text style={styles.shortcutIcon}>🧾</Text><Text style={styles.shortcutTxt}>Tiers-payant</Text>
         </Pressable>
-        <Pressable style={styles.shortcut} onPress={() => router.push('/(pharmacy)/catalog' as never)}>
-          <Text style={styles.shortcutIcon}>📦</Text><Text style={styles.shortcutTxt}>Catalogue</Text>
+        <Pressable style={styles.shortcut} onPress={() => router.push('/(pharmacy)/register' as never)}>
+          <Text style={styles.shortcutIcon}>⚖️</Text><Text style={styles.shortcutTxt}>Ordonnancier</Text>
         </Pressable>
       </View>
 

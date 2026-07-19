@@ -59,6 +59,7 @@ export default function PharmacyLayout() {
       />
       {/* Routes secondaires (accès depuis le tableau de bord), masquées de la barre. */}
       <Tabs.Screen name="earnings" options={{ href: null }} />
+      <Tabs.Screen name="register" options={{ href: null }} />
       <Tabs.Screen name="insurance" options={{ href: null }} />
     </Tabs>
   );

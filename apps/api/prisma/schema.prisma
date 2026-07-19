@@ -56,6 +56,7 @@ enum PrescriptionSource {
 enum PrescriptionType {
   drug
   osteo
+  advice
 }
 
 enum PrescriptionStatus {
@@ -266,6 +267,27 @@ model PartnerProfile {
 // Catalogue produits de l'officine : socle du « poste de dispensation ».
 // Permet la saisie assistée (recherche/scan code-barres) à la validation et le
 // cross-sell (produits conseil). Le prix reste fixé par la pharmacie.
+// Ordonnancier légal : registre des stupéfiants dispensés, par pharmacie.
+// Mentions obligatoires : n° d'ordre, date, patient, médicament, quantité,
+// prix, médecin prescripteur.
+model DispensingRecord {
+  id             String   @id @default(cuid())
+  partnerId      String
+  seq            Int      // numéro d'ordre séquentiel propre à la pharmacie
+  patientName    String
+  medication     String
+  quantity       Int
+  priceFcfa      Int
+  prescriberName String
+  prescriptionId String
+  orderId        String?
+  createdAt      DateTime @default(now())
+
+  @@unique([partnerId, seq])
+  @@index([partnerId, createdAt])
+  @@map("dispensing_records")
+}
+
 model PharmacyProduct {
   id        String   @id @default(cuid())
   partnerId String
@@ -458,6 +480,11 @@ model Prescription {
   validatedById   String?
   validatedAt     DateTime?
   rejectionReason String?
+  // Cachet numérique : ordonnance servie (équivalent du cachet daté de l'officine)
+  dispensedAt     DateTime?
+  dispensedByName String?
+  // Stupéfiants : annotation « déjà servi » (ordonnancier) — bloque toute re-délivrance
+  controlledNote  String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
@@ -519,6 +546,8 @@ model OrderItem {
   substitutionStatus SubstitutionStatus @default(none)
   originalName       String? // produit initialement prescrit (si substitué)
   substitutionReason String? // motif (ex. rupture de stock)
+  // Stupéfiant : article inscrit à l'ordonnancier lors de la dispensation
+  isControlled       Boolean @default(false)
 
   // Conseil officinal (cross-sell) : article proposé par le pharmacien en
   // complément. `recommendationNote` porte l'argumentaire (ex. « à prendre

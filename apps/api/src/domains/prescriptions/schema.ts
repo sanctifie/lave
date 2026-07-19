@@ -6,6 +6,8 @@ export const CreatePrescriptionSchema = z.object({
   targetPartnerId: z.string().cuid('ID pharmacie invalide'),
   // Consentement du patient à un équivalent si le produit exact manque.
   substitutionConsent: z.nativeEnum(SubstitutionConsent).default(SubstitutionConsent.ASK),
+  // Conseil au comptoir : description des symptômes (pas de scan requis).
+  notes: z.string().max(1000).optional(),
 });
 
 export const ValidatePrescriptionSchema = z
@@ -21,6 +23,8 @@ export const ValidatePrescriptionSchema = z
           substituted: z.boolean().optional(),
           originalName: z.string().min(1).optional(), // produit d'origine (si substitué)
           substitutionReason: z.string().min(1).optional(),
+          // Stupéfiant : article à inscrire à l'ordonnancier légal
+          controlled: z.boolean().optional(),
         }),
       )
       .optional(),
@@ -37,8 +41,18 @@ export const ValidatePrescriptionSchema = z
         }),
       )
       .optional(),
+    // Médecin prescripteur (mention obligatoire de l'ordonnancier si stupéfiant)
+    prescriberName: z.string().min(2).optional(),
     rejectionReason: z.string().min(5).optional(),
   })
+  .refine(
+    (d) => {
+      // Stupéfiant → le nom du médecin prescripteur est obligatoire (ordonnancier).
+      const hasControlled = d.items?.some((i) => i.controlled);
+      return !hasControlled || !!d.prescriberName;
+    },
+    { message: 'prescriberName requis si un article est un stupéfiant (ordonnancier)' },
+  )
   .refine(
     (d) => {
       if (d.approved) return d.items && d.items.length > 0;

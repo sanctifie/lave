@@ -65,6 +65,8 @@ export default function PrescriptionValidateScreen() {
   const [submitting, setSubmitting] = useState(false);
   // Poste de dispensation : scan code-barres pour remplir un article depuis le catalogue.
   const [scanForKey, setScanForKey] = useState<string | null>(null);
+  // Ordonnancier : nom du médecin prescripteur (obligatoire si stupéfiant)
+  const [prescriberName, setPrescriberName] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -99,6 +101,14 @@ export default function PrescriptionValidateScreen() {
       prev.map((it) => (it._key === key ? { ...it, substituted: !it.substituted } : it)),
     );
   };
+
+  const toggleControlled = (key: string) => {
+    setItems((prev) =>
+      prev.map((it) => (it._key === key ? { ...it, controlled: !it.controlled } : it)),
+    );
+  };
+
+  const hasControlled = items.some((i) => i.controlled);
 
   const addItem   = () => setItems((prev) => [...prev, newItem()]);
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i._key !== key));
@@ -141,6 +151,10 @@ export default function PrescriptionValidateScreen() {
     if (mode === 'validate') {
       const invalid = items.some((i) => !i.name.trim() || i.quantity <= 0 || i.unitPriceFcfa <= 0);
       if (invalid) { Alert.alert('', 'Remplissez tous les médicaments (nom, quantité, prix).'); return; }
+      if (hasControlled && !prescriberName.trim()) {
+        Alert.alert('Ordonnancier', 'Un stupéfiant est coché : le nom du médecin prescripteur est obligatoire.');
+        return;
+      }
 
       const doValidate = async () => {
         setSubmitting(true);
@@ -149,6 +163,7 @@ export default function PrescriptionValidateScreen() {
             id,
             items.map(({ _key: _k, ...rest }) => rest),
             validRecos.map(({ _key: _k, ...rest }) => rest),
+            hasControlled ? prescriberName.trim() : undefined,
           );
           Alert.alert('Validée !', 'L\'ordonnance a été validée et la commande créée.', [
             { text: 'OK', onPress: () => router.back() },
@@ -334,6 +349,14 @@ export default function PrescriptionValidateScreen() {
                         </View>
                       )}
 
+                      {/* Stupéfiant : inscription automatique à l'ordonnancier légal */}
+                      <Pressable style={styles.subToggle} onPress={() => toggleControlled(item._key)}>
+                        <View style={[styles.subCheckbox, item.controlled && styles.ctrlCheckboxOn]}>
+                          {item.controlled && <Text style={styles.subCheckMark}>✓</Text>}
+                        </View>
+                        <Text style={styles.subToggleTxt}>Stupéfiant (inscrit à l'ordonnancier)</Text>
+                      </Pressable>
+
                       {/* Substitution : cet article remplace-t-il un produit prescrit ? */}
                       <Pressable style={styles.subToggle} onPress={() => toggleSubstituted(item._key)}>
                         <View style={[styles.subCheckbox, item.substituted && styles.subCheckboxOn]}>
@@ -371,6 +394,24 @@ export default function PrescriptionValidateScreen() {
                   </View>
                   );
                 })}
+
+                {hasControlled && (
+                  <View style={styles.ctrlBox}>
+                    <Text style={styles.ctrlTitle}>⚖️ Ordonnancier — mentions obligatoires</Text>
+                    <TextInput
+                      style={styles.inputMed}
+                      placeholder="Nom du médecin prescripteur"
+                      placeholderTextColor={colors.textDisabled}
+                      value={prescriberName}
+                      onChangeText={setPrescriberName}
+                    />
+                    <Text style={styles.ctrlHint}>
+                      N° d'ordre, date, patient, médicament, quantité, prix et prescripteur seront
+                      inscrits automatiquement au registre. L'ordonnance sera annotée « servi » :
+                      aucune re-délivrance possible.
+                    </Text>
+                  </View>
+                )}
 
                 <Pressable style={styles.addItemBtn} onPress={addItem}>
                   <Text style={styles.addItemText}>+ Ajouter un médicament</Text>
@@ -612,6 +653,17 @@ const styles = StyleSheet.create({
   subToggleTxt:  { ...typography.caption, color: colors.textSecondary, flex: 1 },
   subFields:     { gap: spacing.xs, marginTop: spacing.xs, paddingLeft: spacing.md, borderLeftWidth: 2, borderLeftColor: colors.accent },
   subHint:       { ...typography.caption, color: colors.textSecondary, fontStyle: 'italic' },
+  ctrlCheckboxOn: { backgroundColor: colors.error, borderColor: colors.error },
+  ctrlBox: {
+    backgroundColor: colors.warningSurface,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.warning,
+  },
+  ctrlTitle: { ...typography.label, color: colors.warning },
+  ctrlHint:  { ...typography.small, color: colors.textSecondary },
 
   addItemBtn: {
     borderWidth: 1.5,
