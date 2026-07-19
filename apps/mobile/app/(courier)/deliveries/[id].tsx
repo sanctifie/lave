@@ -220,9 +220,9 @@ export default function DeliveryDetailScreen() {
           <View style={styles.paperCard}>
             <Text style={styles.paperTitle}>⚖️ Ordonnance avec stupéfiant</Text>
             <Text style={styles.paperHint}>
-              Demandez l'ordonnance papier ORIGINALE au patient, collez-y l'étiquette
-              d'annotation jointe au colis, puis rendez-la au patient. Sans original
-              présenté, ne livrez pas.
+              Demandez l'ordonnance papier ORIGINALE au patient, apposez-y le papillon
+              d'annotation rédigé par le pharmacien (joint au colis), puis rendez-la au
+              patient. Vous n'écrivez rien vous-même. Sans original présenté, ne livrez pas.
             </Text>
             <Pressable
               style={styles.paperBtn}
@@ -233,7 +233,7 @@ export default function DeliveryDetailScreen() {
                 } catch { Alert.alert('Erreur', 'Impossible de confirmer. Réessayez.'); }
               }}
             >
-              <Text style={styles.paperBtnTxt}>✓ Original vérifié & étiquette apposée</Text>
+              <Text style={styles.paperBtnTxt}>✓ Original vérifié & papillon apposé</Text>
             </Pressable>
           </View>
         )}
