@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 
 // Le service importe le client Prisma (notification des coursiers) — neutralisé.
 vi.mock('../../infrastructure/prisma/client', () => ({
-  prisma: { courier: { findMany: vi.fn().mockResolvedValue([]) } },
+  prisma: {
+    courier: { findMany: vi.fn().mockResolvedValue([]) },
+    order: { update: vi.fn().mockResolvedValue({}) },
+  },
 }));
 import { PrescriptionService } from './service';
 import { PrescriptionStatus } from '@mbolo/shared';

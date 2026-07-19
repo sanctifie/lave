@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { apiClient } from '../../src/services/client';
+import { BarcodeScanner } from '../../src/components/BarcodeScanner';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/auth.store';
 import { Switch } from 'react-native';
@@ -29,6 +32,29 @@ export default function PharmacyDashboard() {
   const [stats, setStats]     = useState<PharmacyStats | null>(null);
   const [profile, setProfile] = useState<PartnerProfileLite | null>(null);
   const [loading, setLoading] = useState(true);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+
+  // Vérification d'une ordonnance par QR (clôture façon e-prescription).
+  const onQrScanned = async (code: string) => {
+    setVerifyOpen(false);
+    const m = code.match(/^MBOLO-RX:([^:]+):([0-9a-f]+)$/);
+    if (!m) { Alert.alert('QR inconnu', 'Ce QR n\'est pas une ordonnance MBOLO.'); return; }
+    try {
+      const { data } = await apiClient.get<any>(`/prescriptions/verify/${m[1]}?sig=${m[2]}`);
+      const v = data.data ?? data;
+      const lines = [
+        v.controlledServed
+          ? `⚖️ STUPÉFIANT DÉJÀ SERVI — ${v.controlledNote}`
+          : v.dispensedAt
+            ? `✔️ Déjà servie le ${new Date(v.dispensedAt).toLocaleDateString('fr-FR')}${v.dispensedByName ? ' par ' + v.dispensedByName : ''}`
+            : '✅ Jamais servie — dispensation possible',
+        `Statut : ${v.status}`,
+      ];
+      Alert.alert('Vérification ordonnance', lines.join('\n'));
+    } catch (e: any) {
+      Alert.alert('Vérification', e?.response?.status === 403 ? 'QR invalide ou falsifié.' : 'Ordonnance inconnue de MBOLO.');
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -123,6 +149,11 @@ export default function PharmacyDashboard() {
         ))}
       </View>
 
+      {/* Vérifier une ordonnance (QR) */}
+      <Pressable style={styles.verifyBtn} onPress={() => setVerifyOpen(true)}>
+        <Text style={styles.verifyTxt}>🔍 Vérifier une ordonnance (scanner le QR)</Text>
+      </Pressable>
+
       {/* Raccourcis */}
       <View style={styles.shortcutRow}>
         <Pressable style={styles.shortcut} onPress={() => router.push('/(pharmacy)/earnings' as never)}>
@@ -214,6 +245,7 @@ export default function PharmacyDashboard() {
           </Pressable>
         ))
       )}
+      <BarcodeScanner visible={verifyOpen} onClose={() => setVerifyOpen(false)} onScanned={onQrScanned} />
     </ScrollView>
   );
 }
@@ -281,6 +313,12 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   bizValue: { ...typography.bodyMedium, color: colors.primary, textAlign: 'center' },
+
+  verifyBtn: {
+    backgroundColor: colors.surface, borderRadius: radii.lg, paddingVertical: spacing.md,
+    alignItems: 'center', borderWidth: 1.5, borderColor: colors.primary, ...shadows.card,
+  },
+  verifyTxt: { ...typography.label, color: colors.primary },
 
   shortcutRow: { flexDirection: 'row', gap: spacing.sm },
   shortcut: {

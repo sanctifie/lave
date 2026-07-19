@@ -165,9 +165,13 @@ export default function PrescriptionValidateScreen() {
             validRecos.map(({ _key: _k, ...rest }) => rest),
             hasControlled ? prescriberName.trim() : undefined,
           );
-          Alert.alert('Validée !', 'L\'ordonnance a été validée et la commande créée.', [
-            { text: 'OK', onPress: () => router.back() },
-          ]);
+          Alert.alert(
+            'Validée !',
+            hasControlled
+              ? 'Commande créée. ⚖️ Joignez au colis l\'étiquette d\'annotation (pharmacie, date, n° d\'ordonnancier) : le coursier l\'apposera sur l\'original du patient.'
+              : 'L\'ordonnance a été validée et la commande créée.',
+            [{ text: 'OK', onPress: () => router.back() }],
+          );
         } catch {
           Alert.alert('Erreur', 'Impossible de valider. Réessayez.');
         } finally {

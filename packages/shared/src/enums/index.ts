@@ -117,6 +117,14 @@ export enum InsuranceProvider {
   CNSS = 'cnss',
 }
 
+/** Circuit de l'ordonnance papier originale (stupéfiants) : l'étiquette
+ * d'annotation voyage avec le colis, le patient conserve son original annoté. */
+export enum PaperStatus {
+  NONE = 'none',
+  TO_ANNOTATE = 'to_annotate',
+  ANNOTATED = 'annotated',
+}
+
 export enum DeliveryStatus {
   PENDING_ASSIGNMENT = 'pending_assignment',
   ASSIGNED = 'assigned',

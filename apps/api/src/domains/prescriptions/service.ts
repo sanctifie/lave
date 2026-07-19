@@ -215,6 +215,9 @@ export class PrescriptionService {
     // (fait dès la validation, y compris si une substitution reste en attente
     // sur d'autres articles — un stupéfiant n'est jamais substituable).
     if (controlledItems.length > 0) {
+      // À la remise, le coursier apposera l'étiquette d'annotation sur
+      // l'original papier, que le patient conserve (la pharmacie garde le scan).
+      await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'to_annotate' } });
       await this.repo.recordControlledDispensing({
         partnerId,
         partnerName: (rx as any).targetPartner?.legalName ?? 'Pharmacie',

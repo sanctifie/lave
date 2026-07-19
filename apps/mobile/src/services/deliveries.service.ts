@@ -6,6 +6,7 @@ export interface DeliveryItem {
   status:          string;
   feeFcfa:         number;
   handoverCode:    string | null;
+  paperStatus:     string;
   createdAt:       string;
   patientName:     string;
   patientPhone:    string;
@@ -23,6 +24,7 @@ function normalize(raw: any): DeliveryItem {
     status:          raw.status,
     feeFcfa:         raw.feeFcfa ?? 0,
     handoverCode:    raw.handoverCode ?? null,
+    paperStatus:     raw.order?.paperStatus ?? 'none',
     createdAt:       raw.createdAt,
     patientName:     raw.order?.patient?.name  ?? '—',
     patientPhone:    phone,
@@ -50,6 +52,11 @@ export const deliveriesService = {
 
   async updateStatus(id: string, status: string): Promise<void> {
     await apiClient.patch(`/deliveries/${id}/status`, { status });
+  },
+
+  /** Stupéfiant : original vérifié + étiquette d'annotation apposée. */
+  async paperAnnotated(orderId: string): Promise<void> {
+    await apiClient.patch(`/orders/${orderId}/paper-annotated`);
   },
 
   async confirmHandover(id: string, code: string): Promise<void> {

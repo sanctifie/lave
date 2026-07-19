@@ -84,6 +84,27 @@ router.patch(
   }),
 );
 
+// Coursier : original vérifié + étiquette d'annotation apposée à la remise.
+// Obligatoire AVANT la saisie du code de remise pour un stupéfiant : sans
+// original présenté, pas de livraison.
+router.patch(
+  '/:id/paper-annotated',
+  requireAuth,
+  requireRole(UserRole.COURIER),
+  asyncHandler(async (req, res) => {
+    const order = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { delivery: { select: { courierId: true } } },
+    });
+    if (!order) throw HTTP.notFound('Commande introuvable');
+    if ((order as any).paperStatus !== 'to_annotate') throw HTTP.unprocessable('Aucune annotation attendue');
+    const courier = await prisma.courier.findUnique({ where: { userId: req.user!.userId } });
+    if (!courier || order.delivery?.courierId !== courier.id) throw HTTP.forbidden();
+    const updated = await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'annotated' } });
+    res.json({ data: { paperStatus: updated.paperStatus } });
+  }),
+);
+
 // Pharmacien : action sur une commande (prepare / ready / reject)
 router.patch(
   '/:id/pharmacy-action',
