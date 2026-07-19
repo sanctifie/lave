@@ -132,6 +132,20 @@ export default function PrescriptionDetailScreen() {
         </View>
       )}
 
+      {/* Cachet numérique + annotation ordonnancier */}
+      {rx.dispensedAt && (
+        <View style={styles.stampCard}>
+          <Text style={styles.stampTxt}>
+            ✔️ Servie le {formatDate(rx.dispensedAt)}{rx.dispensedByName ? ` — ${rx.dispensedByName}` : ''}
+          </Text>
+        </View>
+      )}
+      {rx.controlledNote && (
+        <View style={styles.ctrlCard}>
+          <Text style={styles.ctrlTxt}>⚖️ {rx.controlledNote} — cette ordonnance ne peut plus être re-servie.</Text>
+        </View>
+      )}
+
       {/* Motif de refus */}
       {isRejected && rx.rejectionReason && (
         <View style={styles.rejectionCard}>
@@ -182,6 +196,22 @@ export default function PrescriptionDetailScreen() {
               </Pressable>
             );
           })}
+        </View>
+      )}
+
+      {/* QR de vérification : la pharmacie le scanne pour voir le statut réel */}
+      {!isPending && (
+        <View style={styles.qrCard}>
+          <Text style={styles.qrTitle}>QR de vérification</Text>
+          <Image
+            source={{ uri: `${API_URL}/prescriptions/${rx.id}/qr?token=${useAuthStore.getState().token}` }}
+            style={styles.qrImg}
+            resizeMode="contain"
+          />
+          <Text style={styles.qrHint}>
+            Toute pharmacie MBOLO peut le scanner pour vérifier si cette ordonnance a
+            déjà été servie (équivalent de la clôture e-prescription).
+          </Text>
         </View>
       )}
 
@@ -270,6 +300,16 @@ const styles = StyleSheet.create({
   },
   pendingIcon: { fontSize: 18 },
   pendingText: { ...typography.body, color: colors.warning, flex: 1 },
+
+  qrCard: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, alignItems: 'center', gap: spacing.sm, ...shadows.card },
+  qrTitle: { ...typography.bodyMedium, color: colors.text },
+  qrImg:   { width: 180, height: 180 },
+  qrHint:  { ...typography.small, color: colors.textSecondary, textAlign: 'center' },
+
+  stampCard: { backgroundColor: colors.successSurface, borderRadius: radii.lg, padding: spacing.md },
+  stampTxt:  { ...typography.bodyMedium, color: colors.success },
+  ctrlCard:  { backgroundColor: colors.warningSurface, borderRadius: radii.lg, padding: spacing.md },
+  ctrlTxt:   { ...typography.caption, color: colors.warning },
 
   rejectionCard: {
     backgroundColor: colors.errorSurface,

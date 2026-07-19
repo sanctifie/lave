@@ -37,6 +37,9 @@ export enum PrescriptionSource {
 export enum PrescriptionType {
   DRUG = 'drug',
   OSTEO = 'osteo',
+  // Conseil au comptoir : le patient décrit ses symptômes, sans ordonnance ;
+  // le pharmacien répond par des produits conseil (jamais de stupéfiants).
+  ADVICE = 'advice',
 }
 
 export enum PrescriptionStatus {
@@ -112,6 +115,14 @@ export enum InsuranceProvider {
   NONE = 'none',
   CNAMGS = 'cnamgs',
   CNSS = 'cnss',
+}
+
+/** Circuit de l'ordonnance papier originale (stupéfiants) : l'étiquette
+ * d'annotation voyage avec le colis, le patient conserve son original annoté. */
+export enum PaperStatus {
+  NONE = 'none',
+  TO_ANNOTATE = 'to_annotate',
+  ANNOTATED = 'annotated',
 }
 
 export enum DeliveryStatus {

@@ -160,6 +160,18 @@ export class DeliveryService {
     if (delivery.orderId) {
       await this.orderRepo.updateStatus(delivery.orderId, OrderStatus.DELIVERED);
 
+      // Cachet numérique : l'ordonnance liée est marquée « servie le … par … »
+      // (équivalent du cachet daté de l'officine sur l'ordonnance papier).
+      try {
+        const o = await this.orderRepo.findById(delivery.orderId);
+        if (o?.prescriptionId) {
+          await prisma.prescription.update({
+            where: { id: o.prescriptionId },
+            data: { dispensedAt: new Date(), dispensedByName: (o as any).partner?.legalName ?? null },
+          });
+        }
+      } catch { /* le cachet ne doit pas bloquer la livraison */ }
+
       // ── Libération de l'escrow (idempotent : skip si déjà libéré) ──────
       const txn = await this.paymentRepo.findByOrderId(delivery.orderId);
       if (txn?.providerTransactionId && txn.status !== TransactionStatus.RELEASED) {

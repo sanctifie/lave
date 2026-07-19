@@ -215,8 +215,31 @@ export default function DeliveryDetailScreen() {
           />
         )}
 
+        {/* Stupéfiant : étiquette d'annotation obligatoire AVANT le code */}
+        {needsHandover && delivery?.paperStatus === 'to_annotate' && (
+          <View style={styles.paperCard}>
+            <Text style={styles.paperTitle}>⚖️ Ordonnance avec stupéfiant</Text>
+            <Text style={styles.paperHint}>
+              Demandez l'ordonnance papier ORIGINALE au patient, collez-y l'étiquette
+              d'annotation jointe au colis, puis rendez-la au patient. Sans original
+              présenté, ne livrez pas.
+            </Text>
+            <Pressable
+              style={styles.paperBtn}
+              onPress={async () => {
+                try {
+                  if (delivery.orderId) await deliveriesService.paperAnnotated(delivery.orderId);
+                  await load();
+                } catch { Alert.alert('Erreur', 'Impossible de confirmer. Réessayez.'); }
+              }}
+            >
+              <Text style={styles.paperBtnTxt}>✓ Original vérifié & étiquette apposée</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Handover code — only shown when delivering to patient */}
-        {needsHandover && (
+        {needsHandover && delivery?.paperStatus !== 'to_annotate' && (
           <View style={styles.handoverCard}>
             <Text style={styles.handoverTitle}>Code de remise</Text>
             <Text style={styles.handoverHint}>
@@ -311,6 +334,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     ...shadows.card,
   },
+
+  paperCard: {
+    backgroundColor: colors.warningSurface, borderRadius: radii.lg, padding: spacing.md,
+    gap: spacing.sm, borderWidth: 1.5, borderColor: colors.warning,
+  },
+  paperTitle: { ...typography.bodyMedium, color: colors.warning },
+  paperHint:  { ...typography.caption, color: colors.textSecondary },
+  paperBtn:   { backgroundColor: colors.warning, borderRadius: radii.md, paddingVertical: spacing.sm, alignItems: 'center' },
+  paperBtnTxt:{ ...typography.label, color: colors.textOnDark },
 
   handoverCard: {
     backgroundColor: colors.surface,

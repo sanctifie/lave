@@ -106,6 +106,11 @@ export class PrescriptionService {
     if (rx.status !== PrescriptionStatus.PENDING_VALIDATION) {
       throw HTTP.unprocessable('Ordonnance déjà traitée');
     }
+    // Anti double délivrance : une ordonnance annotée « stupéfiant servi » ne
+    // peut plus jamais être re-servie (règle de l'ordonnancier).
+    if ((rx as any).controlledNote) {
+      throw HTTP.unprocessable('Stupéfiant déjà servi pour cette ordonnance (voir annotation ordonnancier).');
+    }
 
     if (!input.approved) {
       const updated = await this.repo.reject(rxId, pharmacistUserId, input.rejectionReason!);
@@ -132,6 +137,13 @@ export class PrescriptionService {
     const consent = (rx as any).substitutionConsent ?? SubstitutionConsent.ASK;
     const rawItems = input.items!;
     const hasSubstitution = rawItems.some((i) => i.substituted);
+    const controlledItems = rawItems.filter((i) => i.controlled);
+
+    // Un conseil au comptoir (sans ordonnance) ne peut JAMAIS contenir de
+    // stupéfiant : ceux-ci exigent une prescription et l'ordonnancier.
+    if ((rx as any).type === 'advice' && controlledItems.length > 0) {
+      throw HTTP.unprocessable('Un stupéfiant ne peut pas être dispensé sur simple conseil — ordonnance obligatoire.');
+    }
 
     // Garde-fou légal : « produit exact uniquement » → aucune substitution admise.
     if (consent === SubstitutionConsent.DENY && hasSubstitution) {
@@ -158,6 +170,11 @@ export class PrescriptionService {
         substitutionReason: i.substitutionReason,
       };
     });
+
+    // Un stupéfiant substitué par équivalence est interdit : produit exact requis.
+    if (controlledItems.some((i) => i.substituted)) {
+      throw HTTP.unprocessable('Un stupéfiant ne peut pas être substitué par un équivalent.');
+    }
 
     const needsPatientApproval = items.some(
       (i) => i.substitutionStatus === SubstitutionStatus.PENDING,
@@ -193,6 +210,24 @@ export class PrescriptionService {
       insuranceProvider,
       insuranceCoverageRate,
     });
+
+    // ── Ordonnancier légal : inscription des stupéfiants + annotation « servi »
+    // (fait dès la validation, y compris si une substitution reste en attente
+    // sur d'autres articles — un stupéfiant n'est jamais substituable).
+    if (controlledItems.length > 0) {
+      // À la remise, le coursier apposera l'étiquette d'annotation sur
+      // l'original papier, que le patient conserve (la pharmacie garde le scan).
+      await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'to_annotate' } });
+      await this.repo.recordControlledDispensing({
+        partnerId,
+        partnerName: (rx as any).targetPartner?.legalName ?? 'Pharmacie',
+        prescriptionId: rxId,
+        orderId: order.id,
+        patientName: rx.patient?.name ?? '—',
+        prescriberName: input.prescriberName!,
+        items: controlledItems.map((i) => ({ name: i.name, quantity: i.quantity, unitPriceFcfa: i.unitPriceFcfa })),
+      });
+    }
 
     // Consentement « me demander » + équivalent proposé : on attend l'accord du
     // patient AVANT de préparer/livrer. Aucune livraison créée à ce stade.

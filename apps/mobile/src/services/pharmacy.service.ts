@@ -20,6 +20,8 @@ export interface ValidationItem {
   substituted?: boolean;
   originalName?: string;
   substitutionReason?: string;
+  // Stupéfiant : inscription automatique à l'ordonnancier légal
+  controlled?: boolean;
 }
 
 // Conseil officinal (cross-sell) : produit conseil / OTC proposé en complément.
@@ -92,13 +94,20 @@ export const pharmacyService = {
     return normalizeRx(raw);
   },
 
-  async validate(id: string, items: ValidationItem[], recommendations: RecommendationItem[] = []): Promise<void> {
+  async validate(
+    id: string,
+    items: ValidationItem[],
+    recommendations: RecommendationItem[] = [],
+    prescriberName?: string,
+  ): Promise<void> {
     await apiClient.patch(`/prescriptions/${id}/validate`, {
       approved: true,
+      ...(prescriberName ? { prescriberName } : {}),
       items: items.map((i) => ({
         name:          i.name,
         quantity:      i.quantity,
         unitPriceFcfa: i.unitPriceFcfa,
+        ...(i.controlled ? { controlled: true } : {}),
         ...(i.substituted
           ? {
               substituted: true,
@@ -153,6 +162,12 @@ export const pharmacyService = {
     return data.data ?? data;
   },
 
+  /** Ordonnancier légal : registre des stupéfiants dispensés. */
+  async register(): Promise<DispensingRecord[]> {
+    const { data } = await apiClient.get<any>('/prescriptions/partner/register');
+    return data.data ?? data;
+  },
+
   async myProfile(): Promise<PartnerProfileLite> {
     const { data } = await apiClient.get<any>('/partners/me');
     return data.data ?? data;
@@ -194,6 +209,17 @@ export interface InsuranceClaims {
     totalFcfa: number;
     createdAt: string;
   }[];
+}
+
+export interface DispensingRecord {
+  id: string;
+  seq: number;
+  patientName: string;
+  medication: string;
+  quantity: number;
+  priceFcfa: number;
+  prescriberName: string;
+  createdAt: string;
 }
 
 export interface PartnerProfileLite {
