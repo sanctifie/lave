@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { pharmacyService, InboxPrescription, ValidationItem, RecommendationItem } from '../../../src/services/pharmacy.service';
 import { catalogService } from '../../../src/services/catalog.service';
 import { BarcodeScanner } from '../../../src/components/BarcodeScanner';
+import { isLikelySensitive } from '../../../src/lib/sensitiveMeds';
 import { Button } from '../../../src/components/ui/Button';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
 import { PrescriptionStatus } from '@mbolo/shared';
@@ -25,6 +26,7 @@ import { useAuthStore } from '../../../src/store/auth.store';
 
 interface ItemForm extends ValidationItem {
   _key: string;
+  _sensTouched?: boolean; // le pharmacien a décidé manuellement du flag sensible
 }
 
 interface RecoForm extends RecommendationItem {
@@ -86,7 +88,12 @@ export default function PrescriptionValidateScreen() {
     setItems((prev) =>
       prev.map((it) => {
         if (it._key !== key) return it;
-        if (field === 'name')               return { ...it, name: raw };
+        if (field === 'name') {
+          // Pré-coche « sensible » si le nom évoque un antibiotique / produit
+          // détournable — tant que le pharmacien n'a pas décidé manuellement.
+          const sensitive = (it as any)._sensTouched ? it.sensitive : isLikelySensitive(raw);
+          return { ...it, name: raw, sensitive };
+        }
         if (field === 'quantity')           return { ...it, quantity: parseInt(raw) || 0 };
         if (field === 'unitPriceFcfa')      return { ...it, unitPriceFcfa: parseInt(raw) || 0 };
         if (field === 'originalName')       return { ...it, originalName: raw };
@@ -108,7 +115,14 @@ export default function PrescriptionValidateScreen() {
     );
   };
 
+  const toggleSensitive = (key: string) => {
+    setItems((prev) =>
+      prev.map((it) => (it._key === key ? { ...it, sensitive: !it.sensitive, _sensTouched: true } as ItemForm : it)),
+    );
+  };
+
   const hasControlled = items.some((i) => i.controlled);
+  const hasSensitive  = items.some((i) => i.sensitive && !i.controlled);
 
   const addItem   = () => setItems((prev) => [...prev, newItem()]);
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i._key !== key));
@@ -124,7 +138,11 @@ export default function PrescriptionValidateScreen() {
       return;
     }
     setItems((prev) =>
-      prev.map((it) => (it._key === key ? { ...it, name: product.name, unitPriceFcfa: product.priceFcfa } : it)),
+      prev.map((it) =>
+        it._key === key
+          ? { ...it, name: product.name, unitPriceFcfa: product.priceFcfa, sensitive: product.sensitive, _sensTouched: true }
+          : it,
+      ),
     );
   };
 
@@ -169,7 +187,9 @@ export default function PrescriptionValidateScreen() {
             'Validée !',
             hasControlled
               ? 'Commande créée. ⚖️ Course stupéfiant : le coursier vous apportera d\'abord l\'ordonnance ORIGINALE du patient. Un employé de l\'officine y retranscrira le n° d\'ordre + la date de l\'ordonnancier, puis scellera l\'original au colis (à valider dans « Commandes »).'
-              : 'L\'ordonnance a été validée et la commande créée.',
+              : hasSensitive
+                ? 'Commande créée. 🔒 Médicament sensible : le coursier vous apportera d\'abord l\'ordonnance ORIGINALE. Un employé de l\'officine y appose le cachet daté, puis la scelle au colis (à valider dans « Commandes »).'
+                : 'L\'ordonnance a été validée et la commande créée.',
             [{ text: 'OK', onPress: () => router.back() }],
           );
         } catch {
@@ -360,6 +380,19 @@ export default function PrescriptionValidateScreen() {
                         </View>
                         <Text style={styles.subToggleTxt}>Stupéfiant (inscrit à l'ordonnancier)</Text>
                       </Pressable>
+
+                      {/* Sensible : antibiotique / dangereux / détournable → original requis.
+                          Pré-coché automatiquement ; le pharmacien confirme ou décoche. */}
+                      {!item.controlled && (
+                        <Pressable style={styles.subToggle} onPress={() => toggleSensitive(item._key)}>
+                          <View style={[styles.subCheckbox, item.sensitive && styles.ctrlCheckboxOn]}>
+                            {item.sensitive && <Text style={styles.subCheckMark}>✓</Text>}
+                          </View>
+                          <Text style={styles.subToggleTxt}>
+                            Sensible — antibiotique / produit détournable (original requis)
+                          </Text>
+                        </Pressable>
+                      )}
 
                       {/* Substitution : cet article remplace-t-il un produit prescrit ? */}
                       <Pressable style={styles.subToggle} onPress={() => toggleSubstituted(item._key)}>

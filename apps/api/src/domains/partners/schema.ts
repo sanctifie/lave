@@ -22,6 +22,7 @@ export const CreateProductSchema = z.object({
   priceFcfa: z.number().int().positive(),
   inStock: z.boolean().optional(),
   isAdvice: z.boolean().optional(),
+  sensitive: z.boolean().optional(),
 });
 
 export const UpdateProductSchema = z.object({
@@ -30,6 +31,7 @@ export const UpdateProductSchema = z.object({
   priceFcfa: z.number().int().positive().optional(),
   inStock: z.boolean().optional(),
   isAdvice: z.boolean().optional(),
+  sensitive: z.boolean().optional(),
 });
 
 export const ListProductsSchema = z.object({

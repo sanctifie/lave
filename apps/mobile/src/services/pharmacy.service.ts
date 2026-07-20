@@ -22,6 +22,8 @@ export interface ValidationItem {
   substitutionReason?: string;
   // Stupéfiant : inscription automatique à l'ordonnancier légal
   controlled?: boolean;
+  // Sensible (antibiotique/dangereux/détournable) : collecte de l'original + cachet
+  sensitive?: boolean;
 }
 
 // Conseil officinal (cross-sell) : produit conseil / OTC proposé en complément.
@@ -111,6 +113,7 @@ export const pharmacyService = {
         quantity:      i.quantity,
         unitPriceFcfa: i.unitPriceFcfa,
         ...(i.controlled ? { controlled: true } : {}),
+        ...(i.sensitive ? { sensitive: true } : {}),
         ...(i.substituted
           ? {
               substituted: true,

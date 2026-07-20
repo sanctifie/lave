@@ -218,11 +218,11 @@ export default function DeliveryDetailScreen() {
         {/* Stupéfiant — étape 1 : récupérer l'original CHEZ LE PATIENT d'abord */}
         {delivery?.paperStatus === 'to_collect' && (
           <View style={styles.paperCard}>
-            <Text style={styles.paperTitle}>⚖️ Course stupéfiant — étape 1</Text>
+            <Text style={styles.paperTitle}>⚖️ Original requis — étape 1</Text>
             <Text style={styles.paperHint}>
               Passez D'ABORD chez le patient récupérer l'ordonnance papier ORIGINALE,
-              puis apportez-la à la pharmacie : c'est un employé de l'officine qui doit
-              y inscrire le n° d'ordonnancier. Vous n'écrivez rien vous-même.
+              puis apportez-la à la pharmacie : c'est un employé de l'officine qui y
+              appose le cachet (et le n° d'ordonnancier si stupéfiant). Vous n'écrivez rien.
             </Text>
             <Pressable
               style={styles.paperBtn}
@@ -243,8 +243,8 @@ export default function DeliveryDetailScreen() {
           <View style={styles.paperCard}>
             <Text style={styles.paperTitle}>⚖️ Original déposé à l'officine</Text>
             <Text style={styles.paperHint}>
-              Déposez l'original à la pharmacie. Le pharmacien y inscrit le n° d'ordonnancier
-              et scelle le colis avec l'original — la remise au patient se débloque ensuite.
+              Déposez l'original à la pharmacie. Un employé y appose le cachet (et le
+              n° d'ordonnancier si stupéfiant) et scelle le colis — la remise se débloque ensuite.
             </Text>
           </View>
         )}

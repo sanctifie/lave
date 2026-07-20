@@ -308,6 +308,10 @@ model PharmacyProduct {
   priceFcfa Int
   inStock   Boolean  @default(true)
   isAdvice  Boolean  @default(false) // produit conseil / OTC (cross-sell)
+  // Sensible : antibiotique / médicament dangereux ou détournable → exige la
+  // collecte de l'original + cachet de l'officine (comme les stupéfiants, mais
+  // sans inscription à l'ordonnancier réservée aux seuls stupéfiants).
+  sensitive Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

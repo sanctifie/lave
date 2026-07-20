@@ -7,6 +7,7 @@ export interface Product {
   priceFcfa: number;
   inStock: boolean;
   isAdvice: boolean;
+  sensitive: boolean;
 }
 
 function normalize(raw: any): Product {
@@ -17,6 +18,7 @@ function normalize(raw: any): Product {
     priceFcfa: raw.priceFcfa,
     inStock:   raw.inStock ?? true,
     isAdvice:  raw.isAdvice ?? false,
+    sensitive: raw.sensitive ?? false,
   };
 }
 
@@ -43,6 +45,7 @@ export const catalogService = {
     barcode?: string | null;
     inStock?: boolean;
     isAdvice?: boolean;
+    sensitive?: boolean;
   }): Promise<Product> {
     const { data } = await apiClient.post<any>('/partners/me/products', input);
     return normalize(data.data ?? data);

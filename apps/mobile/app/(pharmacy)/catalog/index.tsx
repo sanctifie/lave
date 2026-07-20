@@ -27,6 +27,7 @@ export default function CatalogScreen() {
   const [price, setPrice]     = useState('');
   const [barcode, setBarcode] = useState('');
   const [isAdvice, setIsAdvice] = useState(false);
+  const [sensitive, setSensitive] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
 
@@ -66,8 +67,9 @@ export default function CatalogScreen() {
         priceFcfa: p,
         barcode: barcode.trim() || null,
         isAdvice,
+        sensitive,
       });
-      setName(''); setPrice(''); setBarcode(''); setIsAdvice(false);
+      setName(''); setPrice(''); setBarcode(''); setIsAdvice(false); setSensitive(false);
       await load(query);
     } catch (e: any) {
       Alert.alert('Erreur', e?.response?.data?.message ?? 'Ajout impossible.');
@@ -113,6 +115,10 @@ export default function CatalogScreen() {
             <View style={[styles.checkbox, isAdvice && styles.checkboxOn]}>{isAdvice && <Text style={styles.check}>✓</Text>}</View>
             <Text style={styles.adviceTxt}>Produit conseil (OTC) — proposable en complément</Text>
           </Pressable>
+          <Pressable style={styles.adviceToggle} onPress={() => setSensitive((v) => !v)}>
+            <View style={[styles.checkbox, sensitive && styles.checkboxWarn]}>{sensitive && <Text style={styles.check}>✓</Text>}</View>
+            <Text style={styles.adviceTxt}>Sensible — antibiotique / détournable (original requis à la dispensation)</Text>
+          </Pressable>
           <Pressable style={[styles.addBtn, saving && { opacity: 0.6 }]} disabled={saving} onPress={add}>
             <Text style={styles.addTxt}>{saving ? 'Ajout…' : 'Ajouter au catalogue'}</Text>
           </Pressable>
@@ -137,7 +143,7 @@ export default function CatalogScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.prodName}>
                   {p.name}
-                  {p.isAdvice ? '  💡' : ''}
+                  {p.isAdvice ? '  💡' : ''}{p.sensitive ? '  🔒' : ''}
                 </Text>
                 <Text style={styles.prodMeta}>
                   {fcfa(p.priceFcfa)}{p.barcode ? ` · ${p.barcode}` : ''}
@@ -177,6 +183,7 @@ const styles = StyleSheet.create({
   adviceToggle: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
   checkbox: { width: 20, height: 20, borderRadius: radii.sm, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   checkboxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  checkboxWarn: { backgroundColor: colors.warning, borderColor: colors.warning },
   check: { ...typography.label, color: colors.textOnDark },
   adviceTxt: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   addBtn: { backgroundColor: colors.primary, borderRadius: radii.full, paddingVertical: spacing.sm, alignItems: 'center', marginTop: spacing.xs },
