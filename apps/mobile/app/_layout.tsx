@@ -3,6 +3,8 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../src/store/auth.store';
 import { registerForPushNotifications, configureForegroundHandler } from '../src/services/push.service';
+import { clearApiCache } from '../src/services/client';
+import { OfflineBanner } from '../src/components/OfflineBanner';
 
 configureForegroundHandler();
 
@@ -31,6 +33,12 @@ export default function RootLayout() {
     registerForPushNotifications().catch(() => {});
   }, [isAuthenticated]);
 
+  // À la déconnexion : on purge le cache mémoire pour ne rien laisser fuiter
+  // d'un compte à l'autre.
+  useEffect(() => {
+    if (!isAuthenticated) clearApiCache();
+  }, [isAuthenticated]);
+
   // Listeners notifications
   useEffect(() => {
     notifListener.current = Notifications.addNotificationReceivedListener(() => {
@@ -49,13 +57,16 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(patient)" />
-      <Stack.Screen name="(pharmacy)" />
-      <Stack.Screen name="(courier)" />
-      <Stack.Screen name="(doctor)" />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(patient)" />
+        <Stack.Screen name="(pharmacy)" />
+        <Stack.Screen name="(courier)" />
+        <Stack.Screen name="(doctor)" />
+      </Stack>
+      <OfflineBanner />
+    </>
   );
 }
 
