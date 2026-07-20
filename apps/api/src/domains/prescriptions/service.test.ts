@@ -137,3 +137,60 @@ describe('PrescriptionService.validate — stupéfiants (ordonnancier)', () => {
     );
   });
 });
+
+import { prisma } from '../../infrastructure/prisma/client';
+
+describe('PrescriptionService.validate — collecte ciblée de l\'original (politique C)', () => {
+  function setupC(rx: Record<string, any>) {
+    const repo = {
+      findById: vi.fn().mockResolvedValue(rx),
+      validate: vi.fn().mockResolvedValue({ id: rx.id }),
+      recordControlledDispensing: vi.fn().mockResolvedValue({ seqs: [1], note: 'n' }),
+    };
+    const orderRepo = { create: vi.fn().mockResolvedValue({ id: 'o1' }) };
+    const deliveryRepo = { create: vi.fn().mockResolvedValue({ id: 'd1' }) };
+    const pricingRepo = { getByKind: vi.fn().mockResolvedValue(null) };
+    const notif = { send: vi.fn().mockResolvedValue(undefined) };
+    const push = { sendToUser: vi.fn() };
+    const service = new PrescriptionService(
+      repo as any, orderRepo as any, deliveryRepo as any, pricingRepo as any, notif as any, push as any,
+    );
+    return { service };
+  }
+  const base = {
+    id: 'rx1', targetPartnerId: 'p1', status: 'pending_validation',
+    patient: { name: 'Awa', phone: '241', patientProfile: null },
+    targetPartner: { legalName: 'Ph. Centre' },
+  };
+  const paperCollect = expect.objectContaining({ data: { paperStatus: 'to_collect' } });
+
+  it('médicament sensible (antibiotique) → collecte de l\'original', async () => {
+    const { service } = setupC({ ...base });
+    (prisma.order.update as any).mockClear();
+    await service.validate('rx1', 'u1', 'p1', {
+      approved: true, items: [{ name: 'Amoxicilline', quantity: 1, unitPriceFcfa: 2000, sensitive: true }],
+    } as any);
+    expect(prisma.order.update).toHaveBeenCalledWith(paperCollect);
+  });
+
+  it('ordonnance en tiers-payant CNAMGS → collecte de l\'original', async () => {
+    const { service } = setupC({
+      ...base,
+      patient: { name: 'Awa', phone: '241', patientProfile: { insuranceProvider: 'cnamgs', insuranceCoverageRate: 80 } },
+    });
+    (prisma.order.update as any).mockClear();
+    await service.validate('rx1', 'u1', 'p1', {
+      approved: true, items: [{ name: 'Doliprane', quantity: 1, unitPriceFcfa: 1000 }],
+    } as any);
+    expect(prisma.order.update).toHaveBeenCalledWith(paperCollect);
+  });
+
+  it('médicament standard payé cash → pas de collecte', async () => {
+    const { service } = setupC({ ...base });
+    (prisma.order.update as any).mockClear();
+    await service.validate('rx1', 'u1', 'p1', {
+      approved: true, items: [{ name: 'Doliprane', quantity: 1, unitPriceFcfa: 1000 }],
+    } as any);
+    expect(prisma.order.update).not.toHaveBeenCalledWith(paperCollect);
+  });
+});

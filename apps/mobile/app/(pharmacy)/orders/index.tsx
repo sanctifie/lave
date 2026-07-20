@@ -73,7 +73,7 @@ export default function PharmacyOrdersScreen() {
   const confirmPaper = (order: PharmacyOrder) => {
     Alert.alert(
       'Original vérifié ?',
-      'Confirmez que vous avez l\'ordonnance ORIGINALE en main, que vous y avez retranscrit le n° d\'ordre + la date de l\'ordonnancier, et que vous la scellez au colis.',
+      'Confirmez que vous avez l\'ordonnance ORIGINALE en main, que vous y avez apposé le cachet daté (et pour un stupéfiant le n° d\'ordonnancier), et que vous la scellez au colis.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -153,14 +153,14 @@ export default function PharmacyOrdersScreen() {
                 {/* Stupéfiant : circuit de l'ordonnance originale */}
                 {order.paperStatus === 'to_collect' && (
                   <View style={styles.paperInfo}>
-                    <Text style={styles.paperInfoTxt}>⚖️ Stupéfiant — le coursier récupère l'original chez le patient.</Text>
+                    <Text style={styles.paperInfoTxt}>⚖️ Original requis — le coursier récupère l'ordonnance chez le patient.</Text>
                   </View>
                 )}
                 {order.paperStatus === 'collected' && (
                   <>
                     <View style={styles.divider} />
                     <Pressable style={[styles.actionBtn, styles.actionBtnWarn]} onPress={() => confirmPaper(order)}>
-                      <Text style={styles.actionBtnText}>⚖️ Original reçu — inscrire le n° d'ordonnancier & sceller</Text>
+                      <Text style={styles.actionBtnText}>⚖️ Original reçu — apposer cachet / n° d'ordonnancier & sceller</Text>
                     </Pressable>
                   </>
                 )}

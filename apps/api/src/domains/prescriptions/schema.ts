@@ -25,6 +25,9 @@ export const ValidatePrescriptionSchema = z
           substitutionReason: z.string().min(1).optional(),
           // Stupéfiant : article à inscrire à l'ordonnancier légal
           controlled: z.boolean().optional(),
+          // Sensible : antibiotique / dangereux / détournable → collecte de
+          // l'original + cachet (sans ordonnancier).
+          sensitive: z.boolean().optional(),
         }),
       )
       .optional(),

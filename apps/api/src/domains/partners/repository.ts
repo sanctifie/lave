@@ -71,6 +71,7 @@ export class PartnerRepository {
         priceFcfa: data.priceFcfa,
         inStock: data.inStock ?? true,
         isAdvice: data.isAdvice ?? false,
+        sensitive: data.sensitive ?? false,
       },
     });
   }
@@ -84,6 +85,7 @@ export class PartnerRepository {
         ...(data.priceFcfa !== undefined ? { priceFcfa: data.priceFcfa } : {}),
         ...(data.inStock !== undefined ? { inStock: data.inStock } : {}),
         ...(data.isAdvice !== undefined ? { isAdvice: data.isAdvice } : {}),
+        ...(data.sensitive !== undefined ? { sensitive: data.sensitive } : {}),
       },
     });
   }

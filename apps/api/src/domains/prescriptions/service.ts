@@ -138,6 +138,7 @@ export class PrescriptionService {
     const rawItems = input.items!;
     const hasSubstitution = rawItems.some((i) => i.substituted);
     const controlledItems = rawItems.filter((i) => i.controlled);
+    const sensitiveItems  = rawItems.filter((i) => i.sensitive && !i.controlled);
 
     // Un conseil au comptoir (sans ordonnance) ne peut JAMAIS contenir de
     // stupéfiant : ceux-ci exigent une prescription et l'ordonnancier.
@@ -200,6 +201,14 @@ export class PrescriptionService {
     const insuranceProvider = profile?.insuranceProvider ?? InsuranceProvider.NONE;
     const insuranceCoverageRate = profile?.insuranceCoverageRate ?? 0;
 
+    // Collecte ciblée de l'original (politique C) : stupéfiant, médicament
+    // sensible (antibiotique / dangereux / détournable) ou ordonnance en
+    // tiers-payant (enjeu de fraude caisse) → boucle patient → officine → patient.
+    const needsOriginal =
+      controlledItems.length > 0 ||
+      sensitiveItems.length > 0 ||
+      insuranceProvider !== InsuranceProvider.NONE;
+
     const order = await this.orderRepo.create(rx.patientId, {
       prescriptionId: rxId,
       partnerId,
@@ -214,11 +223,12 @@ export class PrescriptionService {
     // ── Ordonnancier légal : inscription des stupéfiants + annotation « servi »
     // (fait dès la validation, y compris si une substitution reste en attente
     // sur d'autres articles — un stupéfiant n'est jamais substituable).
-    if (controlledItems.length > 0) {
-      // Boucle stupéfiant : le coursier récupère D'ABORD l'original chez le
-      // patient, le pharmacien le vérifie et l'annote de sa main, puis le colis
-      // repart avec l'original scellé.
+    // Collecte de l'original si nécessaire (stupéfiant, sensible ou tiers-payant).
+    if (needsOriginal) {
       await prisma.order.update({ where: { id: order.id }, data: { paperStatus: 'to_collect' } });
+    }
+    // Ordonnancier légal : réservé aux stupéfiants.
+    if (controlledItems.length > 0) {
       await this.repo.recordControlledDispensing({
         partnerId,
         partnerName: (rx as any).targetPartner?.legalName ?? 'Pharmacie',
@@ -248,9 +258,9 @@ export class PrescriptionService {
       return { prescription: updatedRx, order, delivery: null, pendingSubstitution: true };
     }
 
-    // Course stupéfiant : boucle patient → officine → patient, tarif majoré
-    // (configurable ; défaut : 2 × la course de base).
-    const controlledFee = controlledItems.length
+    // Course avec collecte d'original : boucle patient → officine → patient,
+    // tarif majoré (configurable ; défaut : 2 × la course de base).
+    const controlledFee = needsOriginal
       ? (await this.pricingRepo.getByKind(PricingKind.CONTROLLED_DELIVERY_FEE))?.valueFcfa ?? deliveryFeeFcfa * 2
       : deliveryFeeFcfa;
     const delivery = await this.deliveryRepo.create(order.id, controlledFee);
