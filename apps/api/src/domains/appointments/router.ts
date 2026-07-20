@@ -27,6 +27,11 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 /** Détail d'un RDV (patient ou médecin concerné) */
+// Médecin : dossier médical du patient de SON rendez-vous
+router.get('/:id/patient-record', requireAuth, requireRole(UserRole.DOCTOR), asyncHandler(async (req, res) => {
+  res.json({ data: await service.getPatientRecord(req.params.id, req.user!.userId) });
+}));
+
 router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
   const appt = await service.getById(req.params.id, req.user!.userId);
   res.json({ data: appt });
