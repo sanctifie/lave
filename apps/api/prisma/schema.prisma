@@ -48,6 +48,12 @@ enum MediaKind {
   doctor_credential
 }
 
+enum CareLinkStatus {
+  pending
+  accepted
+  revoked
+}
+
 enum PrescriptionSource {
   manual
   teleconsultation
@@ -235,8 +241,31 @@ model User {
   sentMessages       Message[]       @relation("MessageSender")
   appointments       Appointment[]   @relation("AppointmentPatient")
   media              Media[]
+  // Liens d'aidant : comptes que cet user gère (accompagnant) / aidants qui le gèrent (patient)
+  careLinksAsCaregiver CareLink[]    @relation("CareLinkCaregiver")
+  careLinksAsPatient   CareLink[]    @relation("CareLinkPatient")
 
   @@map("users")
+}
+
+// Lien d'aidant consenti : un accompagnant gère les commandes/ordonnances d'un
+// patient (achat pour un tiers). Le patient invite (pending), l'accompagnant
+// accepte (accepted) ; l'une ou l'autre partie peut révoquer (revoked).
+model CareLink {
+  id          String         @id @default(cuid())
+  caregiverId String         // User (rôle accompagnant) qui gère
+  patientId   String         // User (patient) bénéficiaire
+  status      CareLinkStatus @default(pending)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  caregiver User @relation("CareLinkCaregiver", fields: [caregiverId], references: [id])
+  patient   User @relation("CareLinkPatient",   fields: [patientId],   references: [id])
+
+  @@unique([caregiverId, patientId])
+  @@index([patientId])
+  @@index([caregiverId])
+  @@map("care_links")
 }
 
 model PatientProfile {
