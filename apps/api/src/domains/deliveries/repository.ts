@@ -107,6 +107,15 @@ export class DeliveryRepository {
     return prisma.delivery.findMany({ where: { courierId }, include: DELIVERY_INCLUDE });
   }
 
+  /** Dernier point GPS connu de la livraison (suivi en direct). */
+  async latestTracking(deliveryId: string) {
+    return prisma.tracking.findFirst({
+      where:   { deliveryId },
+      orderBy: { recordedAt: 'desc' },
+      select:  { lat: true, lng: true, status: true, recordedAt: true },
+    });
+  }
+
   async setCourierAvailability(userId: string, isAvailable: boolean) {
     return prisma.courier.upsert({
       where:  { userId },

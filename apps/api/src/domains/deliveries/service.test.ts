@@ -94,3 +94,49 @@ describe('DeliveryService.confirmHandover — sécurité & principe légal', () 
     expect(provider.payout).toHaveBeenCalledWith(expect.objectContaining({ amountFcfa: 8000 }));
   });
 });
+
+describe('DeliveryService.getTracking — suivi en direct & accès', () => {
+  function trackSetup(over: Record<string, any> = {}) {
+    const { service, repo } = setup({
+      repo: {
+        latestTracking: vi.fn().mockResolvedValue({
+          lat: 0.39, lng: 9.45, status: 'en_route_delivery', recordedAt: new Date('2026-07-20T08:00:00Z'),
+        }),
+        ...over.repo,
+      },
+    });
+    return { service, repo };
+  }
+
+  it("403 si le demandeur n'est ni le patient ni un coursier", async () => {
+    const { service } = trackSetup();
+    await expect(service.getTracking('dlv1', { userId: 'intrus', role: 'patient' }))
+      .rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('404 si la livraison est introuvable', async () => {
+    const { service } = trackSetup({ repo: { findById: vi.fn().mockResolvedValue(null) } });
+    await expect(service.getTracking('x', { userId: 'patient1', role: 'patient' }))
+      .rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('renvoie la dernière position au patient destinataire', async () => {
+    const { service } = trackSetup();
+    const res = await service.getTracking('dlv1', { userId: 'patient1', role: 'patient' });
+    expect(res.courier).toMatchObject({ lat: 0.39, lng: 9.45 });
+    expect(res.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('autorise un coursier même non destinataire', async () => {
+    const { service } = trackSetup();
+    const res = await service.getTracking('dlv1', { userId: 'courierX', role: 'courier' });
+    expect(res.courier).not.toBeNull();
+  });
+
+  it('courier = null si aucune position enregistrée', async () => {
+    const { service } = trackSetup({ repo: { latestTracking: vi.fn().mockResolvedValue(null) } });
+    const res = await service.getTracking('dlv1', { userId: 'patient1', role: 'patient' });
+    expect(res.courier).toBeNull();
+    expect(res.updatedAt).toBeNull();
+  });
+});
