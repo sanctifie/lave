@@ -143,6 +143,12 @@ export enum TransactionKind {
   REFUND = 'refund',
 }
 
+/** Mode de paiement d'une commande. */
+export enum PaymentMethod {
+  ESCROW = 'escrow', // Mobile Money bloqué en séquestre (défaut)
+  COD = 'cod',       // paiement à la livraison, en espèces au coursier
+}
+
 export enum TransactionStatus {
   PENDING = 'pending',
   HELD = 'held',

@@ -130,6 +130,19 @@ export class OrderService {
     return { order: updated, totalFcfa };
   }
 
+  /** Le patient choisit le mode de paiement (Mobile Money séquestre ou espèces). */
+  async choosePaymentMethod(orderId: string, patientId: string, method: 'escrow' | 'cod') {
+    const order = await this.repo.findById(orderId);
+    if (!order) throw HTTP.notFound('Commande introuvable');
+    if (order.patientId !== patientId) throw HTTP.forbidden();
+    // Modifiable tant que la commande n'est pas payée / expédiée / livrée.
+    const editable =
+      order.status === OrderStatus.PENDING_PHARMACY || order.status === OrderStatus.PHARMACY_ACCEPTED;
+    if (!editable) throw HTTP.unprocessable('Le mode de paiement ne peut plus être modifié.');
+    if ((order as any).transaction) throw HTTP.unprocessable('Un paiement est déjà en cours.');
+    return this.repo.setPaymentMethod(orderId, method);
+  }
+
   async getById(id: string, requesterId: string) {
     const order = await this.repo.findById(id);
     if (!order) throw HTTP.notFound('Commande introuvable');

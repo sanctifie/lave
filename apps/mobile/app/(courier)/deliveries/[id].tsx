@@ -249,6 +249,15 @@ export default function DeliveryDetailScreen() {
           </View>
         )}
 
+        {/* Paiement à la livraison : espèces à encaisser avant de confirmer */}
+        {needsHandover && delivery?.paymentMethod === 'cod' && (
+          <View style={styles.codCard}>
+            <Text style={styles.codTitle}>💵 Paiement à la livraison</Text>
+            <Text style={styles.codAmount}>{formatFcfa(delivery.codDueFcfa)}</Text>
+            <Text style={styles.codHint}>Encaissez ce montant EN ESPÈCES avant de saisir le code de remise.</Text>
+          </View>
+        )}
+
         {/* Handover code — verrouillé tant qu'un original stupéfiant n'est pas vérifié */}
         {needsHandover && delivery?.paperStatus !== 'to_collect' && delivery?.paperStatus !== 'collected' && (
           <View style={styles.handoverCard}>
@@ -346,6 +355,10 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
 
+  codCard: { backgroundColor: colors.successSurface, borderRadius: radii.lg, padding: spacing.md, gap: spacing.xs, borderWidth: 1.5, borderColor: colors.success, alignItems: 'center' },
+  codTitle: { ...typography.label, color: colors.success },
+  codAmount: { ...typography.h2, color: colors.success },
+  codHint: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
   paperCard: {
     backgroundColor: colors.warningSurface, borderRadius: radii.lg, padding: spacing.md,
     gap: spacing.sm, borderWidth: 1.5, borderColor: colors.warning,

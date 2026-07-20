@@ -181,6 +181,28 @@ export class DeliveryService {
         }
       } catch { /* le cachet ne doit pas bloquer la livraison */ }
 
+      // ── Paiement à la livraison (COD) : le coursier a encaissé les espèces.
+      // On trace la transaction et on verse la part médicaments à la pharmacie.
+      const codOrder = await this.orderRepo.findById(delivery.orderId);
+      if (codOrder && (codOrder as any).paymentMethod === 'cod' && !(codOrder as any).transaction) {
+        const caisseShareFcfa = (codOrder as any).caisseShareFcfa ?? 0;
+        const patientDue = Math.max(0, codOrder.totalFcfa - caisseShareFcfa) + codOrder.serviceFeeFcfa;
+        const pharmacyAmount = Math.max(0, codOrder.totalFcfa - caisseShareFcfa);
+        await prisma.transaction.create({
+          data: {
+            kind: 'cod', status: 'captured', amountFcfa: patientDue,
+            idempotencyKey: randomUUID(), orderId: delivery.orderId, paidAt: new Date(),
+          },
+        });
+        await this.paymentProvider.payout({
+          amountFcfa: pharmacyAmount, phoneNumber: codOrder.partner.phone, idempotencyKey: randomUUID(),
+        }).catch((e) => console.error('[COD payout] échec', e));
+        await this.notif.send({
+          to: codOrder.partner.whatsappNumber ?? codOrder.partner.phone,
+          message: `Espèces encaissées (${patientDue} FCFA) — versement de ${pharmacyAmount} FCFA pour la commande #${delivery.orderId.slice(-6).toUpperCase()}.`,
+        }).catch(() => {});
+      }
+
       // ── Libération de l'escrow (idempotent : skip si déjà libéré) ──────
       const txn = await this.paymentRepo.findByOrderId(delivery.orderId);
       if (txn?.providerTransactionId && txn.status !== TransactionStatus.RELEASED) {
