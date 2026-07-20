@@ -192,4 +192,28 @@ export class AppointmentRepository {
       return { consultation, prescription };
     });
   }
+
+  async patientRecordForAppointment(appointmentId: string) {
+    const appt = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        patientId: true,
+        patient: {
+          select: {
+            name: true, phone: true,
+            patientProfile: {
+              select: { dateOfBirth: true, bloodType: true, allergies: true, insuranceProvider: true },
+            },
+            prescriptionsOwned: {
+              orderBy: { createdAt: 'desc' },
+              take: 5,
+              select: { id: true, type: true, status: true, createdAt: true, notes: true },
+            },
+          },
+        },
+      },
+    });
+    return appt;
+  }
+
 }

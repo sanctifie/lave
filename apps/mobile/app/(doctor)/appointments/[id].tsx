@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppointmentStatus } from '@mbolo/shared';
 import { apiClient } from '../../../src/services/client';
 import { chatService } from '../../../src/services/chat.service';
+import { appointmentsService, PatientRecord } from '../../../src/services/appointments.service';
 import { Button } from '../../../src/components/ui/Button';
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
@@ -40,6 +41,7 @@ export default function DoctorConsultationScreen() {
   const [rxText, setRxText]     = useState('');
   const [submitting, setSubmitting]   = useState(false);
   const [openingChat, setOpeningChat] = useState(false);
+  const [record, setRecord]           = useState<PatientRecord | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +67,12 @@ export default function DoctorConsultationScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Dossier patient (allergies, groupe sanguin, dernières ordonnances) — le
+  // médecin y a droit en tant que soignant assigné au RDV.
+  useEffect(() => {
+    appointmentsService.getPatientRecord(id).then(setRecord).catch(() => setRecord(null));
+  }, [id]);
 
   const startConsultation = async () => {
     try {
@@ -142,6 +150,62 @@ export default function DoctorConsultationScreen() {
           </View>
         </View>
       </View>
+
+      {/* Dossier patient — visible par le médecin assigné */}
+      {record && (
+        <View style={styles.recordCard}>
+          <Text style={styles.recordTitle}>🗂️ Dossier patient</Text>
+
+          {record.allergies.length > 0 ? (
+            <View style={styles.allergyBox}>
+              <Text style={styles.allergyLabel}>⚠️ Allergies</Text>
+              <Text style={styles.allergyText}>{record.allergies.join(', ')}</Text>
+            </View>
+          ) : (
+            <Text style={styles.recordMuted}>Aucune allergie déclarée</Text>
+          )}
+
+          <View style={styles.recordGrid}>
+            {record.bloodType && (
+              <View style={styles.recordChip}>
+                <Text style={styles.recordChipLabel}>Groupe sanguin</Text>
+                <Text style={styles.recordChipValue}>{record.bloodType}</Text>
+              </View>
+            )}
+            {record.dateOfBirth && (
+              <View style={styles.recordChip}>
+                <Text style={styles.recordChipLabel}>Naissance</Text>
+                <Text style={styles.recordChipValue}>
+                  {new Date(record.dateOfBirth).toLocaleDateString('fr-FR')}
+                </Text>
+              </View>
+            )}
+            <View style={styles.recordChip}>
+              <Text style={styles.recordChipLabel}>Assurance</Text>
+              <Text style={styles.recordChipValue}>
+                {record.insuranceProvider === 'none' ? 'Aucune' : record.insuranceProvider.toUpperCase()}
+              </Text>
+            </View>
+          </View>
+
+          {record.recentPrescriptions.length > 0 && (
+            <View style={styles.rxHistory}>
+              <Text style={styles.rxHistoryLabel}>Dernières ordonnances</Text>
+              {record.recentPrescriptions.map((rx) => (
+                <View key={rx.id} style={styles.rxRow}>
+                  <Text style={styles.rxDate}>
+                    {new Date(rx.createdAt).toLocaleDateString('fr-FR')}
+                  </Text>
+                  <Text style={styles.rxNotes} numberOfLines={1}>
+                    {rx.notes ?? rx.type}
+                  </Text>
+                  <Text style={styles.rxStatus}>{rx.status}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Chief complaint */}
       {appt.chiefComplaint && (
@@ -277,6 +341,48 @@ const styles = StyleSheet.create({
   patientName:  { ...typography.h3, color: colors.text },
   metaRow:      { flexDirection: 'row', gap: spacing.md, flexWrap: 'wrap' },
   metaItem:     { ...typography.caption, color: colors.textSecondary },
+
+  recordCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+    ...shadows.card,
+  },
+  recordTitle: { ...typography.bodyMedium, color: colors.text },
+  recordMuted: { ...typography.caption, color: colors.textSecondary },
+  allergyBox: {
+    backgroundColor: colors.errorSurface,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
+  },
+  allergyLabel: { ...typography.label, color: colors.error },
+  allergyText:  { ...typography.bodyMedium, color: colors.error },
+  recordGrid:   { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  recordChip: {
+    backgroundColor: colors.background,
+    borderRadius: radii.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    gap: 2,
+    minWidth: 90,
+  },
+  recordChipLabel: { ...typography.caption, color: colors.textSecondary },
+  recordChipValue: { ...typography.bodyMedium, color: colors.text },
+  rxHistory:      { gap: spacing.xs },
+  rxHistoryLabel: { ...typography.label, color: colors.textSecondary },
+  rxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  rxDate:   { ...typography.caption, color: colors.textSecondary, width: 74 },
+  rxNotes:  { ...typography.caption, color: colors.text, flex: 1 },
+  rxStatus: { ...typography.caption, color: colors.primary },
 
   complaintCard: {
     backgroundColor: colors.warningSurface,

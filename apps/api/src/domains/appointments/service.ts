@@ -42,6 +42,32 @@ export class AppointmentService {
     return appt;
   }
 
+  /**
+   * Dossier médical du patient, consultable UNIQUEMENT par le médecin assigné au
+   * RDV (allergies, groupe sanguin, assurance, dernières ordonnances). Donne au
+   * médecin le contexte qui lui manquait en téléconsultation.
+   */
+  async getPatientRecord(appointmentId: string, doctorUserId: string) {
+    const appt = await this.repo.findById(appointmentId);
+    if (!appt) throw HTTP.notFound('RDV introuvable');
+    const profile = await this.doctorRepo.findByUserId(doctorUserId);
+    if (!profile || profile.id !== appt.doctorId) throw HTTP.forbidden();
+
+    const rec = await this.repo.patientRecordForAppointment(appointmentId);
+    const p: any = rec?.patient;
+    return {
+      name: p?.name ?? '—',
+      phone: p?.phone ?? null,
+      dateOfBirth: p?.patientProfile?.dateOfBirth ?? null,
+      bloodType: p?.patientProfile?.bloodType ?? null,
+      allergies: p?.patientProfile?.allergies ?? [],
+      insuranceProvider: p?.patientProfile?.insuranceProvider ?? 'none',
+      recentPrescriptions: (p?.prescriptionsOwned ?? []).map((rx: any) => ({
+        id: rx.id, type: rx.type, status: rx.status, createdAt: rx.createdAt, notes: rx.notes ?? null,
+      })),
+    };
+  }
+
   async create(patientId: string, input: CreateAppointmentInput) {
     if (input.type === AppointmentType.IMMEDIATE) {
       const available = await this.doctorRepo.listAvailableNow((input as any).specialty) as any[];

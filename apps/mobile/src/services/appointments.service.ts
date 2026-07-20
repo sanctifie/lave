@@ -43,6 +43,24 @@ export interface AppointmentDetail {
   consultation: ConsultationDetail | null;
 }
 
+export interface PatientRecordPrescription {
+  id:        string;
+  type:      string;
+  status:    string;
+  createdAt: string;
+  notes:     string | null;
+}
+
+export interface PatientRecord {
+  name:                string;
+  phone:               string | null;
+  dateOfBirth:         string | null;
+  bloodType:           string | null;
+  allergies:           string[];
+  insuranceProvider:   string;
+  recentPrescriptions: PatientRecordPrescription[];
+}
+
 export interface CreateAppointmentInput {
   doctorId?:       string;
   type:            AppointmentType;
@@ -69,6 +87,12 @@ export const appointmentsService = {
 
   async getById(id: string): Promise<AppointmentDetail> {
     const res = await apiClient.get<{ data: AppointmentDetail }>(`/appointments/${id}`);
+    return res.data.data ?? (res.data as any);
+  },
+
+  /** Dossier patient — réservé au médecin assigné au RDV. */
+  async getPatientRecord(id: string): Promise<PatientRecord> {
+    const res = await apiClient.get<{ data: PatientRecord }>(`/appointments/${id}/patient-record`);
     return res.data.data ?? (res.data as any);
   },
 

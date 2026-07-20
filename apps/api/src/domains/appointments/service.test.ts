@@ -57,6 +57,43 @@ describe('AppointmentService.getById', () => {
   });
 });
 
+describe('AppointmentService.getPatientRecord', () => {
+  function makeRecord(appt: any, doctorProfile: any) {
+    const rec = {
+      patient: {
+        name: 'Ada', phone: '24106000000',
+        patientProfile: { dateOfBirth: new Date('1990-01-01'), bloodType: 'O+', allergies: ['pénicilline'], insuranceProvider: 'cnamgs' },
+        prescriptionsOwned: [{ id: 'rx1', type: 'standard', status: 'issued', createdAt: new Date('2026-01-01'), notes: 'Amoxicilline' }],
+      },
+    };
+    const repo = {
+      findById: vi.fn().mockResolvedValue(appt),
+      patientRecordForAppointment: vi.fn().mockResolvedValue(rec),
+    };
+    const doctorRepo = { findByUserId: vi.fn().mockResolvedValue(doctorProfile) };
+    const service = new AppointmentService(repo as any, doctorRepo as any, {} as any, {} as any, {} as any, {} as any);
+    return { service, repo };
+  }
+
+  it('404 si le RDV est introuvable', async () => {
+    const { service } = makeRecord(null, { id: 'doc1' });
+    await expect(service.getPatientRecord('x', 'docUser')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('403 si le médecin n\'est pas assigné au RDV', async () => {
+    const { service } = makeRecord({ id: 'a1', doctorId: 'doc1' }, { id: 'autredoc' });
+    await expect(service.getPatientRecord('a1', 'docUser')).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('renvoie le dossier au médecin assigné (allergies, groupe, ordonnances)', async () => {
+    const { service } = makeRecord({ id: 'a1', doctorId: 'doc1' }, { id: 'doc1' });
+    const res = await service.getPatientRecord('a1', 'docUser');
+    expect(res).toMatchObject({ name: 'Ada', bloodType: 'O+', allergies: ['pénicilline'], insuranceProvider: 'cnamgs' });
+    expect(res.recentPrescriptions).toHaveLength(1);
+    expect(res.recentPrescriptions[0]).toMatchObject({ id: 'rx1', notes: 'Amoxicilline' });
+  });
+});
+
 describe('AppointmentService.complete — calcul des frais', () => {
   afterEach(() => vi.useRealTimers());
 
