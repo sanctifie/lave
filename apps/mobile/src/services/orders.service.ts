@@ -34,6 +34,8 @@ export interface OrderDetail extends Order {
   /** Code de remise du patient : il le MONTRE au coursier, qui le saisit. */
   handoverCode: string | null;
   transactionStatus: string | null;
+  paymentMethod: string;
+  partnerId: string | null;
   insuranceProvider: string;
   insuranceCoverageRate: number;
   caisseShareFcfa: number;
@@ -89,10 +91,17 @@ export const ordersService = {
       deliveryFeeFcfa:   raw.delivery?.feeFcfa ?? raw.delivery?.deliveryFeeFcfa ?? null,
       handoverCode:      raw.delivery?.handoverCode ?? null,
       transactionStatus: raw.transaction?.status ?? null,
+      paymentMethod:     raw.paymentMethod ?? 'escrow',
+      partnerId:         raw.partnerId ?? null,
       insuranceProvider:     raw.insuranceProvider ?? 'none',
       insuranceCoverageRate: raw.insuranceCoverageRate ?? 0,
       caisseShareFcfa:       raw.caisseShareFcfa ?? 0,
     };
+  },
+
+  /** Le patient choisit le mode de paiement : 'escrow' (Mobile Money) ou 'cod' (espèces). */
+  async choosePaymentMethod(orderId: string, method: 'escrow' | 'cod'): Promise<void> {
+    await apiClient.patch(`/orders/${orderId}/payment-method`, { method });
   },
 
   /** Le patient accepte/refuse les équivalents proposés (par article). */

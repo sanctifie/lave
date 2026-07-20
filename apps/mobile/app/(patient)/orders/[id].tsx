@@ -14,6 +14,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { OrderStatus, DeliveryStatus } from '@mbolo/shared';
 import { ordersService, OrderDetail } from '../../../src/services/orders.service';
+import { reviewsService } from '../../../src/services/reviews.service';
+import { StarRating } from '../../../src/components/StarRating';
 import { paymentsService } from '../../../src/services/payments.service';
 import { apiClient } from '../../../src/services/client';
 import { useAuthStore } from '../../../src/store/auth.store';
@@ -72,6 +74,37 @@ export default function OrderDetailScreen() {
 
   const [subChoice,    setSubChoice]    = useState<Record<string, boolean>>({});
   const [subSubmitting, setSubSubmitting] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [ratingBusy, setRatingBusy] = useState(false);
+  const [rated, setRated] = useState(false);
+
+  const submitRating = async () => {
+    if (!order?.partnerId || rating === 0) return;
+    setRatingBusy(true);
+    try {
+      await reviewsService.create({ refTable: 'partner_profiles', refId: order.partnerId, rating });
+      setRated(true);
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.response?.data?.message ?? 'Impossible d\'envoyer l\'avis.');
+    } finally {
+      setRatingBusy(false);
+    }
+  };
+
+  // Bascule Mobile Money ↔ espèces à la livraison (COD).
+  const switchMethod = async (method: 'escrow' | 'cod') => {
+    if (!order) return;
+    setSwitching(true);
+    try {
+      await ordersService.choosePaymentMethod(order.id, method);
+      await load();
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.response?.data?.message ?? 'Impossible de changer le mode de paiement.');
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   // Conseils officinaux proposés par le pharmacien (facultatifs)
   const [recoChoice,    setRecoChoice]    = useState<Record<string, boolean>>({});
@@ -201,6 +234,7 @@ export default function OrderDetailScreen() {
   const billableItems = order.items.filter(
     (i) => i.recommendationStatus !== 'suggested' && i.recommendationStatus !== 'declined',
   );
+  const isCod        = order.paymentMethod === 'cod';
   const needsPayment = !isCancelled && !isDelivered && !isPendingSub && payStep === 'idle';
   // Tiers-payant : le patient ne règle que sa part (médicaments non couverts +
   // frais). caisseShareFcfa = 0 sans assurance → comportement inchangé.
@@ -440,7 +474,19 @@ export default function OrderDetailScreen() {
         </View>
 
         {/* Paiement */}
-        {needsPayment && (
+        {needsPayment && isCod ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>💵 Paiement à la livraison</Text>
+            <View style={styles.payCard}>
+              <Text style={styles.payHint}>
+                Réglez {formatFcfa(amountToPay)} en espèces au livreur à la réception.
+              </Text>
+              <Pressable style={styles.codSwitch} onPress={() => switchMethod('escrow')} disabled={switching}>
+                <Text style={styles.codSwitchTxt}>← Payer plutôt par Mobile Money</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : needsPayment ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>💳 Paiement Mobile Money</Text>
             <View style={styles.payCard}>
@@ -466,9 +512,12 @@ export default function OrderDetailScreen() {
                   {paying ? 'Traitement…' : `Payer ${formatFcfa(amountToPay)}`}
                 </Text>
               </Pressable>
+              <Pressable style={styles.codSwitch} onPress={() => switchMethod('cod')} disabled={switching}>
+                <Text style={styles.codSwitchTxt}>💵 Payer plutôt en espèces à la livraison</Text>
+              </Pressable>
             </View>
           </View>
-        )}
+        ) : null}
 
         {payStep === 'pending' && (
           <View style={styles.payPendingBox}>
@@ -519,6 +568,22 @@ export default function OrderDetailScreen() {
             <Text style={styles.deliveredSub}>Merci d'avoir utilisé MBOLO Santé.</Text>
           </View>
         )}
+
+        {/* Noter la pharmacie (une fois livrée) */}
+        {isDelivered && order.partnerId && !rated && (
+          <View style={styles.rateCard}>
+            <Text style={styles.rateTitle}>Notez {order.pharmacyName ?? 'la pharmacie'}</Text>
+            <StarRating value={rating} onChange={setRating} />
+            <Pressable
+              style={[styles.rateBtn, (rating === 0 || ratingBusy) && { opacity: 0.5 }]}
+              disabled={rating === 0 || ratingBusy}
+              onPress={submitRating}
+            >
+              <Text style={styles.rateBtnTxt}>{ratingBusy ? 'Envoi…' : 'Envoyer mon avis'}</Text>
+            </Pressable>
+          </View>
+        )}
+        {rated && <Text style={styles.ratedTxt}>Merci pour votre avis 💚</Text>}
 
       </ScrollView>
     </KeyboardAvoidingView>
@@ -695,6 +760,8 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   payHint:    { ...typography.body, color: colors.textSecondary },
+  codSwitch:  { alignItems: 'center', paddingVertical: spacing.sm },
+  codSwitchTxt: { ...typography.label, color: colors.primary },
   inputLabel: { ...typography.label, color: colors.text },
   input: {
     ...typography.body,
@@ -784,6 +851,11 @@ const styles = StyleSheet.create({
   handoverBtnText: { ...typography.bodyMedium, color: colors.textOnDark },
 
   // Livraison terminée
+  rateCard: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, gap: spacing.sm, alignItems: 'center', ...shadows.card },
+  rateTitle: { ...typography.bodyMedium, color: colors.text },
+  rateBtn: { backgroundColor: colors.primary, borderRadius: radii.full, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl },
+  rateBtnTxt: { ...typography.label, color: colors.textOnDark },
+  ratedTxt: { ...typography.body, color: colors.success, textAlign: 'center' },
   deliveredBox: {
     alignItems: 'center',
     gap: spacing.sm,

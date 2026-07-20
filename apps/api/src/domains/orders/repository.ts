@@ -212,6 +212,10 @@ export class OrderRepository {
     return prisma.order.update({ where: { id }, data: { status } });
   }
 
+  async setPaymentMethod(id: string, method: 'escrow' | 'cod') {
+    return prisma.order.update({ where: { id }, data: { paymentMethod: method as any } });
+  }
+
   // Commandes « réalisées » = ni annulées ni refusées par la pharmacie.
   private get realizedWhere() {
     return { status: { notIn: [OrderStatus.CANCELLED, OrderStatus.PHARMACY_REJECTED] as OrderStatus[] } };

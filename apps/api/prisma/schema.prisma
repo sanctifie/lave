@@ -144,6 +144,12 @@ enum TransactionKind {
   refund
 }
 
+// Mode de paiement choisi par le patient pour une commande.
+enum PaymentMethod {
+  escrow // Mobile Money bloqué en séquestre (défaut)
+  cod    // paiement a la livraison, en especes au coursier
+}
+
 enum TransactionStatus {
   pending
   held
@@ -535,6 +541,8 @@ model Order {
   caisseShareFcfa       Int               @default(0)
   // Stupéfiant : circuit de l'ordonnance papier originale
   paperStatus           PaperStatus       @default(none)
+  // Paiement : Mobile Money séquestre (défaut) ou espèces à la livraison
+  paymentMethod         PaymentMethod     @default(escrow)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 

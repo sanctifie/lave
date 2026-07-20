@@ -14,6 +14,8 @@ export interface DeliveryItem {
   pharmacyName:    string;
   pharmacyAddress: string;
   totalFcfa:       number;
+  paymentMethod:   string;
+  codDueFcfa:      number; // espèces à encaisser si COD
 }
 
 function normalize(raw: any): DeliveryItem {
@@ -32,6 +34,10 @@ function normalize(raw: any): DeliveryItem {
     pharmacyName:    raw.order?.partner?.legalName ?? '—',
     pharmacyAddress: raw.order?.partner?.landmark  ?? '—',
     totalFcfa:       raw.order?.totalFcfa ?? 0,
+    paymentMethod:   raw.order?.paymentMethod ?? 'escrow',
+    // Espèces à encaisser (part patient) : total médicaments − part caisse + frais.
+    codDueFcfa:      Math.max(0, (raw.order?.totalFcfa ?? 0) - (raw.order?.caisseShareFcfa ?? 0))
+                     + (raw.order?.serviceFeeFcfa ?? 0) + (raw.feeFcfa ?? 0),
   };
 }
 

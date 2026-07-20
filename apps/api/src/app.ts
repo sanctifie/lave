@@ -24,6 +24,7 @@ import { ridesRouter } from './domains/rides/router';
 import { mealsRouter } from './domains/meals/router';
 import { chatRouter } from './domains/chat/router';
 import { adminRouter } from './domains/admin/router';
+import { reviewsRouter } from './domains/reviews/router';
 
 export const app: express.Express = express();
 
@@ -98,5 +99,6 @@ app.use('/rides', ridesRouter);
 app.use('/meals', mealsRouter);
 app.use('/chat', chatRouter);
 app.use('/admin', adminRouter);
+app.use('/reviews', reviewsRouter);
 
 app.use(errorHandler);

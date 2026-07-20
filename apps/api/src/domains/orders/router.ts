@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../lib/asyncHandler';
-import { PharmacyActionSchema, SubstitutionDecisionSchema, RecommendationDecisionSchema } from './schema';
+import { PharmacyActionSchema, SubstitutionDecisionSchema, RecommendationDecisionSchema, ChoosePaymentMethodSchema } from './schema';
 import { OrderService } from './service';
 import { OrderRepository } from './repository';
 import { DeliveryRepository } from '../deliveries/repository';
@@ -81,6 +81,17 @@ router.patch(
   validate(RecommendationDecisionSchema),
   asyncHandler(async (req, res) => {
     res.json(await service.decideRecommendation(req.params.id, req.user!.userId, req.body));
+  }),
+);
+
+// Patient : choisit le mode de paiement (Mobile Money séquestre ou espèces COD)
+router.patch(
+  '/:id/payment-method',
+  requireAuth,
+  requireRole(UserRole.PATIENT),
+  validate(ChoosePaymentMethodSchema),
+  asyncHandler(async (req, res) => {
+    res.json({ data: await service.choosePaymentMethod(req.params.id, req.user!.userId, req.body.method) });
   }),
 );
 

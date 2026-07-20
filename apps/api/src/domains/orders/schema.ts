@@ -47,6 +47,11 @@ export const RecommendationDecisionSchema = z.object({
     .min(1),
 });
 
+export const ChoosePaymentMethodSchema = z.object({
+  method: z.enum(['escrow', 'cod']),
+});
+export type ChoosePaymentMethodInput = z.infer<typeof ChoosePaymentMethodSchema>;
+
 export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
 export type PharmacyActionInput = z.infer<typeof PharmacyActionSchema>;
 export type SubstitutionDecisionInput = z.infer<typeof SubstitutionDecisionSchema>;
