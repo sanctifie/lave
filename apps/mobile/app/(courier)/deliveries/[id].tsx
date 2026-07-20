@@ -14,6 +14,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { DeliveryStatus } from '@mbolo/shared';
 import { deliveriesService, DeliveryItem } from '../../../src/services/deliveries.service';
+import { locationService } from '../../../src/services/location.service';
 import { Button } from '../../../src/components/ui/Button';
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { colors, spacing, radii, typography, shadows } from '../../../src/theme';
@@ -81,6 +82,30 @@ export default function DeliveryDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Suivi en direct : tant que la livraison est en cours (colis en main ou en
+  // route), le coursier diffuse sa position toutes les 20 s pour que le patient
+  // suive l'approche. On s'arrête dès qu'elle n'est plus active.
+  const status = delivery?.status;
+  useEffect(() => {
+    const broadcastable: string[] = [
+      DeliveryStatus.ASSIGNED,
+      DeliveryStatus.EN_ROUTE_PICKUP,
+      DeliveryStatus.PICKED_UP,
+      DeliveryStatus.EN_ROUTE_DELIVERY,
+    ];
+    if (!status || !broadcastable.includes(status)) return;
+
+    let cancelled = false;
+    const push = async () => {
+      const coords = await locationService.getCurrentCoords();
+      if (!coords || cancelled) return;
+      await deliveriesService.pushPosition(id, status, coords.lat, coords.lng).catch(() => {});
+    };
+    push();
+    const timer = setInterval(push, 20_000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [id, status]);
 
   const handleAccept = async () => {
     setAdvancing(true);

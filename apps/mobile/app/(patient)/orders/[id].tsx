@@ -14,6 +14,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { OrderStatus, DeliveryStatus } from '@mbolo/shared';
 import { ordersService, OrderDetail } from '../../../src/services/orders.service';
+import { deliveriesService, DeliveryTracking } from '../../../src/services/deliveries.service';
+import { locationService } from '../../../src/services/location.service';
 import { reviewsService } from '../../../src/services/reviews.service';
 import { StarRating } from '../../../src/components/StarRating';
 import { paymentsService } from '../../../src/services/payments.service';
@@ -30,6 +32,15 @@ const MAX_POLL = 20;
 
 function formatFcfa(n: number) {
   return `${n.toLocaleString('fr-FR')} FCFA`;
+}
+
+function timeAgo(iso: string) {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return 'à l\'instant';
+  const m = Math.round(s / 60);
+  if (m < 60) return `il y a ${m} min`;
+  const h = Math.round(m / 60);
+  return `il y a ${h} h`;
 }
 
 function formatDate(iso: string) {
@@ -78,6 +89,10 @@ export default function OrderDetailScreen() {
   const [rating, setRating] = useState(0);
   const [ratingBusy, setRatingBusy] = useState(false);
   const [rated, setRated] = useState(false);
+
+  // Suivi en direct de la livraison
+  const [tracking, setTracking] = useState<DeliveryTracking | null>(null);
+  const [trackAddr, setTrackAddr] = useState<string | null>(null);
 
   const submitRating = async () => {
     if (!order?.partnerId || rating === 0) return;
@@ -167,6 +182,30 @@ export default function OrderDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Suivi en direct : tant que la commande est en cours de livraison, on
+  // interroge la dernière position du coursier toutes les 15 s et on la
+  // convertit en adresse lisible.
+  const deliveryId     = order?.deliveryId ?? null;
+  const isBeingCarried = order?.status === OrderStatus.DISPATCHED;
+  useEffect(() => {
+    if (!deliveryId || !isBeingCarried) { setTracking(null); return; }
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const t = await deliveriesService.getTracking(deliveryId);
+        if (cancelled) return;
+        setTracking(t);
+        if (t.courier) {
+          const addr = await locationService.reverseGeocode({ lat: t.courier.lat, lng: t.courier.lng });
+          if (!cancelled) setTrackAddr(addr);
+        }
+      } catch { /* on réessaiera au prochain tick */ }
+    };
+    poll();
+    const timer = setInterval(poll, 15_000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [deliveryId, isBeingCarried]);
 
   const startPolling = () => {
     pollCount.current = 0;
@@ -542,6 +581,33 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
+        {/* Suivi en direct du coursier */}
+        {isDispatched && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📍 Suivi en direct</Text>
+            <View style={styles.trackCard}>
+              {tracking?.courier ? (
+                <>
+                  <View style={styles.trackRow}>
+                    <View style={styles.trackPulse} />
+                    <Text style={styles.trackStatus}>Votre coursier approche</Text>
+                  </View>
+                  <Text style={styles.trackAddr}>
+                    {trackAddr ?? `${tracking.courier.lat.toFixed(4)}, ${tracking.courier.lng.toFixed(4)}`}
+                  </Text>
+                  <Text style={styles.trackTime}>
+                    Position mise à jour {timeAgo(tracking.courier.recordedAt)}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.trackWaiting}>
+                  En attente de la position du coursier… elle s'affichera dès qu'il sera en route.
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Code de remise : le patient le MONTRE au livreur, qui le saisit pour
             confirmer la livraison et libérer le paiement. */}
         {isDispatched && order.handoverCode && (
@@ -726,6 +792,21 @@ const styles = StyleSheet.create({
 
   section:      { gap: spacing.sm },
   sectionTitle: { ...typography.bodyMedium, color: colors.text },
+
+  trackCard: {
+    backgroundColor: colors.primarySurface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  trackRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  trackPulse:  { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
+  trackStatus: { ...typography.bodyMedium, color: colors.primary },
+  trackAddr:   { ...typography.body, color: colors.text },
+  trackTime:   { ...typography.caption, color: colors.textSecondary },
+  trackWaiting:{ ...typography.caption, color: colors.textSecondary },
 
   itemsCard: {
     backgroundColor: colors.surface,

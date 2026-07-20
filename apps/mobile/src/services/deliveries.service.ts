@@ -18,6 +18,12 @@ export interface DeliveryItem {
   codDueFcfa:      number; // espèces à encaisser si COD
 }
 
+export interface DeliveryTracking {
+  status:    string;
+  updatedAt: string | null;
+  courier:   { lat: number; lng: number; recordedAt: string } | null;
+}
+
 function normalize(raw: any): DeliveryItem {
   const phone = raw.order?.patient?.phone ?? '';
   return {
@@ -67,6 +73,17 @@ export const deliveriesService = {
 
   async confirmHandover(id: string, code: string): Promise<void> {
     await apiClient.post(`/deliveries/${id}/handover`, { code });
+  },
+
+  /** Coursier : pousse sa position GPS en direct (avec le statut courant). */
+  async pushPosition(id: string, status: string, lat: number, lng: number): Promise<void> {
+    await apiClient.patch(`/deliveries/${id}/position?lat=${lat}&lng=${lng}`, { status });
+  },
+
+  /** Patient/coursier : dernière position connue du coursier. */
+  async getTracking(id: string): Promise<DeliveryTracking> {
+    const { data } = await apiClient.get<{ data: DeliveryTracking }>(`/deliveries/${id}/tracking`);
+    return data.data ?? (data as any);
   },
 
   async toggleAvailability(isAvailable: boolean): Promise<void> {

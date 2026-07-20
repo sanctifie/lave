@@ -88,6 +88,27 @@ export class DeliveryService {
     return isPatient ? d : this.stripHandoverCode(d as any);
   }
 
+  // Suivi en direct : renvoie la dernière position GPS du coursier. Réservé au
+  // patient destinataire ou à un coursier (mêmes règles que getById) — les
+  // coordonnées de course ne fuitent à personne d'autre.
+  async getTracking(id: string, requester: { userId: string; role: string }) {
+    const d = await this.repo.findById(id);
+    if (!d) throw HTTP.notFound('Livraison introuvable');
+    const patientId = (d as any).order?.patient?.id ?? null;
+    const isPatient = requester.userId === patientId;
+    const isCourier = requester.role === 'courier';
+    if (!isPatient && !isCourier) throw HTTP.forbidden();
+
+    const last = await this.repo.latestTracking(id);
+    return {
+      status:    (d as any).status,
+      updatedAt: last?.recordedAt ?? null,
+      courier: last
+        ? { lat: Number(last.lat), lng: Number(last.lng), recordedAt: last.recordedAt }
+        : null,
+    };
+  }
+
   async listMine(courierId: string) {
     const rows = await this.repo.listForCourier(courierId);
     return (rows as any[]).map((d) => this.stripHandoverCode(d));

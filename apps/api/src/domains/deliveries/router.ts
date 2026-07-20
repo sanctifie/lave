@@ -81,6 +81,11 @@ router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
   res.json(await service.getById(req.params.id, { userId: req.user!.userId, role: req.user!.role }));
 }));
 
+// Suivi en direct : dernière position du coursier (patient destinataire ou coursier)
+router.get('/:id/tracking', requireAuth, asyncHandler(async (req, res) => {
+  res.json({ data: await service.getTracking(req.params.id, { userId: req.user!.userId, role: req.user!.role }) });
+}));
+
 // Courier : s'auto-assigne une livraison
 router.patch('/:id/assign', requireAuth, requireRole(UserRole.COURIER), asyncHandler(async (req, res) => {
   res.json(await service.assign(req.params.id, req.user!.userId));
