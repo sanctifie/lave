@@ -126,6 +126,17 @@ export enum PaperStatus {
   VERIFIED = 'verified',       // vérifié + annoté par le pharmacien, scellé au colis (étape 3)
 }
 
+/**
+ * Lien d'aidant : un accompagnant gère les commandes/ordonnances d'un patient
+ * (parent âgé, enfant…) avec le consentement de ce dernier. Le patient invite,
+ * l'accompagnant accepte ; chacun peut révoquer à tout moment.
+ */
+export enum CareLinkStatus {
+  PENDING = 'pending',   // invitation envoyée par le patient, en attente
+  ACCEPTED = 'accepted', // acceptée par l'accompagnant → gestion active
+  REVOKED = 'revoked',   // révoquée par l'une des deux parties
+}
+
 export enum DeliveryStatus {
   PENDING_ASSIGNMENT = 'pending_assignment',
   ASSIGNED = 'assigned',

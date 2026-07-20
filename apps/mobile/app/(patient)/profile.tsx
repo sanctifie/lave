@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/auth.store';
 import { apiClient } from '../../src/services/client';
 import { Button } from '../../src/components/ui/Button';
@@ -50,6 +51,7 @@ function parseLocalDate(ddmmyyyy: string): string | null {
 export default function PatientProfileScreen() {
   const user   = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const router = useRouter();
 
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
@@ -124,6 +126,16 @@ export default function PatientProfileScreen() {
           <Text style={styles.avatarText}>{initials}</Text>
         </Pressable>
       </View>
+
+      {/* Accès « Mes proches » (aidants / comptes gérés) */}
+      <Pressable style={styles.navCard} onPress={() => router.push('/(patient)/care' as never)}>
+        <View style={styles.navIcon}><Text style={{ fontSize: 20 }}>👪</Text></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.navTitle}>Mes proches</Text>
+          <Text style={styles.navHint}>Gérer un aidant ou les comptes qui vous sont confiés</Text>
+        </View>
+        <Text style={styles.navChevron}>›</Text>
+      </Pressable>
 
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
@@ -282,6 +294,18 @@ const styles = StyleSheet.create({
   },
   cardTitle: { ...typography.h3, color: colors.text },
   cardHint:  { ...typography.caption, color: colors.textSecondary },
+
+  navCard: {
+    backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.card,
+  },
+  navIcon: {
+    width: 40, height: 40, borderRadius: radii.full,
+    backgroundColor: colors.primarySurface, alignItems: 'center', justifyContent: 'center',
+  },
+  navTitle:   { ...typography.bodyMedium, color: colors.text },
+  navHint:    { ...typography.caption, color: colors.textSecondary },
+  navChevron: { ...typography.h3, color: colors.textSecondary },
 
   field: { gap: spacing.xs },
   label: { ...typography.label, color: colors.text },
