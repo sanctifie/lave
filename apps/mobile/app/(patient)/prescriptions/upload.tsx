@@ -26,6 +26,8 @@ interface PharmacyItem {
   address: string;
   isOnDuty?: boolean;
   openingHours?: string | null;
+  rating?: number | null;
+  reviewCount?: number;
 }
 
 const CONSENT_OPTIONS: { value: SubstitutionConsent; label: string; hint: string }[] = [
@@ -196,6 +198,13 @@ export default function UploadScreen() {
                       <Text style={styles.pharmacyAddr}>
                         {ph.address}{ph.openingHours ? ` · ${ph.openingHours}` : ''}
                       </Text>
+                      {ph.rating != null ? (
+                        <Text style={styles.pharmacyRating}>
+                          ⭐ {ph.rating.toFixed(1)} · {ph.reviewCount} avis
+                        </Text>
+                      ) : (
+                        <Text style={styles.pharmacyNoRating}>Pas encore d'avis</Text>
+                      )}
                     </View>
                   </Pressable>
                 );
@@ -350,6 +359,8 @@ const styles = StyleSheet.create({
   dutyBadge: { backgroundColor: colors.primarySurface, borderRadius: radii.full, paddingHorizontal: spacing.sm, paddingVertical: 2 },
   dutyBadgeTxt: { ...typography.small, color: colors.accent, fontWeight: '700' },
   pharmacyAddr: { ...typography.caption, color: colors.textSecondary },
+  pharmacyRating: { ...typography.caption, color: colors.warning, marginTop: 2 },
+  pharmacyNoRating: { ...typography.small, color: colors.textDisabled, marginTop: 2 },
   noPharmacy:   { ...typography.caption, color: colors.textSecondary, textAlign: 'center', padding: spacing.md },
 
   consentIntro: { ...typography.caption, color: colors.textSecondary },
