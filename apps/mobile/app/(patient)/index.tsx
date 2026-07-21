@@ -40,6 +40,7 @@ const ORDER_STATUS_ICON: Record<string, string> = {
 
 const SERVICES = [
   { icon: '📋', label: 'Ordonnance', route: '/(patient)/prescriptions', bg: colors.primarySurface },
+  { icon: '💊', label: 'Pharmacies', route: '/(patient)/pharmacies',    bg: '#ECFEFF' },
   { icon: '👨‍⚕️', label: 'Médecin',    route: '/(patient)/appointments',  bg: '#FFF0EB' },
   { icon: '📦', label: 'Commandes',  route: '/(patient)/orders',         bg: '#E0F2FE' },
   { icon: '🚗', label: 'Transport',  route: '/(patient)/rides',          bg: '#F0FDF4' },
