@@ -17,6 +17,7 @@ import {
   scheduleMedicationReminders,
   listReminders,
   cancelReminderGroup,
+  parsePosology,
   ReminderGroup,
 } from '../../../src/services/reminders.service';
 
@@ -48,6 +49,9 @@ export default function RemindersScreen() {
   const [slots, setSlots]           = useState<Record<string, boolean>>({ morning: true });
   const [duration, setDuration]     = useState(7);
   const [saving, setSaving]         = useState(false);
+  // Lecture IA de la posologie (texte libre → créneaux)
+  const [posology, setPosology]     = useState('');
+  const [parsing, setParsing]       = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,6 +67,39 @@ export default function RemindersScreen() {
   useEffect(() => { load(); }, [load]);
 
   const toggleSlot = (key: string) => setSlots((p) => ({ ...p, [key]: !p[key] }));
+
+  // Un horaire "HH:MM" → créneau le plus proche du formulaire.
+  const slotForTime = (t: string): string => {
+    const h = parseInt(t.split(':')[0], 10);
+    if (h < 11) return 'morning';
+    if (h < 14) return 'noon';
+    if (h < 21) return 'evening';
+    return 'night';
+  };
+
+  // Analyse la posologie collée et pré-remplit créneaux + durée (l'IA propose,
+  // le patient ajuste). Sans IA configurée → invite à cocher manuellement.
+  const analysePosology = async () => {
+    const text = posology.trim();
+    if (!text) return;
+    setParsing(true);
+    try {
+      const parsed = await parsePosology(text);
+      if (!parsed || parsed.times.length === 0) {
+        Alert.alert('Analyse indisponible', 'Cochez les moments de prise manuellement ci-dessous.');
+        return;
+      }
+      const next: Record<string, boolean> = {};
+      parsed.times.forEach((t) => { next[slotForTime(t)] = true; });
+      setSlots(next);
+      if (parsed.durationDays > 0) {
+        const nearest = DURATIONS.reduce((a, b) => (Math.abs(b - parsed.durationDays) < Math.abs(a - parsed.durationDays) ? b : a));
+        setDuration(nearest);
+      }
+    } finally {
+      setParsing(false);
+    }
+  };
 
   const save = async () => {
     const name = medication.trim();
@@ -111,7 +148,8 @@ export default function RemindersScreen() {
         </View>
 
         <Text style={styles.intro}>
-          Les rappels restent sur votre téléphone (aucune donnée de santé transmise).
+          Vos rappels sont sauvegardés sur votre compte — ils vous suivent même en
+          cas de changement de téléphone.
         </Text>
 
         {/* Formulaire */}
@@ -124,6 +162,23 @@ export default function RemindersScreen() {
             value={medication}
             onChangeText={setMedication}
           />
+
+          <Text style={styles.fieldLabel}>Posologie (facultatif — remplissage assisté)</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 44 }]}
+            placeholder="Ex. 1 comprimé matin et soir pendant 7 jours"
+            placeholderTextColor={colors.textDisabled}
+            value={posology}
+            onChangeText={setPosology}
+            multiline
+          />
+          <Pressable
+            style={[styles.analyseBtn, (parsing || !posology.trim()) && { opacity: 0.5 }]}
+            disabled={parsing || !posology.trim()}
+            onPress={analysePosology}
+          >
+            <Text style={styles.analyseBtnTxt}>{parsing ? 'Analyse…' : '✨ Pré-remplir depuis la posologie'}</Text>
+          </Pressable>
 
           <Text style={styles.fieldLabel}>Moments de prise</Text>
           <View style={styles.slotRow}>
@@ -255,6 +310,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnTxt: { ...typography.bodyMedium, color: colors.textOnDark },
+
+  analyseBtn: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: radii.full,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  analyseBtnTxt: { ...typography.label, color: colors.primary },
 
   emptyBox: {
     alignItems: 'center',

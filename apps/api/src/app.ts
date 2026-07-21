@@ -26,6 +26,7 @@ import { chatRouter } from './domains/chat/router';
 import { adminRouter } from './domains/admin/router';
 import { reviewsRouter } from './domains/reviews/router';
 import { careLinksRouter } from './domains/carelinks/router';
+import { remindersRouter } from './domains/reminders/router';
 
 export const app: express.Express = express();
 
@@ -102,5 +103,6 @@ app.use('/chat', chatRouter);
 app.use('/admin', adminRouter);
 app.use('/reviews', reviewsRouter);
 app.use('/care-links', careLinksRouter);
+app.use('/reminders', remindersRouter);
 
 app.use(errorHandler);

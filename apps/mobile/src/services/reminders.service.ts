@@ -1,13 +1,15 @@
 import * as Notifications from 'expo-notifications';
+import { apiClient } from './client';
 
 /**
- * Rappels de prise — 100 % locaux (aucune donnée de santé n'quitte l'appareil).
- * Les notifications planifiées d'expo-notifications font office de source de
- * vérité : on n'a pas de store à maintenir, on relit le planning à la demande.
+ * Rappels de prise. La source de vérité est désormais le SERVEUR (ils survivent
+ * au changement de téléphone) ; les notifications locales d'expo-notifications
+ * restent le canal de livraison, (re)planifiées à partir du plan serveur.
+ * Repli hors-ligne : si le serveur est injoignable, on fonctionne en local seul.
  */
 
 export interface ReminderGroup {
-  /** Identifiant commun à toutes les occurrences d'un même rappel. */
+  /** Identifiant du rappel (id serveur, ou id local en repli hors-ligne). */
   groupId: string;
   medication: string;
   times: string[];      // ex. ['08:00', '20:00']
@@ -18,23 +20,23 @@ export interface ReminderGroup {
   nextAt: Date | null;
 }
 
+interface ServerReminder {
+  id: string;
+  medication: string;
+  times: string[];
+  durationDays: number;
+}
+
 const REMINDER_TYPE = 'medication_reminder';
 
 function pad(n: number) {
   return n.toString().padStart(2, '0');
 }
 
-/** Programme des rappels quotidiens pour un médicament, sur `durationDays` jours. */
-export async function scheduleMedicationReminders(params: {
-  medication: string;
-  times: string[];       // ['HH:MM', …]
-  durationDays: number;
-}): Promise<{ groupId: string; scheduled: number }> {
-  const { medication, times, durationDays } = params;
-  const groupId = `rem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+/** Planifie les notifications locales d'un rappel (canal de livraison). */
+async function scheduleLocal(groupId: string, medication: string, times: string[], durationDays: number): Promise<number> {
   const now = new Date();
   let scheduled = 0;
-
   for (let day = 0; day < durationDays; day++) {
     for (const t of times) {
       const [h, m] = t.split(':').map((x) => parseInt(x, 10));
@@ -42,40 +44,33 @@ export async function scheduleMedicationReminders(params: {
       const when = new Date(now);
       when.setDate(now.getDate() + day);
       when.setHours(h, m, 0, 0);
-      // On ignore les occurrences déjà passées (aujourd'hui, heure dépassée).
-      if (when.getTime() <= now.getTime() + 1000) continue;
+      if (when.getTime() <= now.getTime() + 1000) continue; // occurrence déjà passée
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '💊 Rappel de prise',
           body: `C'est l'heure de prendre : ${medication}`,
           data: { type: REMINDER_TYPE, groupId, medication, times, durationDays },
         },
-        // Déclencheur à une date précise (format compatible expo-notifications 0.28).
         trigger: { date: when },
       });
       scheduled++;
     }
   }
-  return { groupId, scheduled };
+  return scheduled;
 }
 
-/** Relit toutes les notifications planifiées et regroupe les rappels de prise. */
-export async function listReminders(): Promise<ReminderGroup[]> {
+/** Regroupe les notifications locales planifiées par rappel. */
+async function readLocalGroups(): Promise<Map<string, ReminderGroup>> {
   const all = await Notifications.getAllScheduledNotificationsAsync();
   const groups = new Map<string, ReminderGroup>();
-
   for (const n of all) {
     const data = (n.content.data ?? {}) as Record<string, any>;
     if (data.type !== REMINDER_TYPE || !data.groupId) continue;
-
     const trigger = n.trigger as any;
     const at: Date | null =
-      trigger?.date != null
-        ? new Date(trigger.date)
-        : trigger?.value != null
-          ? new Date(trigger.value)
-          : null;
-
+      trigger?.date != null ? new Date(trigger.date)
+      : trigger?.value != null ? new Date(trigger.value)
+      : null;
     const existing = groups.get(data.groupId);
     if (existing) {
       existing.remaining += 1;
@@ -91,16 +86,82 @@ export async function listReminders(): Promise<ReminderGroup[]> {
       });
     }
   }
-
-  return Array.from(groups.values()).sort((a, b) => {
-    const ta = a.nextAt?.getTime() ?? Infinity;
-    const tb = b.nextAt?.getTime() ?? Infinity;
-    return ta - tb;
-  });
+  return groups;
 }
 
-/** Annule toutes les occurrences d'un rappel. */
+/** Lecture IA d'une posologie en texte libre → horaires + durée proposés. */
+export async function parsePosology(instructions: string): Promise<{ times: string[]; durationDays: number } | null> {
+  try {
+    const { data } = await apiClient.post<{ data: { times: string[]; durationDays: number } | null }>(
+      '/reminders/parse',
+      { instructions },
+    );
+    return data.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Crée un rappel : persistance serveur (source de vérité) + notifications locales. */
+export async function scheduleMedicationReminders(params: {
+  medication: string;
+  times: string[];
+  durationDays: number;
+}): Promise<{ groupId: string; scheduled: number }> {
+  const { medication, times, durationDays } = params;
+  let id: string | undefined;
+  try {
+    const { data } = await apiClient.post<{ data: ServerReminder }>('/reminders', { medication, times, durationDays });
+    id = data.data?.id;
+  } catch {
+    // Hors-ligne : on planifie quand même en local avec un id temporaire.
+  }
+  const groupId = id ?? `rem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const scheduled = await scheduleLocal(groupId, medication, times, durationDays);
+  return { groupId, scheduled };
+}
+
+/** Liste les rappels (serveur = source de vérité) et re-planifie le local manquant. */
+export async function listReminders(): Promise<ReminderGroup[]> {
+  let server: ServerReminder[] = [];
+  let online = true;
+  try {
+    const { data } = await apiClient.get<{ data: ServerReminder[] }>('/reminders');
+    server = data.data ?? [];
+  } catch {
+    online = false;
+  }
+
+  let local = await readLocalGroups();
+
+  // Nouveau téléphone / notifications perdues : on re-planifie depuis le serveur.
+  for (const r of server) {
+    if (!local.has(r.id)) await scheduleLocal(r.id, r.medication, r.times, r.durationDays);
+  }
+  if (server.length > 0) local = await readLocalGroups();
+
+  if (online) {
+    return server.map((r) => {
+      const g = local.get(r.id);
+      return {
+        groupId: r.id,
+        medication: r.medication,
+        times: r.times,
+        durationDays: r.durationDays,
+        remaining: g?.remaining ?? 0,
+        nextAt: g?.nextAt ?? null,
+      };
+    });
+  }
+
+  // Repli hors-ligne total : on montre ce qui est planifié localement.
+  return Array.from(local.values()).sort((a, b) => (a.nextAt?.getTime() ?? Infinity) - (b.nextAt?.getTime() ?? Infinity));
+}
+
+/** Annule un rappel : désactivation serveur + annulation des notifications locales. */
 export async function cancelReminderGroup(groupId: string): Promise<void> {
+  // Désactivation serveur (ignore si id local / hors-ligne).
+  await apiClient.delete(`/reminders/${groupId}`).catch(() => {});
   const all = await Notifications.getAllScheduledNotificationsAsync();
   for (const n of all) {
     const data = (n.content.data ?? {}) as Record<string, any>;
