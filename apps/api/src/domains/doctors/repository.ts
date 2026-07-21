@@ -4,13 +4,32 @@ import { RegisterDoctorInput } from './schema';
 
 export class DoctorRepository {
   async listVerified(specialty?: string) {
-    return prisma.doctorProfile.findMany({
+    const doctors = await prisma.doctorProfile.findMany({
       where: {
         verificationStatus: VerificationStatus.VERIFIED,
         ...(specialty ? { specialty: { name: specialty } } : {}),
       },
       include: { specialty: true, user: { select: { name: true } } },
       orderBy: { createdAt: 'asc' },
+    });
+
+    // Note moyenne agrégée (avis non signalés) pour aider le choix du patient.
+    const ids = doctors.map((d) => d.id);
+    if (ids.length === 0) return doctors.map((d) => ({ ...d, rating: null, reviewCount: 0 }));
+    const ratings = await prisma.review.groupBy({
+      by: ['refId'],
+      where: { refTable: 'doctor_profiles', refId: { in: ids }, flagged: false },
+      _avg: { rating: true },
+      _count: { _all: true },
+    });
+    const byId = new Map(ratings.map((r) => [r.refId, r]));
+    return doctors.map((d) => {
+      const r = byId.get(d.id);
+      return {
+        ...d,
+        rating: r?._avg.rating ? Math.round(r._avg.rating * 10) / 10 : null,
+        reviewCount: r?._count._all ?? 0,
+      };
     });
   }
 

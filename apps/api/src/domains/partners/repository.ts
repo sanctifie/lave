@@ -4,10 +4,29 @@ import { CreatePartnerInput, CreateProductInput, UpdateProductInput, UpdateDutyI
 
 export class PartnerRepository {
   async list(type?: PartnerType) {
-    return prisma.partnerProfile.findMany({
+    const partners = await prisma.partnerProfile.findMany({
       where: { isActive: true, ...(type && { type }) },
       // Pharmacies de garde mises en avant.
       orderBy: [{ isOnDuty: 'desc' }, { legalName: 'asc' }],
+    });
+
+    // Note moyenne agrégée (avis non signalés uniquement) pour aider le choix.
+    const ids = partners.map((p) => p.id);
+    if (ids.length === 0) return partners.map((p) => ({ ...p, rating: null, reviewCount: 0 }));
+    const ratings = await prisma.review.groupBy({
+      by: ['refId'],
+      where: { refTable: 'partner_profiles', refId: { in: ids }, flagged: false },
+      _avg: { rating: true },
+      _count: { _all: true },
+    });
+    const byId = new Map(ratings.map((r) => [r.refId, r]));
+    return partners.map((p) => {
+      const r = byId.get(p.id);
+      return {
+        ...p,
+        rating: r?._avg.rating ? Math.round(r._avg.rating * 10) / 10 : null,
+        reviewCount: r?._count._all ?? 0,
+      };
     });
   }
 

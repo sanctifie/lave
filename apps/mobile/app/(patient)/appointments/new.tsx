@@ -282,10 +282,16 @@ export default function NewAppointmentScreen() {
                         </Text>
                         <Text style={styles.drSpecialty}>{dr.specialty}</Text>
                         <View style={styles.ratingRow}>
-                          <Text style={styles.star}>★</Text>
-                          <Text style={styles.rating}>
-                            {dr.rating.toFixed(1)} ({dr.reviewCount})
-                          </Text>
+                          {dr.rating != null ? (
+                            <>
+                              <Text style={styles.star}>★</Text>
+                              <Text style={styles.rating}>
+                                {dr.rating.toFixed(1)} ({dr.reviewCount})
+                              </Text>
+                            </>
+                          ) : (
+                            <Text style={styles.rating}>Nouveau</Text>
+                          )}
                         </View>
                       </View>
                       <View style={styles.drRight}>

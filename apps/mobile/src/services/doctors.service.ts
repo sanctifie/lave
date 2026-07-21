@@ -5,7 +5,7 @@ export interface DoctorListItem {
   name: string;
   specialty: string;
   consultationFeeFcfa: number;
-  rating: number;
+  rating: number | null;
   reviewCount: number;
   isAvailableNow: boolean;
 }
