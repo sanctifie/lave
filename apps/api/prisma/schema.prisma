@@ -831,6 +831,10 @@ model Review {
   authorId  String
   rating    Int
   comment   String?
+  // Modération IA (claude-haiku-4-5) : signale un avis à revoir par un admin.
+  // L'avis reste visible ; le flag ne fait qu'aider la modération humaine.
+  flagged        Boolean @default(false)
+  moderationNote String?
   // refTable = "partner_profiles" | "doctor_profiles" | "couriers"
   refTable  String
   refId     String
@@ -838,5 +842,6 @@ model Review {
 
   author User @relation("ReviewAuthor", fields: [authorId], references: [id])
 
+  @@index([flagged])
   @@map("reviews")
 }

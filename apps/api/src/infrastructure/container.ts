@@ -9,6 +9,8 @@ import { DailyVideoProvider } from './providers/video/daily';
 import { PushService } from './push/service';
 import { ExpoPushProvider } from './push/expo';
 import { StubPushProvider } from './push/stub';
+import { AnthropicAiProvider } from './providers/ai';
+import { StubAiProvider } from './providers/ai/stub';
 
 // Singletons — swapper les stubs par les vrais providers sans toucher au reste du code
 
@@ -43,3 +45,9 @@ export const pushService = new PushService(
     ? new ExpoPushProvider(process.env.EXPO_ACCESS_TOKEN)
     : new StubPushProvider(),
 );
+
+// Assistance IA (Claude) — activée si ANTHROPIC_API_KEY défini, sinon stub.
+// L'IA assiste (modération, extraction, pré-contrôle KYC) ; un humain valide toujours.
+export const aiProvider = process.env.ANTHROPIC_API_KEY
+  ? new AnthropicAiProvider()
+  : new StubAiProvider();
