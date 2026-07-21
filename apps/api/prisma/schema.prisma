@@ -720,6 +720,8 @@ model Courier {
   isAvailable Boolean  @default(false)
   lat         Decimal? @db.Decimal(10, 7)
   lng         Decimal? @db.Decimal(10, 7)
+  // KYC : le coursier manipule des médicaments, il doit être vérifié.
+  verificationStatus VerificationStatus @default(pending_verification)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

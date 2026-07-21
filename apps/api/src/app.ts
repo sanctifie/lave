@@ -26,6 +26,7 @@ import { chatRouter } from './domains/chat/router';
 import { adminRouter } from './domains/admin/router';
 import { reviewsRouter } from './domains/reviews/router';
 import { careLinksRouter } from './domains/carelinks/router';
+import { kycRouter } from './domains/kyc/router';
 
 export const app: express.Express = express();
 
@@ -102,5 +103,6 @@ app.use('/chat', chatRouter);
 app.use('/admin', adminRouter);
 app.use('/reviews', reviewsRouter);
 app.use('/care-links', careLinksRouter);
+app.use('/kyc', kycRouter);
 
 app.use(errorHandler);
