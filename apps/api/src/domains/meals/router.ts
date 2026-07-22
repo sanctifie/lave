@@ -90,7 +90,7 @@ router.get(
   '/orders/:id',
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.json({ data: await service.getOrder(req.params.id) });
+    res.json({ data: await service.getOrder(req.params.id, { userId: req.user!.userId, role: req.user!.role }) });
   }),
 );
 

@@ -87,9 +87,24 @@ export class MealService {
     return this.repo.listOrdersForPatient(patientId);
   }
 
-  async getOrder(id: string) {
+  async getOrder(id: string, requester: { userId: string; role: string }) {
     const order = await this.repo.findOrderById(id);
     if (!order) throw HTTP.notFound('Commande introuvable');
+    // Contrôle d'accès : patient propriétaire, ou cuisine (partenaire) qui
+    // détient le plan de la commande. Sinon tout utilisateur authentifié
+    // pourrait lire les commandes de repas d'autrui (IDOR).
+    const isPatient = (order as any).patientId === requester.userId;
+    let isKitchen = false;
+    if (requester.role === 'partner_staff') {
+      const user = await prisma.user.findUnique({
+        where: { id: requester.userId },
+        select: { partnerProfileId: true },
+      });
+      isKitchen =
+        !!user?.partnerProfileId &&
+        user.partnerProfileId === (order as any).mealPlan?.partnerId;
+    }
+    if (!isPatient && !isKitchen) throw HTTP.forbidden();
     return order;
   }
 

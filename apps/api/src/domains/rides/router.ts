@@ -80,7 +80,7 @@ router.get(
   '/:id',
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.json({ data: await service.getById(req.params.id) });
+    res.json({ data: await service.getById(req.params.id, { userId: req.user!.userId, role: req.user!.role }) });
   }),
 );
 

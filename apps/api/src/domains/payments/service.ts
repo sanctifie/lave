@@ -39,7 +39,10 @@ export class PaymentService {
     // Sans assurance, caisseShareFcfa = 0 → montant inchangé.
     const caisseShareFcfa = (order as any).caisseShareFcfa ?? 0;
     const patientMedShare = (order as any).totalFcfa - caisseShareFcfa;
-    const amount          = patientMedShare + (order as any).serviceFeeFcfa;
+    // Le patient règle aussi les frais de livraison (créés sur la commande à la
+    // validation). Sans livraison rattachée (ex. retrait), la part est nulle.
+    const deliveryFeeFcfa = (order as any).delivery?.feeFcfa ?? 0;
+    const amount          = patientMedShare + (order as any).serviceFeeFcfa + deliveryFeeFcfa;
     const result          = await this.provider.initEscrow({ amountFcfa: amount, phoneNumber: input.phoneNumber, idempotencyKey });
 
     return this.repo.createEscrow({

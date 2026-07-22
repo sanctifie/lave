@@ -98,6 +98,7 @@ describe('DeliveryService.confirmHandover — sécurité & principe légal', () 
 describe('DeliveryService.getTracking — suivi en direct & accès', () => {
   function trackSetup(over: Record<string, any> = {}) {
     const { service, repo } = setup({
+      delivery: over.delivery,
       repo: {
         latestTracking: vi.fn().mockResolvedValue({
           lat: 0.39, lng: 9.45, status: 'en_route_delivery', recordedAt: new Date('2026-07-20T08:00:00Z'),
@@ -127,10 +128,18 @@ describe('DeliveryService.getTracking — suivi en direct & accès', () => {
     expect(res.updatedAt).toBeInstanceOf(Date);
   });
 
-  it('autorise un coursier même non destinataire', async () => {
-    const { service } = trackSetup();
+  it('autorise un coursier si la course est encore à prendre (pending)', async () => {
+    const { service } = trackSetup({ delivery: { status: 'pending_assignment' } });
     const res = await service.getTracking('dlv1', { userId: 'courierX', role: 'courier' });
     expect(res.courier).not.toBeNull();
+  });
+
+  it('403 pour un coursier NON assigné sur une course déjà prise (anti-IDOR)', async () => {
+    // Course sans statut « à prendre » et sans coursier rattaché : un coursier
+    // tiers ne doit pas pouvoir lire la position ni les données du patient.
+    const { service } = trackSetup();
+    await expect(service.getTracking('dlv1', { userId: 'courierX', role: 'courier' }))
+      .rejects.toMatchObject({ statusCode: 403 });
   });
 
   it('courier = null si aucune position enregistrée', async () => {

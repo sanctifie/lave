@@ -74,29 +74,45 @@ export class DeliveryService {
     return { isAvailable: await this.repo.getCourierAvailability(userId) };
   }
 
+  // Un coursier n'a accès à une livraison que si elle est ENCORE À PRENDRE
+  // (il peut alors l'accepter) ou si elle lui est DÉJÀ ASSIGNÉE. Sans cela,
+  // n'importe quel coursier pourrait lire le nom/téléphone/adresse du patient
+  // de la course d'un confrère ou d'une commande déjà livrée (fuite de données
+  // de santé / IDOR).
+  private async courierMayAccess(d: any, courierUserId: string): Promise<boolean> {
+    if (d.status === DeliveryStatus.PENDING_ASSIGNMENT) return true;
+    if (!d.courierId) return false;
+    const c = await prisma.courier.findUnique({
+      where: { id: d.courierId },
+      select: { userId: true },
+    });
+    return c?.userId === courierUserId;
+  }
+
   async getById(id: string, requester: { userId: string; role: string }) {
     const d = await this.repo.findById(id);
     if (!d) throw HTTP.notFound('Livraison introuvable');
-    // Contrôle d'accès : patient destinataire, ou coursier (assigné, ou libre si
-    // la course est encore à prendre). Personne d'autre ne voit ces données
-    // (nom/téléphone du patient, adresses).
+    // Contrôle d'accès : patient destinataire, ou coursier assigné/à prendre.
+    // Personne d'autre ne voit ces données (nom/téléphone du patient, adresses).
     const patientId = (d as any).order?.patient?.id ?? null;
     const isPatient = requester.userId === patientId;
-    const isCourier = requester.role === 'courier';
+    const isCourier =
+      requester.role === 'courier' && (await this.courierMayAccess(d, requester.userId));
     if (!isPatient && !isCourier) throw HTTP.forbidden();
     // Le code de remise reste chez le patient : caviardé pour le coursier.
     return isPatient ? d : this.stripHandoverCode(d as any);
   }
 
   // Suivi en direct : renvoie la dernière position GPS du coursier. Réservé au
-  // patient destinataire ou à un coursier (mêmes règles que getById) — les
-  // coordonnées de course ne fuitent à personne d'autre.
+  // patient destinataire ou au coursier assigné/à prendre (mêmes règles que
+  // getById) — les coordonnées de course ne fuitent à personne d'autre.
   async getTracking(id: string, requester: { userId: string; role: string }) {
     const d = await this.repo.findById(id);
     if (!d) throw HTTP.notFound('Livraison introuvable');
     const patientId = (d as any).order?.patient?.id ?? null;
     const isPatient = requester.userId === patientId;
-    const isCourier = requester.role === 'courier';
+    const isCourier =
+      requester.role === 'courier' && (await this.courierMayAccess(d, requester.userId));
     if (!isPatient && !isCourier) throw HTTP.forbidden();
 
     const last = await this.repo.latestTracking(id);
@@ -207,7 +223,11 @@ export class DeliveryService {
       const codOrder = await this.orderRepo.findById(delivery.orderId);
       if (codOrder && (codOrder as any).paymentMethod === 'cod' && !(codOrder as any).transaction) {
         const caisseShareFcfa = (codOrder as any).caisseShareFcfa ?? 0;
-        const patientDue = Math.max(0, codOrder.totalFcfa - caisseShareFcfa) + codOrder.serviceFeeFcfa;
+        // Le patient règle en espèces : part médicaments (ticket modérateur) +
+        // frais de service + frais de livraison. La pharmacie ne reçoit que la
+        // part médicaments (aucune marge sur le médicament).
+        const deliveryFeeFcfa = (codOrder as any).delivery?.feeFcfa ?? (delivery as any).feeFcfa ?? 0;
+        const patientDue = Math.max(0, codOrder.totalFcfa - caisseShareFcfa) + codOrder.serviceFeeFcfa + deliveryFeeFcfa;
         const pharmacyAmount = Math.max(0, codOrder.totalFcfa - caisseShareFcfa);
         await prisma.transaction.create({
           data: {

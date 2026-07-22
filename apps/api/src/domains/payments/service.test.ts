@@ -203,6 +203,17 @@ describe('PaymentService.initEscrow — tiers-payant', () => {
     expect(provider.initEscrow).toHaveBeenCalledWith(expect.objectContaining({ amountFcfa: 2500 }));
   });
 
+  it('inclut les frais de livraison dans le montant débité', async () => {
+    // 10000 médicaments + 500 service + 1000 livraison = 11500
+    const order = {
+      patientId: 'p1', totalFcfa: 10000, serviceFeeFcfa: 500, caisseShareFcfa: 0,
+      delivery: { feeFcfa: 1000 },
+    };
+    const { service } = makeServiceWithOrder(order);
+    await service.initEscrow('p1', { orderId: 'ckorder1', phoneNumber: '24107000000' } as any);
+    expect(provider.initEscrow).toHaveBeenCalledWith(expect.objectContaining({ amountFcfa: 11500 }));
+  });
+
   it('refuse un patient qui n\'est pas propriétaire (403)', async () => {
     const order = { patientId: 'autre', totalFcfa: 10000, serviceFeeFcfa: 500, caisseShareFcfa: 0 };
     const { service } = makeServiceWithOrder(order);

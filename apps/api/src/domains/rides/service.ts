@@ -68,9 +68,27 @@ export class RideService {
     return this.repo.listForPatient(patientId);
   }
 
-  async getById(id: string) {
+  async getById(id: string, requester: { userId: string; role: string }) {
     const ride = await this.repo.findById(id);
     if (!ride) throw HTTP.notFound('Course introuvable');
+    // Contrôle d'accès : patient demandeur, ou coursier assigné / course encore
+    // à prendre. Sans cela, tout utilisateur authentifié pourrait lire les
+    // adresses de prise en charge et l'identité du patient (IDOR).
+    const patientId = (ride as any).request?.patientId ?? null;
+    const isPatient = requester.userId === patientId;
+    let isCourier = false;
+    if (requester.role === 'courier') {
+      if ((ride as any).status === 'pending') {
+        isCourier = true;
+      } else if ((ride as any).courierId) {
+        const c = await prisma.courier.findUnique({
+          where: { id: (ride as any).courierId },
+          select: { userId: true },
+        });
+        isCourier = c?.userId === requester.userId;
+      }
+    }
+    if (!isPatient && !isCourier) throw HTTP.forbidden();
     return ride;
   }
 
