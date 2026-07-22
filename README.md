@@ -64,6 +64,16 @@ mbolo-sante/                  ← Monorepo Turborepo
 | Push | Expo Notifications |
 | Vidéo | Daily.co (auto-activé si `DAILY_API_KEY`, sinon stub) |
 | Notifications | WhatsApp Cloud API (prioritaire) · Africa's Talking SMS (repli) |
+| Assistance IA | Claude (Anthropic) — auto-activé si `ANTHROPIC_API_KEY`, sinon stub |
+
+### Domaines fonctionnels (API)
+
+`auth` · `users` · `partners` · `doctors` · `appointments` · `prescriptions`
+(circuit officinal : ordonnancier stupéfiants, cachet numérique, collecte de
+l'original) · `orders` · `deliveries` (suivi GPS live · COD) · `payments` ·
+`pricing` · `rides` · `meals` · `chat` · `reviews` (+ modération IA) ·
+`carelinks` (compte accompagnant) · `kyc` (vérification + pré-contrôle vision) ·
+`notifications` (centre persistant) · `admin`.
 
 ---
 
@@ -319,6 +329,22 @@ eas submit --platform ios
 1. Compte [africastalking.com](https://africastalking.com)
 2. Implémenter `NotificationProvider` dans `apps/api/src/infrastructure/providers/notification/africastalking.ts`
 3. Remplacer les `StubNotificationProvider` dans `container.ts`
+
+### Assistance IA (Claude)
+
+L'IA **assiste** (elle n'est jamais décisionnaire sur un médicament ou une
+validation ; un humain tranche toujours). Auto-activée si `ANTHROPIC_API_KEY`
+est défini, sinon un stub conservateur prend le relais (la CI reste verte sans
+clé). Chaque capacité est calibrée sur le modèle Claude approprié :
+
+| Capacité | Modèle | Où |
+|----------|--------|-----|
+| Modération des avis | `claude-haiku-4-5` | signale les avis abusifs → file admin |
+| Lecture de posologie | `claude-haiku-4-5` | texte libre → horaires de rappel proposés |
+| Pré-contrôle KYC (vision) | `claude-opus-4-8` | lisibilité + points d'attention d'un justificatif |
+
+Implémentation : `apps/api/src/infrastructure/providers/ai/` (réel via `fetch`
+vers l'API Messages, ou `StubAiProvider`). Sélection dans `container.ts`.
 
 ---
 

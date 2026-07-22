@@ -12,6 +12,7 @@ const LINKS = [
   { to: '/meals',     label: 'Repas',             icon: '🥗' },
   { to: '/doctors',   label: 'Médecins',          icon: '🩺' },
   { to: '/verifications', label: 'Vérifications', icon: '🛂' },
+  { to: '/reviews',   label: 'Avis',              icon: '⭐' },
   { to: '/users',     label: 'Utilisateurs',      icon: '👥' },
   { to: '/pricing',   label: 'Tarification',      icon: '💰' },
 ];
