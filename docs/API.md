@@ -459,12 +459,62 @@ Readiness — vérifie PostgreSQL et Redis. `503` si une dépendance est indispo
 ## Partenaires — `/partners`
 
 ### `GET /partners`
-Paramètre optionnel : `type` (`pharmacy` | `kitchen` | `device_supplier` | `transporter`)
+Paramètre optionnel : `type` (`pharmacy` | `kitchen` | `device_supplier` | `transporter`).
+Renvoie aussi `rating` (moyenne, avis non signalés) + `reviewCount`, `isOnDuty`, `openingHours`.
 
 ### `GET /partners/:id`
 
 ### `POST /partners` 🔒 `[admin]`
 Créer un partenaire.
+
+---
+
+## Avis — `/reviews`
+
+| Endpoint | Rôle | Description |
+|----------|------|-------------|
+| `GET /reviews/summary?refTable=&refId=` 🔒 | tous | Note moyenne + avis récents (signalés exclus) |
+| `POST /reviews` 🔒 | patient | Noter un service réellement utilisé ; le commentaire est modéré par IA (`claude-haiku-4-5`), un avis douteux est `flagged` |
+| `GET /reviews/flagged` 🔒 `[admin]` | admin | File des avis signalés |
+| `PATCH /reviews/:id/moderate` 🔒 `[admin]` | admin | `{ action: 'approve' \| 'remove' }` |
+
+## Compte accompagnant — `/care-links`
+
+| Endpoint | Rôle | Description |
+|----------|------|-------------|
+| `GET /care-links` 🔒 | tous | Mes aidants + comptes que je gère |
+| `POST /care-links` 🔒 `[patient]` | patient | Inviter un accompagnant par téléphone |
+| `PATCH /care-links/:id/accept` 🔒 `[accompagnant]` | accompagnant | Accepter une invitation |
+| `PATCH /care-links/:id/revoke` 🔒 | patient/accompagnant | Rompre le lien |
+| `GET /care-links/patients/:patientId/orders` 🔒 `[accompagnant]` | accompagnant | Commandes d'un patient géré (lien accepté requis) |
+
+## Rappels de prise — `/reminders` 🔒 `[patient]`
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /reminders/parse` | Posologie en texte libre → horaires proposés (`claude-haiku-4-5`) |
+
+> Les rappels eux-mêmes restent **locaux à l'appareil** (confidentialité) — seul le service de lecture de posologie est côté serveur.
+
+## Suivi de livraison — `/deliveries/:id/tracking` 🔒
+Dernière position GPS du coursier (patient destinataire ou coursier).
+
+## KYC — `/kyc`
+
+| Endpoint | Rôle | Description |
+|----------|------|-------------|
+| `POST /kyc/document` 🔒 | partenaire/médecin/coursier | Déposer un justificatif (multipart) |
+| `GET /kyc/verifications` 🔒 `[admin]` | admin | File des profils en attente + justificatifs |
+| `POST /kyc/verifications/:type/:id/screen` 🔒 `[admin]` | admin | Pré-contrôle IA vision (`claude-opus-4-8`) |
+| `PATCH /kyc/verifications/:type/:id` 🔒 `[admin]` | admin | `{ status: 'verified' \| 'rejected' }` |
+
+## Notifications — `/notifications` 🔒
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /notifications` | 50 dernières |
+| `GET /notifications/unread-count` | Compteur non-lues |
+| `PATCH /notifications/:id/read` · `PATCH /notifications/read-all` | Marquer lu(es) |
 
 ---
 
