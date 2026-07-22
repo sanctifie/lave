@@ -12,6 +12,7 @@ import { OrderStatus, AppointmentStatus } from '@mbolo/shared';
 import { useAuthStore } from '../../src/store/auth.store';
 import { ordersService, Order } from '../../src/services/orders.service';
 import { appointmentsService, AppointmentListItem } from '../../src/services/appointments.service';
+import { notificationsService } from '../../src/services/notifications.service';
 import { StatusBadge } from '../../src/components/ui/StatusBadge';
 import { colors, spacing, radii, typography, shadows } from '../../src/theme';
 
@@ -63,6 +64,11 @@ export default function PatientHomeScreen() {
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [nextAppt,    setNextAppt]    = useState<AppointmentListItem | null>(null);
   const [loading,     setLoading]     = useState(true);
+  const [unread,      setUnread]      = useState(0);
+
+  useEffect(() => {
+    notificationsService.unreadCount().then(setUnread).catch(() => {});
+  }, []);
 
   const initials = (user?.name ?? 'P')
     .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -96,9 +102,23 @@ export default function PatientHomeScreen() {
           <Text style={styles.welcome}>Bonjour,</Text>
           <Text style={styles.name}>{user?.name ?? 'Patient'}</Text>
         </View>
-        <Pressable onPress={logout} style={styles.avatarCircle} accessibilityLabel="Se déconnecter">
-          <Text style={styles.avatarText}>{initials}</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => router.push('/(patient)/notifications' as never)}
+            style={styles.bellBtn}
+            accessibilityLabel="Notifications"
+          >
+            <Text style={styles.bellIcon}>🔔</Text>
+            {unread > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeTxt}>{unread > 9 ? '9+' : unread}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable onPress={logout} style={styles.avatarCircle} accessibilityLabel="Se déconnecter">
+            <Text style={styles.avatarText}>{initials}</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Banner — visible seulement si rien d'actif */}
@@ -261,6 +281,18 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { ...typography.label, color: colors.textOnDark, fontSize: 14 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  bellBtn: {
+    width: 40, height: 40, borderRadius: radii.full,
+    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center',
+    ...shadows.card,
+  },
+  bellIcon: { fontSize: 18 },
+  bellBadge: {
+    position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: colors.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+  },
+  bellBadgeTxt: { color: colors.textOnDark, fontSize: 10, fontWeight: '700' },
 
   banner: {
     backgroundColor: colors.primary,
