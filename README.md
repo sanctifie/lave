@@ -64,7 +64,7 @@ mbolo-sante/                  ← Monorepo Turborepo
 | Push | Expo Notifications |
 | Vidéo | Daily.co (auto-activé si `DAILY_API_KEY`, sinon stub) |
 | Notifications | WhatsApp Cloud API (prioritaire) · Africa's Talking SMS (repli) |
-| Assistance IA | Claude (Anthropic) — auto-activé si `ANTHROPIC_API_KEY`, sinon stub |
+| Assistance IA | MBOLO Assist — auto-activé si `ANTHROPIC_API_KEY`, sinon stub |
 
 ### Domaines fonctionnels (API)
 
@@ -330,18 +330,21 @@ eas submit --platform ios
 2. Implémenter `NotificationProvider` dans `apps/api/src/infrastructure/providers/notification/africastalking.ts`
 3. Remplacer les `StubNotificationProvider` dans `container.ts`
 
-### Assistance IA (Claude)
+### Assistance IA (MBOLO Assist)
 
 L'IA **assiste** (elle n'est jamais décisionnaire sur un médicament ou une
 validation ; un humain tranche toujours). Auto-activée si `ANTHROPIC_API_KEY`
 est défini, sinon un stub conservateur prend le relais (la CI reste verte sans
-clé). Chaque capacité est calibrée sur le modèle Claude approprié :
+clé). Chaque capacité est calibrée sur le moteur MBOLO Assist approprié :
 
-| Capacité | Modèle | Où |
+| Capacité | Moteur | Où |
 |----------|--------|-----|
-| Modération des avis | `claude-haiku-4-5` | signale les avis abusifs → file admin |
-| Lecture de posologie | `claude-haiku-4-5` | texte libre → horaires de rappel proposés |
-| Pré-contrôle KYC (vision) | `claude-opus-4-8` | lisibilité + points d'attention d'un justificatif |
+| Modération des avis | rapide | signale les avis abusifs → file admin |
+| Lecture de posologie | rapide | texte libre → horaires de rappel proposés |
+| Pré-contrôle KYC (vision) | vision | lisibilité + points d'attention d'un justificatif |
+
+Moteurs réels sélectionnés par défaut (surchargeables via `AI_MODEL_FAST` /
+`AI_MODEL_VISION`) : `claude-haiku-4-5` (rapide), `claude-opus-4-8` (vision).
 
 Implémentation : `apps/api/src/infrastructure/providers/ai/` (réel via `fetch`
 vers l'API Messages, ou `StubAiProvider`). Sélection dans `container.ts`.

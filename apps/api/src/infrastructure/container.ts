@@ -46,7 +46,7 @@ export const pushService = new PushService(
     : new StubPushProvider(),
 );
 
-// Assistance IA (Claude) — activée si ANTHROPIC_API_KEY défini, sinon stub.
+// Assistance IA (MBOLO Assist) — activée si ANTHROPIC_API_KEY défini, sinon stub.
 // L'IA assiste (modération, extraction, pré-contrôle KYC) ; un humain valide toujours.
 export const aiProvider = process.env.ANTHROPIC_API_KEY
   ? new AnthropicAiProvider()

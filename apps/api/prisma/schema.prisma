@@ -852,7 +852,7 @@ model Review {
   authorId  String
   rating    Int
   comment   String?
-  // Modération IA (claude-haiku-4-5) : signale un avis à revoir par un admin.
+  // Modération IA (MBOLO Assist — moteur rapide) : signale un avis à revoir par un admin.
   // L'avis reste visible ; le flag ne fait qu'aider la modération humaine.
   flagged        Boolean @default(false)
   moderationNote String?

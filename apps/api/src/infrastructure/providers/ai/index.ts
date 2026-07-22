@@ -1,12 +1,15 @@
 /**
- * Fournisseur d'assistance IA (Claude). L'IA n'est JAMAIS décisionnaire sur un
- * médicament : elle assiste (modération, extraction, pré-contrôle) et sa sortie
+ * Fournisseur d'assistance IA (MBOLO Assist). L'IA n'est JAMAIS décisionnaire sur
+ * un médicament : elle assiste (modération, extraction, pré-contrôle) et sa sortie
  * est toujours relue/validée par un humain (pharmacien, médecin, admin).
  *
- * Chaque capacité est calibrée sur le modèle Claude approprié :
- *  - modération d'avis  → claude-haiku-4-5 (classification courte, volumineuse)
- *  - lecture posologie   → claude-haiku-4-5 (extraction structurée simple)
- *  - pré-contrôle KYC    → claude-opus-4-8 (vision, enjeu de conformité)
+ * Chaque capacité est calibrée sur le moteur MBOLO Assist approprié :
+ *  - modération d'avis  → moteur rapide (classification courte, volumineuse)
+ *  - lecture posologie   → moteur rapide (extraction structurée simple)
+ *  - pré-contrôle KYC    → moteur vision (vision, enjeu de conformité)
+ *
+ * Les identifiants de moteur réels (nécessaires pour appeler l'API) sont en
+ * config technique, surchargeables par AI_MODEL_FAST / AI_MODEL_VISION.
  *
  * Implémentations : AnthropicAiProvider (réel) ou StubAiProvider (dev/CI).
  */
@@ -32,7 +35,7 @@ export interface DocumentScreening {
 }
 
 export interface AiProvider {
-  /** true si un vrai backend Claude est configuré (sinon stub). */
+  /** true si un vrai backend MBOLO Assist est configuré (sinon stub). */
   readonly enabled: boolean;
   moderateReview(comment: string): Promise<ReviewModeration>;
   parsePosology(instructions: string): Promise<Posology | null>;
@@ -42,10 +45,12 @@ export interface AiProvider {
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
 
-// Modèles par capacité (voir en-tête).
-const MODEL_MODERATION = 'claude-haiku-4-5';
-const MODEL_POSOLOGY   = 'claude-haiku-4-5';
-const MODEL_KYC_VISION = 'claude-opus-4-8';
+// Moteurs par capacité (voir en-tête) — surchargeables par variable d'environnement.
+const MODEL_FAST   = process.env.AI_MODEL_FAST ?? 'claude-haiku-4-5';
+const MODEL_VISION = process.env.AI_MODEL_VISION ?? 'claude-opus-4-8';
+const MODEL_MODERATION = MODEL_FAST;
+const MODEL_POSOLOGY   = MODEL_FAST;
+const MODEL_KYC_VISION = MODEL_VISION;
 
 interface ContentBlock {
   type: 'text' | 'image';

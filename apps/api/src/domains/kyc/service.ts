@@ -95,7 +95,7 @@ export class KycService {
   }
 
   /**
-   * Pré-contrôle IA (claude-opus-4-8, vision) du justificatif : lisibilité +
+   * Pré-contrôle IA (MBOLO Assist — moteur vision) du justificatif : lisibilité +
    * points d'attention. L'IA n'approuve rien — c'est une aide au valideur humain.
    */
   async screen(type: KycType, id: string) {

@@ -474,7 +474,7 @@ Créer un partenaire.
 | Endpoint | Rôle | Description |
 |----------|------|-------------|
 | `GET /reviews/summary?refTable=&refId=` 🔒 | tous | Note moyenne + avis récents (signalés exclus) |
-| `POST /reviews` 🔒 | patient | Noter un service réellement utilisé ; le commentaire est modéré par IA (`claude-haiku-4-5`), un avis douteux est `flagged` |
+| `POST /reviews` 🔒 | patient | Noter un service réellement utilisé ; le commentaire est modéré par IA (MBOLO Assist — moteur rapide), un avis douteux est `flagged` |
 | `GET /reviews/flagged` 🔒 `[admin]` | admin | File des avis signalés |
 | `PATCH /reviews/:id/moderate` 🔒 `[admin]` | admin | `{ action: 'approve' \| 'remove' }` |
 
@@ -492,7 +492,7 @@ Créer un partenaire.
 
 | Endpoint | Description |
 |----------|-------------|
-| `POST /reminders/parse` | Posologie en texte libre → horaires proposés (`claude-haiku-4-5`) |
+| `POST /reminders/parse` | Posologie en texte libre → horaires proposés (MBOLO Assist — moteur rapide) |
 
 > Les rappels eux-mêmes restent **locaux à l'appareil** (confidentialité) — seul le service de lecture de posologie est côté serveur.
 
@@ -505,7 +505,7 @@ Dernière position GPS du coursier (patient destinataire ou coursier).
 |----------|------|-------------|
 | `POST /kyc/document` 🔒 | partenaire/médecin/coursier | Déposer un justificatif (multipart) |
 | `GET /kyc/verifications` 🔒 `[admin]` | admin | File des profils en attente + justificatifs |
-| `POST /kyc/verifications/:type/:id/screen` 🔒 `[admin]` | admin | Pré-contrôle IA vision (`claude-opus-4-8`) |
+| `POST /kyc/verifications/:type/:id/screen` 🔒 `[admin]` | admin | Pré-contrôle IA (MBOLO Assist — moteur vision) |
 | `PATCH /kyc/verifications/:type/:id` 🔒 `[admin]` | admin | `{ status: 'verified' \| 'rejected' }` |
 
 ## Notifications — `/notifications` 🔒
