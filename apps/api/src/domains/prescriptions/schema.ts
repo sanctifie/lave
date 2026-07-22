@@ -28,6 +28,10 @@ export const ValidatePrescriptionSchema = z
           // Sensible : antibiotique / dangereux / détournable → collecte de
           // l'original + cachet (sans ordonnancier).
           sensitive: z.boolean().optional(),
+          // Tiers-payant : article inscrit sur la liste CNAMGS des remboursables.
+          // Seuls ces articles ouvrent droit à la part caisse (ignoré si le
+          // patient n'est pas assuré).
+          reimbursable: z.boolean().optional(),
         }),
       )
       .optional(),

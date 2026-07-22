@@ -29,6 +29,7 @@ export class UserService {
       bloodType:   data.bloodType,
       allergies:   data.allergies,
       insuranceProvider:     data.insuranceProvider,
+      insuranceFund:         data.insuranceFund,
       insuranceNumber:       data.insuranceNumber,
       insuranceCoverageRate: data.insuranceCoverageRate,
     });

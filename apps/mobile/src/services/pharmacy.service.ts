@@ -10,6 +10,9 @@ export interface InboxPrescription {
   mediaUrls: string[];
   notes: string | null;
   allergies: string[];
+  // Tiers-payant : le patient est-il couvert par une caisse (CNAMGS/CNSS) ?
+  // Détermine si le pharmacien doit cocher « remboursable » par article.
+  insured: boolean;
 }
 
 export interface ValidationItem {
@@ -24,6 +27,9 @@ export interface ValidationItem {
   controlled?: boolean;
   // Sensible (antibiotique/dangereux/détournable) : collecte de l'original + cachet
   sensitive?: boolean;
+  // Tiers-payant : article inscrit sur la liste CNAMGS des remboursables
+  // (ouvre droit à la part caisse ; ignoré si le patient n'est pas assuré).
+  reimbursable?: boolean;
 }
 
 // Conseil officinal (cross-sell) : produit conseil / OTC proposé en complément.
@@ -62,6 +68,7 @@ function normalizeRx(raw: any): InboxPrescription {
     type:        raw.type,
     notes:       raw.notes ?? null,
     allergies:   raw.patient?.patientProfile?.allergies ?? [],
+    insured:     (raw.patient?.patientProfile?.insuranceProvider ?? 'none') !== 'none',
     mediaUrls:   (raw.media ?? []).map((m: any) =>
       (m.url as string).startsWith('http') ? m.url : `${API_URL}${m.url}`
     ),
@@ -114,6 +121,7 @@ export const pharmacyService = {
         unitPriceFcfa: i.unitPriceFcfa,
         ...(i.controlled ? { controlled: true } : {}),
         ...(i.sensitive ? { sensitive: true } : {}),
+        ...(i.reimbursable ? { reimbursable: true } : {}),
         ...(i.substituted
           ? {
               substituted: true,

@@ -179,15 +179,25 @@ Upload d'une ordonnance (multipart/form-data).
 - `type` : `drug` ou `osteo`
 
 ### `POST /prescriptions/:id/validate` 🔒 `[partner_staff]`
-Valider une ordonnance et définir les items.
+Valider une ordonnance et définir les items. Le champ `reimbursable` marque un
+article inscrit sur la liste CNAMGS des remboursables : la part caisse
+(tiers-payant) est calculée **uniquement** sur ces articles ; un produit hors
+liste reste à 100 % à la charge de l'assuré. Ignoré si le patient n'est pas assuré.
 ```json
 {
   "items": [
-    { "name": "Amoxicilline 500mg", "quantity": 21, "unitPriceFcfa": 150 },
-    { "name": "Paracétamol 1g", "quantity": 10, "unitPriceFcfa": 100 }
+    { "name": "Amoxicilline 500mg", "quantity": 21, "unitPriceFcfa": 150, "reimbursable": true },
+    { "name": "Paracétamol 1g", "quantity": 10, "unitPriceFcfa": 100, "reimbursable": true },
+    { "name": "Compléments (parapharmacie)", "quantity": 1, "unitPriceFcfa": 3000, "reimbursable": false }
   ]
 }
 ```
+> Tiers-payant CNAMGS : `caisseShareFcfa = round(base_remboursable × taux/100)`, où
+> la base remboursable est le sous-total des articles `reimbursable` réellement
+> facturés. Le patient règle le ticket modérateur = `totalFcfa − caisseShareFcfa`.
+> Le régime (fonds) de l'assuré — `agent_public`, `prive`, `gef` — et le taux
+> (80 % ordinaire, 90 % longue durée, 100 % certains actes) sont portés par le
+> profil patient (`PATCH /users/me/patient-profile`).
 
 ### `POST /prescriptions/:id/reject` 🔒 `[partner_staff]`
 ```json

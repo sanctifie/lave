@@ -117,6 +117,35 @@ export enum InsuranceProvider {
   CNSS = 'cnss',
 }
 
+/**
+ * Fonds (régime) CNAMGS de l'assuré. La CNAMGS gère trois fonds réels :
+ * - AGENT_PUBLIC : agents de l'État (fonctionnaires) ;
+ * - PRIVE : salariés du secteur privé et parapublic ;
+ * - GEF : Gabonais économiquement faibles (sans emploi / faibles revenus).
+ * Le fonds détermine le taux de prise en charge par défaut (80 % maladie
+ * ordinaire, 90 % longue durée, 100 % certains actes).
+ */
+export enum InsuranceFund {
+  NONE = 'none',
+  AGENT_PUBLIC = 'agent_public',
+  PRIVE = 'prive',
+  GEF = 'gef',
+}
+
+/**
+ * Taux de prise en charge CNAMGS par défaut (part caisse, en %). Le ticket
+ * modérateur à la charge de l'assuré est le complément à 100 %. Ces taux
+ * s'appliquent uniquement aux articles remboursables (liste CNAMGS).
+ */
+export const CNAMGS_DEFAULT_RATE = {
+  /** Maladie ordinaire → 80 % caisse / 20 % assuré. */
+  ORDINARY: 80,
+  /** Affection de longue durée → 90 % caisse / 10 % assuré. */
+  LONG_TERM: 90,
+  /** Actes pris en charge à 100 % (ex. grossesse/accouchement). */
+  FULL: 100,
+} as const;
+
 /** Circuit de l'ordonnance papier originale (stupéfiants) : l'étiquette
  * d'annotation voyage avec le colis, le patient conserve son original annoté. */
 export enum PaperStatus {

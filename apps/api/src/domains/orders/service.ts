@@ -227,6 +227,7 @@ export class OrderService {
       orderId: o.id,
       patientName: o.patient?.name ?? '—',
       provider: o.insuranceProvider,
+      fund: (o as any).insuranceFund ?? 'none',
       coverageRate: o.insuranceCoverageRate,
       caisseShareFcfa: o.caisseShareFcfa,
       totalFcfa: o.totalFcfa,

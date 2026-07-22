@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { InsuranceProvider } from '@mbolo/shared';
+import { InsuranceProvider, InsuranceFund } from '@mbolo/shared';
 
 export const UpdateMeSchema = z.object({
   name: z.string().min(2).optional(),
@@ -15,6 +15,7 @@ export const UpdatePatientProfileSchema = z.object({
   allergies:   z.array(z.string()).optional(),
   // Tiers-payant
   insuranceProvider:     z.nativeEnum(InsuranceProvider).optional(),
+  insuranceFund:         z.nativeEnum(InsuranceFund).optional(),
   insuranceNumber:       z.string().min(1).max(64).nullable().optional(),
   insuranceCoverageRate: z.number().int().min(0).max(100).nullable().optional(),
 });

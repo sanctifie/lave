@@ -133,6 +133,17 @@ enum InsuranceProvider {
   cnss
 }
 
+// Fonds (régime) CNAMGS de l'assuré — détermine le taux de prise en charge par
+// défaut. Trois fonds réels : agents publics, salariés du privé/parapublic, et
+// Gabonais économiquement faibles (GEF). `none` pour un non-assuré ou une autre
+// caisse.
+enum InsuranceFund {
+  none
+  agent_public
+  prive
+  gef
+}
+
 enum DeliveryStatus {
   pending_assignment
   assigned
@@ -294,7 +305,10 @@ model PatientProfile {
   bloodType   String?
   allergies   String[]
   // Tiers-payant : assurance du patient et taux de prise en charge (0-100 %).
+  // `insuranceFund` = régime CNAMGS ; le taux dépend du fonds ET du type de soin
+  // (80 % maladie ordinaire, 90 % longue durée, 100 % certains actes).
   insuranceProvider     InsuranceProvider @default(none)
+  insuranceFund         InsuranceFund     @default(none)
   insuranceNumber       String?
   insuranceCoverageRate Int?
   createdAt   DateTime  @default(now())
@@ -582,9 +596,12 @@ model Order {
   totalFcfa      Int
   serviceFeeFcfa Int         @default(0)
   // Tiers-payant : instantané de l'assurance appliquée à cette commande.
-  // caisseShareFcfa = part prise en charge par la caisse sur les médicaments ;
-  // la part assuré (ticket modérateur) = totalFcfa - caisseShareFcfa.
+  // caisseShareFcfa = part prise en charge par la caisse, calculée UNIQUEMENT sur
+  // les articles remboursables (inscrits sur la liste CNAMGS) ; la part assuré
+  // (ticket modérateur) = totalFcfa - caisseShareFcfa. Les articles hors liste
+  // restent à 100 % à la charge de l'assuré.
   insuranceProvider     InsuranceProvider @default(none)
+  insuranceFund         InsuranceFund     @default(none)
   insuranceCoverageRate Int               @default(0)
   caisseShareFcfa       Int               @default(0)
   // Stupéfiant : circuit de l'ordonnance papier originale
@@ -622,6 +639,10 @@ model OrderItem {
   substitutionReason String? // motif (ex. rupture de stock)
   // Stupéfiant : article inscrit à l'ordonnancier lors de la dispensation
   isControlled       Boolean @default(false)
+  // Tiers-payant : article inscrit sur la liste CNAMGS des médicaments
+  // remboursables. Seuls ces articles ouvrent droit à la part caisse ; un produit
+  // hors liste (parapharmacie, conseil officinal…) reste à 100 % pour l'assuré.
+  reimbursable       Boolean @default(false)
 
   // Conseil officinal (cross-sell) : article proposé par le pharmacien en
   // complément. `recommendationNote` porte l'argumentaire (ex. « à prendre

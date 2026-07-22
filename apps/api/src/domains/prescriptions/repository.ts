@@ -96,6 +96,7 @@ export class PrescriptionRepository {
               select: {
                 allergies: true,
                 insuranceProvider: true,
+                insuranceFund: true,
                 insuranceCoverageRate: true,
               },
             },

@@ -14,6 +14,7 @@ import {
   OrderItemKind,
   RecommendationStatus,
   InsuranceProvider,
+  InsuranceFund,
 } from '@mbolo/shared';
 import { CreatePrescriptionInput, ValidatePrescriptionInput } from './schema';
 import { prisma } from '../../infrastructure/prisma/client';
@@ -154,8 +155,13 @@ export class PrescriptionService {
     }
 
     const items = rawItems.map((i) => {
+      // Tiers-payant : l'article est-il inscrit sur la liste CNAMGS des
+      // remboursables ? Le pharmacien le renseigne à la validation ; sans info,
+      // on considère l'article NON remboursable (conservateur : pas de créance
+      // caisse indue).
+      const reimbursable = i.reimbursable === true;
       if (!i.substituted) {
-        return { name: i.name, quantity: i.quantity, unitPriceFcfa: i.unitPriceFcfa };
+        return { name: i.name, quantity: i.quantity, unitPriceFcfa: i.unitPriceFcfa, reimbursable };
       }
       // allow → accepté d'office ; ask → en attente de l'accord du patient
       const substitutionStatus =
@@ -169,6 +175,7 @@ export class PrescriptionService {
         substitutionStatus,
         originalName: i.originalName,
         substitutionReason: i.substitutionReason,
+        reimbursable,
       };
     });
 
@@ -199,6 +206,7 @@ export class PrescriptionService {
     // dans le repo à partir du total médicaments et du taux de prise en charge).
     const profile = (rx as any).patient?.patientProfile;
     const insuranceProvider = profile?.insuranceProvider ?? InsuranceProvider.NONE;
+    const insuranceFund = profile?.insuranceFund ?? InsuranceFund.NONE;
     const insuranceCoverageRate = profile?.insuranceCoverageRate ?? 0;
 
     // Collecte ciblée de l'original (politique C) : stupéfiant, médicament
@@ -217,6 +225,7 @@ export class PrescriptionService {
       serviceFeeFcfa,
       status: needsPatientApproval ? OrderStatus.PENDING_SUBSTITUTION : OrderStatus.PENDING_PHARMACY,
       insuranceProvider,
+      insuranceFund,
       insuranceCoverageRate,
     });
 

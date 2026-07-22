@@ -24,6 +24,7 @@ export class UserRepository {
       bloodType?: string | null;
       allergies?: string[];
       insuranceProvider?: string;
+      insuranceFund?: string;
       insuranceNumber?: string | null;
       insuranceCoverageRate?: number | null;
     },

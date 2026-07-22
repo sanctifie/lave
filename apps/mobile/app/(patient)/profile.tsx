@@ -25,11 +25,20 @@ const INSURERS = [
 ] as const;
 type Insurer = typeof INSURERS[number]['key'];
 
+// Fonds (régime) CNAMGS : détermine le taux de prise en charge par défaut.
+const INSURANCE_FUNDS = [
+  { key: 'agent_public', label: 'Agent public' },
+  { key: 'prive',        label: 'Salarié privé' },
+  { key: 'gef',          label: 'GEF' },
+] as const;
+type Fund = 'none' | typeof INSURANCE_FUNDS[number]['key'];
+
 interface PatientProfile {
   dateOfBirth: string | null;
   bloodType:   string | null;
   allergies:   string[];
   insuranceProvider?:     string | null;
+  insuranceFund?:         string | null;
   insuranceNumber?:       string | null;
   insuranceCoverageRate?: number | null;
 }
@@ -61,6 +70,7 @@ export default function PatientProfileScreen() {
   const [allergies, setAllergies] = useState('');
 
   const [insurer,     setInsurer]     = useState<Insurer>('none');
+  const [fund,        setFund]        = useState<Fund>('none');
   const [insNumber,   setInsNumber]   = useState('');
   const [coverageStr, setCoverageStr] = useState('');
 
@@ -73,6 +83,7 @@ export default function PatientProfileScreen() {
         setBloodType((p.bloodType as BloodType) ?? null);
         setAllergies(p.allergies.join(', '));
         setInsurer((p.insuranceProvider as Insurer) ?? 'none');
+        setFund((p.insuranceFund as Fund) ?? 'none');
         setInsNumber(p.insuranceNumber ?? '');
         setCoverageStr(p.insuranceCoverageRate != null ? String(p.insuranceCoverageRate) : '');
       }
@@ -101,6 +112,7 @@ export default function PatientProfileScreen() {
         bloodType:   bloodType ?? null,
         allergies:   allergies.split(',').map((a) => a.trim()).filter(Boolean),
         insuranceProvider:     insurer,
+        insuranceFund:         insurer === 'cnamgs' ? fund : 'none',
         insuranceNumber:       hasInsurer ? (insNumber.trim() || null) : null,
         insuranceCoverageRate: hasInsurer ? coverage : null,
       });
@@ -220,6 +232,32 @@ export default function PatientProfileScreen() {
                 ))}
               </View>
             </View>
+
+            {insurer === 'cnamgs' && (
+              <View style={styles.field}>
+                <Text style={styles.label}>Fonds (régime)</Text>
+                <View style={styles.bloodGrid}>
+                  {INSURANCE_FUNDS.map((f) => (
+                    <Pressable
+                      key={f.key}
+                      style={[styles.bloodChip, fund === f.key && styles.bloodChipSelected]}
+                      onPress={() => {
+                        setFund(f.key);
+                        // Pré-remplit le taux maladie ordinaire (80 %) si vide.
+                        if (!coverageStr.trim()) setCoverageStr('80');
+                      }}
+                    >
+                      <Text style={[styles.bloodChipText, fund === f.key && styles.bloodChipTextSelected]}>
+                        {f.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.inputHint}>
+                  Agent public, salarié du privé, ou Gabonais économiquement faible (GEF).
+                </Text>
+              </View>
+            )}
 
             {insurer !== 'none' && (
               <>

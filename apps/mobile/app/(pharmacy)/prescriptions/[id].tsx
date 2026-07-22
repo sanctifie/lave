@@ -121,6 +121,13 @@ export default function PrescriptionValidateScreen() {
     );
   };
 
+  // Tiers-payant : article inscrit sur la liste CNAMGS des remboursables.
+  const toggleReimbursable = (key: string) => {
+    setItems((prev) =>
+      prev.map((it) => (it._key === key ? { ...it, reimbursable: !it.reimbursable } : it)),
+    );
+  };
+
   const hasControlled = items.some((i) => i.controlled);
   const hasSensitive  = items.some((i) => i.sensitive && !i.controlled);
 
@@ -390,6 +397,20 @@ export default function PrescriptionValidateScreen() {
                           </View>
                           <Text style={styles.subToggleTxt}>
                             Sensible — antibiotique / produit détournable (original requis)
+                          </Text>
+                        </Pressable>
+                      )}
+
+                      {/* Tiers-payant : article inscrit sur la liste CNAMGS des
+                          remboursables. N'apparaît que si le patient est assuré ;
+                          seul un article coché ouvre droit à la part caisse. */}
+                      {rx?.insured && (
+                        <Pressable style={styles.subToggle} onPress={() => toggleReimbursable(item._key)}>
+                          <View style={[styles.subCheckbox, item.reimbursable && styles.ctrlCheckboxOn]}>
+                            {item.reimbursable && <Text style={styles.subCheckMark}>✓</Text>}
+                          </View>
+                          <Text style={styles.subToggleTxt}>
+                            Remboursable CNAMGS (inscrit sur la liste)
                           </Text>
                         </Pressable>
                       )}

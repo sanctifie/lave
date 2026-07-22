@@ -5,14 +5,15 @@ import {
   OrderItemKind,
   RecommendationStatus,
   InsuranceProvider,
+  InsuranceFund,
 } from '@mbolo/shared';
 
-// Tiers-payant : part prise en charge par la caisse sur le total médicaments.
-// Arrondi à l'entier FCFA le plus proche. Aucun impact sur le prix — simple
-// répartition de qui paie (assuré / caisse).
-export function caisseShareOf(totalFcfa: number, coverageRate: number): number {
+// Tiers-payant : part prise en charge par la caisse sur la BASE REMBOURSABLE
+// (et non le total du panier). Arrondi à l'entier FCFA le plus proche. Aucun
+// impact sur le prix — simple répartition de qui paie (assuré / caisse).
+export function caisseShareOf(reimbursableBaseFcfa: number, coverageRate: number): number {
   const rate = Math.max(0, Math.min(100, coverageRate));
-  return Math.round((totalFcfa * rate) / 100);
+  return Math.round((reimbursableBaseFcfa * rate) / 100);
 }
 
 type OrderStatusValue = `${OrderStatus}`;
@@ -30,6 +31,8 @@ export interface NewOrderItem {
   kind?: ItemKindValue;
   recommendationStatus?: RecoStatusValue;
   recommendationNote?: string;
+  // Tiers-payant : article inscrit sur la liste CNAMGS des remboursables.
+  reimbursable?: boolean;
 }
 
 // Un article compte dans le total à régler s'il n'est ni un équivalent refusé,
@@ -48,6 +51,17 @@ function countsTowardTotal(i: {
   return true;
 }
 
+// Base remboursable = sous-total des articles à la fois facturables ET inscrits
+// sur la liste CNAMGS. Les articles hors liste (parapharmacie, conseil officinal)
+// n'ouvrent aucun droit et restent à 100 % à la charge de l'assuré.
+export function reimbursableBaseOf(
+  items: { substitutionStatus: string; recommendationStatus: string; reimbursable: boolean; totalFcfa: number }[],
+): number {
+  return items
+    .filter((i) => countsTowardTotal(i) && i.reimbursable)
+    .reduce((s, i) => s + i.totalFcfa, 0);
+}
+
 export class OrderRepository {
   async create(
     patientId: string,
@@ -59,12 +73,27 @@ export class OrderRepository {
       serviceFeeFcfa: number;
       status?: OrderStatusValue;
       insuranceProvider?: `${InsuranceProvider}`;
+      insuranceFund?: `${InsuranceFund}`;
       insuranceCoverageRate?: number;
     },
   ) {
     const coverageRate = data.insuranceCoverageRate ?? 0;
     const provider = data.insuranceProvider ?? InsuranceProvider.NONE;
-    const caisseShareFcfa = provider === InsuranceProvider.NONE ? 0 : caisseShareOf(data.totalFcfa, coverageRate);
+    const fund = data.insuranceFund ?? InsuranceFund.NONE;
+    // Base remboursable calculée sur les seuls articles inscrits sur la liste,
+    // en tenant compte de leur état (équivalent refusé / conseil non accepté).
+    const reimbursableBase = data.items
+      .filter(
+        (i) =>
+          i.reimbursable === true &&
+          countsTowardTotal({
+            substitutionStatus: i.substitutionStatus ?? SubstitutionStatus.NONE,
+            recommendationStatus: i.recommendationStatus ?? RecommendationStatus.NONE,
+          }),
+      )
+      .reduce((s, i) => s + i.quantity * i.unitPriceFcfa, 0);
+    const caisseShareFcfa =
+      provider === InsuranceProvider.NONE ? 0 : caisseShareOf(reimbursableBase, coverageRate);
     return prisma.order.create({
       data: {
         patientId,
@@ -73,6 +102,7 @@ export class OrderRepository {
         totalFcfa: data.totalFcfa,
         serviceFeeFcfa: data.serviceFeeFcfa,
         insuranceProvider: provider as InsuranceProvider,
+        insuranceFund: fund as InsuranceFund,
         insuranceCoverageRate: coverageRate,
         caisseShareFcfa,
         ...(data.status ? { status: data.status as OrderStatus } : {}),
@@ -85,6 +115,7 @@ export class OrderRepository {
             substitutionStatus: (i.substitutionStatus ?? SubstitutionStatus.NONE) as SubstitutionStatus,
             originalName: i.originalName ?? null,
             substitutionReason: i.substitutionReason ?? null,
+            reimbursable: i.reimbursable ?? false,
             kind: (i.kind ?? OrderItemKind.PRESCRIBED) as OrderItemKind,
             recommendationStatus: (i.recommendationStatus ?? RecommendationStatus.NONE) as RecommendationStatus,
             recommendationNote: i.recommendationNote ?? null,
@@ -121,11 +152,11 @@ export class OrderRepository {
         (i) => i.kind !== OrderItemKind.RECOMMENDED && i.substitutionStatus !== SubstitutionStatus.REJECTED,
       );
       const allRejected = keptPrescribed.length === 0;
-      // Tiers-payant : la part caisse suit le nouveau total médicaments.
+      // Tiers-payant : la part caisse suit la nouvelle base remboursable.
       const current = await tx.order.findUnique({ where: { id: orderId } });
       const caisseShareFcfa =
         current && current.insuranceProvider !== InsuranceProvider.NONE
-          ? caisseShareOf(totalFcfa, current.insuranceCoverageRate)
+          ? caisseShareOf(reimbursableBaseOf(items), current.insuranceCoverageRate)
           : 0;
       const updated = await tx.order.update({
         where: { id: orderId },
@@ -158,11 +189,11 @@ export class OrderRepository {
       }
       const items = await tx.orderItem.findMany({ where: { orderId } });
       const totalFcfa = items.filter(countsTowardTotal).reduce((s, i) => s + i.totalFcfa, 0);
-      // Tiers-payant : la part caisse suit le nouveau total médicaments.
+      // Tiers-payant : la part caisse suit la nouvelle base remboursable.
       const current = await tx.order.findUnique({ where: { id: orderId } });
       const caisseShareFcfa =
         current && current.insuranceProvider !== InsuranceProvider.NONE
-          ? caisseShareOf(totalFcfa, current.insuranceCoverageRate)
+          ? caisseShareOf(reimbursableBaseOf(items), current.insuranceCoverageRate)
           : 0;
       const updated = await tx.order.update({
         where: { id: orderId },
@@ -263,6 +294,7 @@ export class OrderRepository {
         id: true,
         createdAt: true,
         insuranceProvider: true,
+        insuranceFund: true,
         insuranceCoverageRate: true,
         caisseShareFcfa: true,
         totalFcfa: true,
