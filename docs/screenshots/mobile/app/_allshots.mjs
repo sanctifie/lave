@@ -20,7 +20,8 @@ const SCREENS = [
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport:{width:420,height:820}, deviceScaleFactor:3 });
-await page.goto('file:///tmp/claude-0/-home-user-lave/55bccdcf-0f6b-5e45-abaf-89030cab51fe/scratchpad/prototype.html', { waitUntil:'networkidle' });
+// Prototype versionné dans le dépôt (source unique, reproductible en CI).
+await page.goto('file://' + OUT + '/_prototype.html', { waitUntil:'networkidle' });
 // masquer la barre de nav pour les écrans où elle n'a pas de sens (auth) — sinon on la garde
 for (const [view, file] of SCREENS) {
   await page.evaluate((v) => {
