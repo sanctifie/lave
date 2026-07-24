@@ -166,6 +166,8 @@ export enum TransactionStatus {
   CAPTURED = 'captured',
   RELEASED = 'released',
   FAILED = 'failed',
+  // Séquestre rendu au patient (commande refusée/annulée avant dispensation).
+  REFUNDED = 'refunded',
 }
 
 export enum AppointmentType {

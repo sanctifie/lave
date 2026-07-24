@@ -7,18 +7,28 @@ import { OrderService } from './service';
 import { OrderRepository } from './repository';
 import { DeliveryRepository } from '../deliveries/repository';
 import { PricingRepository } from '../pricing/repository';
-import { notificationService, pushService } from '../../infrastructure/container';
+import { PaymentRepository } from '../payments/repository';
+import { PaymentService } from '../payments/service';
+import { notificationService, paymentProvider, pushService } from '../../infrastructure/container';
 import { UserRole } from '@mbolo/shared';
 import { prisma } from '../../infrastructure/prisma/client';
 import { HTTP } from '../../lib/errors';
 
 const router: Router = Router();
+const paymentService = new PaymentService(
+  new PaymentRepository(),
+  new OrderRepository(),
+  new PricingRepository(),
+  paymentProvider,
+  pushService,
+);
 const service = new OrderService(
   new OrderRepository(),
   notificationService,
   new DeliveryRepository(),
   new PricingRepository(),
   pushService,
+  paymentService,
 );
 
 // Patient : liste ses commandes

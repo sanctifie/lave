@@ -17,6 +17,7 @@ function makeRepo(overrides: Record<string, any> = {}) {
     capture:                 vi.fn().mockResolvedValue(undefined),
     fail:                    vi.fn().mockResolvedValue(undefined),
     release:                 vi.fn().mockResolvedValue(undefined),
+    refund:                  vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -25,6 +26,7 @@ const provider = {
   initEscrow:    vi.fn().mockResolvedValue({ providerTransactionId: 'prov_1', status: 'pending' }),
   releaseEscrow: vi.fn(),
   payout:        vi.fn(),
+  refund:        vi.fn().mockResolvedValue(undefined),
 };
 
 function makeService(repo: any) {
@@ -184,6 +186,74 @@ function makeServiceWithOrder(order: any) {
   const service = new PaymentService(repo as any, orderRepo as any, {} as any, provider as any, {} as any);
   return { repo, orderRepo, service };
 }
+
+describe('PaymentService.refundOrderEscrow', () => {
+  const push = { sendToUser: vi.fn() };
+
+  beforeEach(() => {
+    provider.refund.mockClear();
+    push.sendToUser.mockClear();
+  });
+
+  function makeService(txn: any, order: any = { patientId: 'p1' }) {
+    const repo = makeRepo({
+      findByOrderId: vi.fn().mockResolvedValue(txn),
+      refund:        vi.fn().mockResolvedValue(undefined),
+    });
+    const orderRepo = { findById: vi.fn().mockResolvedValue(order) };
+    const service = new PaymentService(repo as any, orderRepo as any, {} as any, provider as any, push as any);
+    return { repo, service };
+  }
+
+  it('rembourse un séquestre bloqué (held) et notifie le patient', async () => {
+    const { repo, service } = makeService({ id: 't1', status: 'held', amountFcfa: 10500, providerTransactionId: 'prov_1' });
+    const res = await service.refundOrderEscrow('o1');
+    expect(provider.refund).toHaveBeenCalledWith('prov_1', 10500);
+    expect(repo.refund).toHaveBeenCalledWith('t1');
+    expect(push.sendToUser).toHaveBeenCalledWith('p1', expect.objectContaining({ data: { type: 'refund', orderId: 'o1' } }));
+    expect(res).toEqual({ refunded: true });
+  });
+
+  it('rembourse un paiement déjà débité (captured)', async () => {
+    const { repo, service } = makeService({ id: 't1', status: 'captured', amountFcfa: 4000, providerTransactionId: 'prov_1' });
+    const res = await service.refundOrderEscrow('o1');
+    expect(provider.refund).toHaveBeenCalledWith('prov_1', 4000);
+    expect(repo.refund).toHaveBeenCalledWith('t1');
+    expect(res.refunded).toBe(true);
+  });
+
+  it('ne rembourse pas un séquestre déjà libéré à la pharmacie (released)', async () => {
+    const { repo, service } = makeService({ id: 't1', status: 'released', amountFcfa: 4000, providerTransactionId: 'prov_1' });
+    const res = await service.refundOrderEscrow('o1');
+    expect(provider.refund).not.toHaveBeenCalled();
+    expect(repo.refund).not.toHaveBeenCalled();
+    expect(res.refunded).toBe(false);
+  });
+
+  it('ne rembourse pas un paiement jamais confirmé (pending)', async () => {
+    const { repo, service } = makeService({ id: 't1', status: 'pending', amountFcfa: 4000, providerTransactionId: null });
+    const res = await service.refundOrderEscrow('o1');
+    expect(provider.refund).not.toHaveBeenCalled();
+    expect(repo.refund).not.toHaveBeenCalled();
+    expect(res.refunded).toBe(false);
+  });
+
+  it('est idempotent : un séquestre déjà remboursé ne l\'est pas deux fois', async () => {
+    const { repo, service } = makeService({ id: 't1', status: 'refunded', amountFcfa: 4000, providerTransactionId: 'prov_1' });
+    const res = await service.refundOrderEscrow('o1');
+    expect(provider.refund).not.toHaveBeenCalled();
+    expect(repo.refund).not.toHaveBeenCalled();
+    expect(res).toEqual({ refunded: true });
+  });
+
+  it('sans transaction (COD ou non payé) : rien à rembourser', async () => {
+    const { repo, service } = makeService(null);
+    const res = await service.refundOrderEscrow('o1');
+    expect(provider.refund).not.toHaveBeenCalled();
+    expect(repo.refund).not.toHaveBeenCalled();
+    expect(res.refunded).toBe(false);
+  });
+});
 
 describe('PaymentService.initEscrow — tiers-payant', () => {
   beforeEach(() => { provider.initEscrow.mockClear(); });

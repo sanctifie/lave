@@ -57,6 +57,50 @@ export class PaymentService {
     return this.repo.release(txn.id, txn.providerTransactionId);
   }
 
+  /**
+   * Rend au patient son séquestre lorsqu'une commande est refusée par l'officine
+   * ou annulée avant dispensation. Le séquestre n'est jamais versé à la
+   * plateforme : l'argent bloqué revient intégralement au patient.
+   *
+   * Idempotent et tolérant : n'échoue jamais (appelé depuis un flux d'annulation).
+   *  - remboursable uniquement si le paiement a été bloqué/débité (HELD/CAPTURED) ;
+   *  - un séquestre déjà libéré/échoué/remboursé n'est pas retouché ;
+   *  - le paiement à la livraison (COD) n'a rien à rembourser.
+   */
+  async refundOrderEscrow(orderId: string): Promise<{ refunded: boolean; reason?: string }> {
+    const txn = await this.repo.findByOrderId(orderId);
+    if (!txn) return { refunded: false, reason: 'no_transaction' };
+    if (txn.status === TransactionStatus.REFUNDED) return { refunded: true }; // déjà remboursé (idempotent)
+    if (txn.status !== TransactionStatus.HELD && txn.status !== TransactionStatus.CAPTURED) {
+      // pending (paiement jamais confirmé), released, failed → rien à rendre
+      return { refunded: false, reason: `not_refundable_${txn.status}` };
+    }
+
+    if (txn.providerTransactionId) {
+      await this.provider.refund(txn.providerTransactionId, txn.amountFcfa).catch((e) =>
+        console.error('[PaymentService] provider.refund failed', e),
+      );
+    }
+    await this.repo.refund(txn.id);
+
+    // Notifier le patient — jamais bloquant.
+    try {
+      const order = await this.orderRepo.findById(orderId);
+      const patientId = (order as any)?.patientId as string | undefined;
+      if (patientId) {
+        this.push.sendToUser(patientId, {
+          title: '💸 Remboursement en cours',
+          body:  `Votre commande n'a pas pu être honorée — ${txn.amountFcfa.toLocaleString('fr-FR')} FCFA vous sont remboursés.`,
+          data:  { type: 'refund', orderId },
+        });
+      }
+    } catch (e) {
+      console.error('[PaymentService] refund notification failed', e);
+    }
+
+    return { refunded: true };
+  }
+
   // ─── Téléconsultation ─────────────────────────────────────────────────────
 
   async initConsultationPayment(patientId: string, input: InitConsultationPaymentInput) {

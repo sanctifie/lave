@@ -149,6 +149,13 @@ export class PaymentRepository {
     });
   }
 
+  async refund(id: string) {
+    return prisma.transaction.update({
+      where: { id },
+      data: { status: TransactionStatus.REFUNDED, refundedAt: new Date() },
+    });
+  }
+
   async createPayout(data: {
     recipientId: string;
     amountFcfa: number;
