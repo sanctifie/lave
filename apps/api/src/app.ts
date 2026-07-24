@@ -52,7 +52,9 @@ app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins, credentials: true }
 // les logs pour ne jamais écrire un jeton valide sur disque.
 morgan.token('url', (req) => (req.url ?? '').replace(/([?&]token=)[^&]+/, '$1[REDACTED]'));
 app.use(morgan('dev'));
-app.use(express.json());
+// Limite de taille du corps JSON — borne la surface DoS (payloads géants) tout
+// en couvrant largement nos cas (ordonnances = fichiers via multipart, pas ici).
+app.use(express.json({ limit: '1mb' }));
 app.use(metricsMiddleware);
 
 // Métriques Prometheus (histogramme latence/erreurs + métriques process).
@@ -106,5 +108,11 @@ app.use('/reviews', reviewsRouter);
 app.use('/care-links', careLinksRouter);
 app.use('/notifications', notificationsRouter);
 app.use('/kyc', kycRouter);
+
+// Route inconnue → 404 JSON normalisé (même forme que les autres erreurs),
+// plutôt que la page HTML par défaut d'Express.
+app.use((_req, res) => {
+  res.status(404).json({ code: 'NOT_FOUND', message: 'Ressource introuvable.' });
+});
 
 app.use(errorHandler);
