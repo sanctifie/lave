@@ -64,7 +64,7 @@ mbolo-sante/                  ← Monorepo Turborepo
 | Push | Expo Notifications |
 | Vidéo | Daily.co (auto-activé si `DAILY_API_KEY`, sinon stub) |
 | Notifications | WhatsApp Cloud API (prioritaire) · Africa's Talking SMS (repli) |
-| Assistance IA | Claude (Anthropic) — auto-activé si `ANTHROPIC_API_KEY`, sinon stub |
+| Assistance IA | MBOLO Assist (moteurs Anthropic) — auto-activé si `ANTHROPIC_API_KEY`, sinon stub |
 
 ### Domaines fonctionnels (API)
 
@@ -330,18 +330,24 @@ eas submit --platform ios
 2. Implémenter `NotificationProvider` dans `apps/api/src/infrastructure/providers/notification/africastalking.ts`
 3. Remplacer les `StubNotificationProvider` dans `container.ts`
 
-### Assistance IA (Claude)
+### MBOLO Assist (assistance IA)
 
-L'IA **assiste** (elle n'est jamais décisionnaire sur un médicament ou une
-validation ; un humain tranche toujours). Auto-activée si `ANTHROPIC_API_KEY`
-est défini, sinon un stub conservateur prend le relais (la CI reste verte sans
-clé). Chaque capacité est calibrée sur le modèle Claude approprié :
+**MBOLO Assist** est l'assistance IA de la plateforme. Elle **assiste** (elle
+n'est jamais décisionnaire sur un médicament ou une validation ; un humain
+tranche toujours). Auto-activée si `ANTHROPIC_API_KEY` est défini, sinon un stub
+conservateur prend le relais (la CI reste verte sans clé). Chaque capacité
+s'appuie sur le moteur adapté :
 
-| Capacité | Modèle | Où |
+| Capacité | Moteur | Où |
 |----------|--------|-----|
-| Modération des avis | `claude-haiku-4-5` | signale les avis abusifs → file admin |
-| Lecture de posologie | `claude-haiku-4-5` | texte libre → horaires de rappel proposés |
-| Pré-contrôle KYC (vision) | `claude-opus-4-8` | lisibilité + points d'attention d'un justificatif |
+| Modération des avis | rapide | signale les avis abusifs → file admin |
+| Lecture de posologie | rapide | texte libre → horaires de rappel proposés |
+| Pré-contrôle KYC | vision | lisibilité + points d'attention d'un justificatif |
+
+Sous le capot, les moteurs par défaut sont des modèles Anthropic
+(`claude-haiku-4-5` pour le moteur rapide, `claude-opus-4-8` pour le moteur
+vision), surchargeables sans redéploiement via `AI_ENGINE_FAST` et
+`AI_ENGINE_VISION`.
 
 Implémentation : `apps/api/src/infrastructure/providers/ai/` (réel via `fetch`
 vers l'API Messages, ou `StubAiProvider`). Sélection dans `container.ts`.
