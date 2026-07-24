@@ -12,7 +12,9 @@ function setup(order: any) {
     updateStatus: vi.fn().mockImplementation((id: string, status: string) => Promise.resolve({ id, status })),
   };
   const notif = { send: vi.fn().mockResolvedValue(undefined) };
-  return { repo, notif, service: new OrderService(repo as any, notif as any) };
+  const payments = { refundOrderEscrow: vi.fn().mockResolvedValue({ refunded: true }) };
+  const service = new OrderService(repo as any, notif as any, undefined, undefined, undefined, payments as any);
+  return { repo, notif, payments, service };
 }
 
 describe('OrderService.partnerAction', () => {
@@ -48,11 +50,12 @@ describe('OrderService.partnerAction', () => {
       .rejects.toMatchObject({ statusCode: 422 });
   });
 
-  it('reject : passe en pharmacy_rejected + notifie le motif', async () => {
-    const { service, repo, notif } = setup(makeOrder({ status: OrderStatus.PENDING_PHARMACY }));
+  it('reject : passe en pharmacy_rejected + notifie le motif + rembourse le séquestre', async () => {
+    const { service, repo, notif, payments } = setup(makeOrder({ status: OrderStatus.PENDING_PHARMACY }));
     await service.partnerAction('ckorder1', 'partner1', { action: 'reject', reason: 'Rupture de stock' } as any);
     expect(repo.updateStatus).toHaveBeenCalledWith('ckorder1', OrderStatus.PHARMACY_REJECTED);
     expect(notif.send).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('Rupture de stock') }));
+    expect(payments.refundOrderEscrow).toHaveBeenCalledWith('ckorder1');
   });
 });
 
@@ -64,9 +67,10 @@ function setupSub(order: any, applyResult: any) {
   const notif = { send: vi.fn().mockResolvedValue(undefined) };
   const deliveryRepo = { create: vi.fn().mockResolvedValue({ id: 'dlv1' }) };
   const pricingRepo = { getByKind: vi.fn().mockResolvedValue({ valueFcfa: 1000 }) };
+  const payments = { refundOrderEscrow: vi.fn().mockResolvedValue({ refunded: true }) };
   // push volontairement omis → pas d'appel prisma (boucle coursiers) dans le test
-  const service = new OrderService(repo as any, notif as any, deliveryRepo as any, pricingRepo as any);
-  return { repo, notif, deliveryRepo, service };
+  const service = new OrderService(repo as any, notif as any, deliveryRepo as any, pricingRepo as any, undefined, payments as any);
+  return { repo, notif, deliveryRepo, payments, service };
 }
 
 const subOrder = (over: Record<string, any> = {}) =>
@@ -106,8 +110,8 @@ describe('OrderService.decideSubstitution', () => {
     expect(res).toMatchObject({ cancelled: false });
   });
 
-  it('tout refusé : annule la commande, pas de livraison', async () => {
-    const { service, notif, deliveryRepo } = setupSub(subOrder(), {
+  it('tout refusé : annule la commande, pas de livraison, rembourse le séquestre', async () => {
+    const { service, notif, deliveryRepo, payments } = setupSub(subOrder(), {
       order: { id: 'ckorder1', totalFcfa: 0, status: OrderStatus.CANCELLED },
       allRejected: true,
     });
@@ -116,6 +120,7 @@ describe('OrderService.decideSubstitution', () => {
     } as any);
     expect(deliveryRepo.create).not.toHaveBeenCalled();
     expect(notif.send).toHaveBeenCalled();
+    expect(payments.refundOrderEscrow).toHaveBeenCalledWith('ckorder1');
     expect(res).toMatchObject({ cancelled: true });
   });
 

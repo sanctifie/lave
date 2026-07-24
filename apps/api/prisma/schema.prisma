@@ -162,6 +162,7 @@ enum TransactionStatus {
   captured
   released
   failed
+  refunded
 }
 
 enum RideType {
@@ -807,6 +808,7 @@ model Transaction {
   consultationId        String?           @unique
   paidAt                DateTime?
   releasedAt            DateTime?
+  refundedAt            DateTime?
   failureReason         String?
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt

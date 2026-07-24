@@ -20,4 +20,8 @@ export class StubPaymentProvider implements PaymentProvider {
   async payout(params: PayoutParams): Promise<void> {
     console.warn(`[PAYMENT STUB] Payout ${params.amountFcfa} FCFA → ${params.phoneNumber}`);
   }
+
+  async refund(id: string, amountFcfa: number): Promise<void> {
+    console.warn(`[PAYMENT STUB] Refund ${amountFcfa} FCFA ← ${id}`);
+  }
 }

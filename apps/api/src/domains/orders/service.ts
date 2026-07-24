@@ -4,6 +4,7 @@ import { DeliveryRepository } from '../deliveries/repository';
 import { PricingRepository } from '../pricing/repository';
 import { NotificationService } from '../../infrastructure/providers/notification';
 import { PushService } from '../../infrastructure/push/service';
+import type { PaymentService } from '../payments/service';
 import { PharmacyActionInput, SubstitutionDecisionInput, RecommendationDecisionInput } from './schema';
 import {
   OrderStatus,
@@ -24,6 +25,8 @@ export class OrderService {
     private readonly deliveryRepo?: DeliveryRepository,
     private readonly pricingRepo?: PricingRepository,
     private readonly push?: PushService,
+    // Optionnel : rend le séquestre au patient si la commande est refusée/annulée.
+    private readonly payments?: PaymentService,
   ) {}
 
   /**
@@ -49,6 +52,10 @@ export class OrderService {
     const { order: updated, allRejected } = await this.repo.applySubstitutionDecision(orderId, decisions);
 
     if (allRejected) {
+      // Commande annulée avant dispensation → on rend au patient son séquestre.
+      await this.payments?.refundOrderEscrow(orderId).catch((e) =>
+        console.error('[OrderService] refundOrderEscrow failed', e),
+      );
       await this.notif.send({
         to: order.patient.phone,
         message: `Commande #${orderId.slice(-6).toUpperCase()} annulée : équivalents refusés. Contactez votre pharmacien pour une autre solution.`,
@@ -265,6 +272,10 @@ export class OrderService {
 
       case 'reject': {
         const updated = await this.repo.updateStatus(orderId, OrderStatus.PHARMACY_REJECTED);
+        // L'officine refuse de dispenser → le séquestre revient au patient.
+        await this.payments?.refundOrderEscrow(orderId).catch((e) =>
+          console.error('[OrderService] refundOrderEscrow failed', e),
+        );
         await this.notif.send({
           to: order.patient.phone,
           message: `Votre commande a été refusée : ${input.reason}. Contactez la pharmacie.`,

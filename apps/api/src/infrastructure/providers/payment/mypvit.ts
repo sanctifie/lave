@@ -101,4 +101,9 @@ export class MyPVITPaymentProvider implements PaymentProvider {
     // API Payout MyPVIT — à implémenter quand la doc est disponible
     console.warn('[MyPVIT] payout: versement à traiter manuellement (API payout non encore documentée)');
   }
+
+  async refund(_id: string, amountFcfa: number): Promise<void> {
+    // Remboursement via le dashboard MyPVIT — pas d'API dédiée documentée
+    console.warn(`[MyPVIT] refund: remboursement de ${amountFcfa} FCFA à traiter manuellement via le dashboard`);
+  }
 }

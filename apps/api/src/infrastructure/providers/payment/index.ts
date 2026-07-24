@@ -21,4 +21,6 @@ export interface PaymentProvider {
   captureEscrow(providerTransactionId: string): Promise<void>;
   releaseEscrow(providerTransactionId: string): Promise<void>;
   payout(params: PayoutParams): Promise<void>;
+  /** Rend au patient un séquestre bloqué (commande refusée/annulée avant dispensation). */
+  refund(providerTransactionId: string, amountFcfa: number): Promise<void>;
 }

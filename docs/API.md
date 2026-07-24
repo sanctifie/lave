@@ -213,6 +213,10 @@ Faire avancer le statut d'une commande.
 { "action": "ready" }                            // preparing → ready_for_pickup
 { "action": "reject", "reason": "Rupture de stock" } // → pharmacy_rejected
 ```
+> `reject` (et l'annulation quand le patient refuse tous les équivalents proposés)
+> **rend automatiquement au patient son séquestre** : la transaction passe en
+> `refunded` et l'argent bloqué lui est restitué (jamais versé à la plateforme
+> ni à l'officine). Sans médicament dispensé, aucune somme n'est retenue.
 
 ---
 
