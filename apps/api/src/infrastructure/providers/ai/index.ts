@@ -1,14 +1,16 @@
 /**
- * Fournisseur d'assistance IA (Claude). L'IA n'est JAMAIS décisionnaire sur un
- * médicament : elle assiste (modération, extraction, pré-contrôle) et sa sortie
- * est toujours relue/validée par un humain (pharmacien, médecin, admin).
+ * MBOLO Assist — l'assistance IA de la plateforme. L'IA n'est JAMAIS
+ * décisionnaire sur un médicament : elle assiste (modération, extraction,
+ * pré-contrôle) et sa sortie est toujours relue/validée par un humain
+ * (pharmacien, médecin, admin).
  *
- * Chaque capacité est calibrée sur le modèle Claude approprié :
- *  - modération d'avis  → claude-haiku-4-5 (classification courte, volumineuse)
- *  - lecture posologie   → claude-haiku-4-5 (extraction structurée simple)
- *  - pré-contrôle KYC    → claude-opus-4-8 (vision, enjeu de conformité)
+ * Chaque capacité s'appuie sur le moteur adapté (modèles Anthropic sous le
+ * capot, surchargeable par variable d'environnement) :
+ *  - modération d'avis  → moteur rapide (classification courte, volumineuse)
+ *  - lecture posologie   → moteur rapide (extraction structurée simple)
+ *  - pré-contrôle KYC    → moteur vision (lecture d'image, enjeu de conformité)
  *
- * Implémentations : AnthropicAiProvider (réel) ou StubAiProvider (dev/CI).
+ * Implémentations : MboloAssistProvider (réel) ou StubAiProvider (dev/CI).
  */
 
 export interface ReviewModeration {
@@ -32,7 +34,7 @@ export interface DocumentScreening {
 }
 
 export interface AiProvider {
-  /** true si un vrai backend Claude est configuré (sinon stub). */
+  /** true si un vrai backend MBOLO Assist est configuré (sinon stub). */
   readonly enabled: boolean;
   moderateReview(comment: string): Promise<ReviewModeration>;
   parsePosology(instructions: string): Promise<Posology | null>;
@@ -42,10 +44,10 @@ export interface AiProvider {
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
 
-// Modèles par capacité (voir en-tête).
-const MODEL_MODERATION = 'claude-haiku-4-5';
-const MODEL_POSOLOGY   = 'claude-haiku-4-5';
-const MODEL_KYC_VISION = 'claude-opus-4-8';
+// Moteurs par capacité (voir en-tête). Valeurs par défaut = modèles Anthropic
+// réels, surchargeables sans redéploiement via variables d'environnement.
+const ENGINE_FAST   = process.env.AI_ENGINE_FAST   ?? 'claude-haiku-4-5';
+const ENGINE_VISION = process.env.AI_ENGINE_VISION ?? 'claude-opus-4-8';
 
 interface ContentBlock {
   type: 'text' | 'image';
@@ -54,7 +56,7 @@ interface ContentBlock {
 }
 
 /** Provider réel : appels REST directs à l'API Messages (convention fetch du repo). */
-export class AnthropicAiProvider implements AiProvider {
+export class MboloAssistProvider implements AiProvider {
   readonly enabled = true;
   private readonly apiKey: string;
 
@@ -104,7 +106,7 @@ export class AnthropicAiProvider implements AiProvider {
       'avis injurieux, diffamatoires, hors-sujet, ou manifestement faux/spam. Réponds ' +
       'UNIQUEMENT en JSON : {"flagged": boolean, "reason": string|null}. reason en français, court.';
     try {
-      const out = await this.message(MODEL_MODERATION, system, [{ type: 'text', text: comment }], 256);
+      const out = await this.message(ENGINE_FAST, system, [{ type: 'text', text: comment }], 256);
       const parsed = this.parseJson<ReviewModeration>(out);
       if (!parsed) return { flagged: false, reason: null };
       return { flagged: !!parsed.flagged, reason: parsed.reason ?? null };
@@ -120,7 +122,7 @@ export class AnthropicAiProvider implements AiProvider {
       'plausibles (matin=08:00, midi=12:00, soir=20:00, coucher=22:00). Réponds UNIQUEMENT ' +
       'en JSON : {"times": ["HH:MM"], "durationDays": number}. Si illisible, {"times": [], "durationDays": 0}.';
     try {
-      const out = await this.message(MODEL_POSOLOGY, system, [{ type: 'text', text: instructions }], 256);
+      const out = await this.message(ENGINE_FAST, system, [{ type: 'text', text: instructions }], 256);
       const parsed = this.parseJson<Posology>(out);
       if (!parsed || !Array.isArray(parsed.times) || parsed.times.length === 0) return null;
       const times = parsed.times.filter((t) => /^\d{2}:\d{2}$/.test(t));
@@ -139,7 +141,7 @@ export class AnthropicAiProvider implements AiProvider {
       'concerns en français, courts.';
     try {
       const out = await this.message(
-        MODEL_KYC_VISION,
+        ENGINE_VISION,
         system,
         [
           { type: 'image', source: { type: 'base64', media_type: input.mediaType, data: input.imageBase64 } },

@@ -19,8 +19,8 @@ export class ReviewService {
     const existing = await this.repo.findExisting(authorId, input.refTable, input.refId);
     if (existing) throw HTTP.conflict('Vous avez déjà noté ce service.');
 
-    // Modération IA (claude-haiku-4-5) du commentaire : ne bloque jamais la
-    // création, se contente de signaler pour revue humaine. Sans IA → non signalé.
+    // Modération MBOLO Assist (moteur rapide) du commentaire : ne bloque jamais
+    // la création, se contente de signaler pour revue humaine. Sans IA → non signalé.
     let moderation: { flagged: boolean; moderationNote: string | null } | undefined;
     if (input.comment && this.ai) {
       const r = await this.ai.moderateReview(input.comment).catch(() => ({ flagged: false, reason: null }));
